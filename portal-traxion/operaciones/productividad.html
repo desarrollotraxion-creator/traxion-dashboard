@@ -1,0 +1,2448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN - Tablero Integral de Control Operativo</title>
+  <!-- Chart.js para gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse para CSVs -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- SheetJS para procesar y exportar Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    /* VARIABLES DE COLOR - NORMA TSE-09-SIGEO-PR */
+    :root {
+      --color-primary: #182237;
+      --color-primary-dark: #100848;
+      --bg-layout: #F4F6F8;
+      --bg-card: #FFFFFF;
+      --border-soft: #E5E7EB;
+      --text-muted: #6B7280;
+      --text-main: #1D2939;
+      --accent-lime: #C0D838;
+      --accent-lime-hover: #cbd51b;
+
+      /* Tripulaciones según Rol de Turnos */
+      --crew-a: #D97706;
+      --crew-a-bg: #FEF3C7;
+      --crew-b: #15803D;
+      --crew-b-bg: #DCFCE7;
+      --crew-c: #0284C7;
+      --crew-c-bg: #E0F2FE;
+      --crew-d: #DC2626;
+      --crew-d-bg: #FEE2E2;
+
+      /* Estatus de Proceso */
+      --status-green: #037A48;
+      --status-green-bg: #ECFDF3;
+      --status-orange: #E07A00;
+      --status-orange-bg: #FFFAEB;
+      --status-red: #D92D20;
+      --status-red-bg: #FEE4E2;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-layout);
+      color: var(--text-main);
+      padding: 20px;
+      line-height: 1.4;
+    }
+
+    /* HEADER INSTITUCIONAL */
+    .header-bar {
+      background-color: var(--color-primary);
+      border-bottom: 4px solid var(--accent-lime);
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+      color: #FFFFFF;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .header-branding {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+      border-right: 2px solid var(--accent-lime);
+      padding-right: 18px;
+    }
+
+    .logo-text {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #FFFFFF;
+      line-height: 1;
+    }
+
+    .logo-sub {
+      font-size: 8px;
+      letter-spacing: 2.5px;
+      color: var(--accent-lime);
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .header-title-block h1 {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #FFFFFF;
+    }
+
+    .header-title-block p {
+      font-size: 12px;
+      color: #D1D5DB;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .btn-export-excel {
+      background-color: #107C41;
+      color: #FFFFFF;
+      border: 1.5px solid #28A745;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-export-excel:hover {
+      background-color: #0E6535;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+      transform: translateY(-1px);
+    }
+
+    .header-meta {
+      text-align: right;
+      font-size: 12px;
+      color: #E5E7EB;
+    }
+
+    /* SISTEMA DE NAVEGACIÓN POR PESTAÑAS */
+    .tabs-nav {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 22px;
+      border-bottom: 2px solid var(--border-soft);
+      padding-bottom: 0px;
+      overflow-x: auto;
+      background: transparent;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3.5px solid transparent;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4B5563;
+      cursor: pointer;
+      border-radius: 0;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      position: relative;
+      bottom: -2px;
+    }
+
+    .tab-btn:hover {
+      color: var(--color-primary);
+      background: transparent;
+    }
+
+    .tab-btn.active {
+      background: transparent;
+      color: var(--color-primary-dark);
+      font-weight: 800;
+      border-bottom: 3.5px solid var(--accent-lime);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* TARJETAS Y CONTENEDORES */
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-primary);
+      border-bottom: 2px solid #F3F4F6;
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ZONAS DE CARGA */
+    .upload-zone {
+      border: 2px dashed var(--accent-lime);
+      border-radius: 8px;
+      padding: 22px;
+      text-align: center;
+      background-color: #FAFAFA;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      background-color: #F4F8E7;
+      border-color: var(--accent-lime-hover);
+    }
+
+    .upload-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .upload-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .file-input-btn {
+      display: inline-block;
+      background-color: var(--color-primary);
+      color: #FFFFFF;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .file-status-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pill.pending { background-color: #F3F4F6; color: var(--text-muted); border: 1px solid #D1D5DB; }
+    .pill.loaded { background-color: #ECFDF3; color: #037A48; border: 1px solid #A6F4C5; }
+
+    /* FILTROS */
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      background: #FFFFFF;
+      padding: 12px 18px;
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .filter-item label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .filter-item select, .filter-item input {
+      border: 1px solid var(--border-soft);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--text-main);
+      background: #FFFFFF;
+      outline: none;
+    }
+
+    .btn-reset {
+      margin-top: 14px;
+      background-color: #F3F4F6;
+      color: var(--text-main);
+      border: 1px solid var(--border-soft);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* GRID KPIS */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-left: 5px solid var(--color-primary);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .kpi-card.crew-a { border-left-color: var(--crew-a); }
+    .kpi-card.crew-b { border-left-color: var(--crew-b); }
+    .kpi-card.crew-c { border-left-color: var(--crew-c); }
+    .kpi-card.crew-d { border-left-color: var(--crew-d); }
+    .kpi-card.accent { border-left-color: var(--accent-lime); }
+    .kpi-card.alert { border-left-color: var(--status-red); }
+
+    .kpi-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.1;
+      margin-bottom: 3px;
+    }
+
+    .kpi-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* GRÁFICAS */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    /* TABLAS */
+    .table-container {
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    thead th {
+      background-color: var(--color-primary);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 9px 12px;
+      border: 1px solid var(--color-primary);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    tbody tr:hover { background-color: #F9FAFB; }
+
+    /* BADGES */
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-crew-a { background: var(--crew-a-bg); color: var(--crew-a); }
+    .badge-crew-b { background: var(--crew-b-bg); color: var(--crew-b); }
+    .badge-crew-c { background: var(--crew-c-bg); color: var(--crew-c); }
+    .badge-crew-d { background: var(--crew-d-bg); color: var(--crew-d); }
+
+    .badge-t1 { background: #E0F2FE; color: #0369A1; }
+    .badge-t2 { background: #FFEDD5; color: #C2410C; }
+    .badge-t3 { background: #EDE9FE; color: #6D28D9; }
+
+    .badge-descarga { background: #FEE4E2; color: #B42318; }
+    .badge-carga { background: #DCFCE7; color: #15803D; }
+    .badge-intra { background: #FEF08A; color: #854D0E; }
+
+    .badge-meta-ok { background: #DCFCE7; color: #15803D; font-weight: 800; }
+    .badge-meta-bad { background: #FEE4E2; color: #B42318; }
+    .badge-meta-risk { background: #FFFAEB; color: #D97706; }
+
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 26px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-soft);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER INSTITUCIONAL TRAXIÓN -->
+  <header class="header-bar">
+    <div class="header-branding">
+      <div class="logo-container">
+        <span class="logo-text">TRAXION</span>
+        <span class="logo-sub">Vida en Movimiento</span>
+      </div>
+      <div class="header-title-block">
+        <h1>Tablero de Control: Operaciones MX12 y Productividad de Almacén</h1>
+        <p>Monitoreo Integrado de Patios (OPERACIONES MX12) y Productividad en Almacén (Picking) | Norma TSE-09-SIGEO-PR</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-export-excel" onclick="exportarTodoAExcel()">
+        <span>📊</span> Descargar Reporte Integral Excel (.xlsx)
+      </button>
+      <div class="header-meta">
+        <div>Norma: <strong>TSE-09-SIGEO-PR</strong></div>
+        <div id="meta-update-time">Actualizado: Pendiente de carga</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PESTAÑAS DE NAVEGACIÓN PRINCIPAL -->
+  <nav class="tabs-nav">
+    <button class="tab-btn active" onclick="switchTab('tab-trafico')">🚚 OPERACIONES MX12</button>
+    <button class="tab-btn" onclick="switchTab('tab-picking-global')">📦 Productividad Global de Picking</button>
+    <button class="tab-btn" onclick="switchTab('tab-picking-diario')">📋 Tabla Operativa (Evaluación Diaria)</button>
+    <button class="tab-btn" onclick="switchTab('tab-meta-900')">📊 Gráficos Analíticos (Meta 900 Cajas)</button>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- PESTAÑA 1: OPERACIONES MX12 -->
+  <!-- ========================================== -->
+  <div id="tab-trafico" class="tab-content active">
+    <section class="card">
+      <div class="upload-zone" id="drop-zone-trafico">
+        <input type="file" id="file-input-trafico" multiple accept=".csv" style="display:none;" />
+        <div class="upload-title">Carga de Reportes de Transporte y OPERACIONES MX12</div>
+        <div class="upload-sub">Arrastra o selecciona simultáneamente <strong>DESCARGAS.csv</strong>, <strong>cargas.csv</strong> e <strong>intras.csv</strong></div>
+        <label for="file-input-trafico" class="file-input-btn">Examinar archivos locales</label>
+        <div class="file-status-pills">
+          <span class="pill pending" id="pill-descargas">● DESCARGAS.csv (0 reg)</span>
+          <span class="pill pending" id="pill-cargas">● CARGAS.csv (0 reg)</span>
+          <span class="pill pending" id="pill-intras">● INTRAS.csv (0 reg)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filtros Operaciones MX12 -->
+    <section class="filters-bar">
+      <div class="filter-item">
+        <label for="trafico-filter-crew">Tripulación</label>
+        <select id="trafico-filter-crew">
+          <option value="ALL">Todas las tripulaciones</option>
+          <option value="A">Tripulación A (Amarillo)</option>
+          <option value="B">Tripulación B (Verde)</option>
+          <option value="C">Tripulación C (Azul)</option>
+          <option value="D">Tripulación D (Rojo)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="trafico-filter-shift">Turno</label>
+        <select id="trafico-filter-shift">
+          <option value="ALL">Todos los turnos</option>
+          <option value="T1">Turno 1 (06:00 - 14:00)</option>
+          <option value="T2">Turno 2 (14:00 - 22:00)</option>
+          <option value="T3">Turno 3 (22:00 - 06:00)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="trafico-filter-type">Tipo Operación</label>
+        <select id="trafico-filter-type">
+          <option value="ALL">Todas las operaciones</option>
+          <option value="Descargas">Descargas</option>
+          <option value="Cargas">Cargas</option>
+          <option value="Intras">Intras</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="trafico-date-from">Fecha Desde</label>
+        <input type="date" id="trafico-date-from" />
+      </div>
+      <div class="filter-item">
+        <label for="trafico-date-to">Fecha Hasta</label>
+        <input type="date" id="trafico-date-to" />
+      </div>
+      <button class="btn-reset" id="trafico-btn-reset">Limpiar Filtros</button>
+    </section>
+
+    <!-- KPIs Operaciones MX12 -->
+    <section class="kpi-grid">
+      <div class="kpi-card accent">
+        <div class="kpi-header"><span>Total Viajes</span><span>🚚</span></div>
+        <div class="kpi-value" id="trafico-kpi-total">0</div>
+        <div class="kpi-subtitle">Unidades terminadas</div>
+      </div>
+      <div class="kpi-card crew-a">
+        <div class="kpi-header"><span>Tripulación A</span><span>Amarillo</span></div>
+        <div class="kpi-value" id="trafico-kpi-crew-a">0</div>
+        <div class="kpi-subtitle" id="trafico-kpi-crew-a-pct">0% del volumen</div>
+      </div>
+      <div class="kpi-card crew-b">
+        <div class="kpi-header"><span>Tripulación B</span><span>Verde</span></div>
+        <div class="kpi-value" id="trafico-kpi-crew-b">0</div>
+        <div class="kpi-subtitle" id="trafico-kpi-crew-b-pct">0% del volumen</div>
+      </div>
+      <div class="kpi-card crew-c">
+        <div class="kpi-header"><span>Tripulación C</span><span>Azul</span></div>
+        <div class="kpi-value" id="trafico-kpi-crew-c">0</div>
+        <div class="kpi-subtitle" id="trafico-kpi-crew-c-pct">0% del volumen</div>
+      </div>
+      <div class="kpi-card crew-d">
+        <div class="kpi-header"><span>Tripulación D</span><span>Rojo</span></div>
+        <div class="kpi-value" id="trafico-kpi-crew-d">0</div>
+        <div class="kpi-subtitle" id="trafico-kpi-crew-d-pct">0% del volumen</div>
+      </div>
+    </section>
+
+    <!-- Gráficas Operaciones MX12 -->
+    <section class="charts-grid">
+      <div class="card">
+        <div class="card-title"><span>Volumen por Tripulación y Tipo de Operación</span></div>
+        <div class="chart-container" style="height: 280px;"><canvas id="chart-trafico-bars"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Participación de Viajes por Tripulación</span></div>
+        <div class="chart-container" style="height: 280px;"><canvas id="chart-trafico-donut"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Matriz Operaciones MX12 -->
+    <section class="card">
+      <div class="card-title"><span>Matriz de Desempeño Operativo por Cuadrilla (OPERACIONES MX12)</span></div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Tripulación</th>
+              <th>T1 (06-14)</th>
+              <th>T2 (14-22)</th>
+              <th>T3 (22-06)</th>
+              <th>Descargas</th>
+              <th>Cargas</th>
+              <th>Intras</th>
+              <th>Total Viajes</th>
+              <th>% Participación</th>
+              <th>T. Promedio Maniobra</th>
+            </tr>
+          </thead>
+          <tbody id="trafico-tbody-summary">
+            <tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin datos cargados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Detalle Operaciones MX12 -->
+    <section class="card">
+      <div class="card-title"><span>Detalle de Operaciones (<span id="trafico-row-count">0</span> registros)</span></div>
+      <div class="table-container" style="max-height: 380px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Shipment #</th>
+              <th>Tipo</th>
+              <th>Fin Maniobra</th>
+              <th>Fecha Operativa</th>
+              <th>Turno</th>
+              <th>Tripulación</th>
+              <th>Duración</th>
+              <th>Llegada (Check-In)</th>
+              <th>Transportista</th>
+            </tr>
+          </thead>
+          <tbody id="trafico-tbody-details">
+            <tr><td colspan="9" style="text-align:center; color: var(--text-muted);">Sin información para mostrar.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- PESTAÑA 2: PRODUCTIVIDAD GLOBAL DE PICKING -->
+  <!-- ========================================== -->
+  <div id="tab-picking-global" class="tab-content">
+    <section class="card">
+      <div class="upload-zone" id="drop-zone-picking">
+        <input type="file" id="file-input-picking" multiple accept=".csv, .xlsx, .xls" style="display:none;" />
+        <div class="upload-title">Carga de Datos de Picking y Plantilla de Personal</div>
+        <div class="upload-sub">Arrastra o selecciona el CSV de Tareas y/o el Excel de Asistencia</div>
+        <label for="file-input-picking" class="file-input-btn">Examinar archivos (CSV / XLSX)</label>
+        <div class="file-status-pills">
+          <span class="pill pending" id="pill-picking-csv">● Reporte de Tareas CSV (0 tareas)</span>
+          <span class="pill pending" id="pill-picking-xlsx">● Lista de Asistencia XLSX (0 colaboradores)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filtros Picking Global -->
+    <section class="filters-bar">
+      <div class="filter-item">
+        <label for="picking-filter-crew">Tripulación</label>
+        <select id="picking-filter-crew">
+          <option value="ALL">Todas las tripulaciones</option>
+          <option value="A">Tripulación A (Amarillo)</option>
+          <option value="B">Tripulación B (Verde)</option>
+          <option value="C">Tripulación C (Azul)</option>
+          <option value="D">Tripulación D (Rojo)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="picking-filter-shift">Turno Real</label>
+        <select id="picking-filter-shift">
+          <option value="ALL">Todos los turnos</option>
+          <option value="T1">Turno 1 (06:00 - 14:00)</option>
+          <option value="T2">Turno 2 (14:00 - 22:00)</option>
+          <option value="T3">Turno 3 (22:00 - 06:00)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="picking-filter-user">Picker / Operador</label>
+        <select id="picking-filter-user">
+          <option value="ALL">Todos los colaboradores</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="picking-date-from">Fecha Desde</label>
+        <input type="date" id="picking-date-from" />
+      </div>
+      <div class="filter-item">
+        <label for="picking-date-to">Fecha Hasta</label>
+        <input type="date" id="picking-date-to" />
+      </div>
+      <button class="btn-reset" id="picking-btn-reset">Limpiar Filtros</button>
+    </section>
+
+    <!-- KPIs Picking Global -->
+    <section class="kpi-grid">
+      <div class="kpi-card accent">
+        <div class="kpi-header"><span>Cajas Surtidas</span><span>📦</span></div>
+        <div class="kpi-value" id="picking-kpi-cajas">0</div>
+        <div class="kpi-subtitle" id="picking-kpi-efectividad">0% efectividad vs pedido</div>
+      </div>
+      <div class="kpi-card alert">
+        <div class="kpi-header"><span>Turnos ≥ Meta 900</span><span>🎯</span></div>
+        <div class="kpi-value" id="picking-kpi-meta-count">0</div>
+        <div class="kpi-subtitle" id="picking-kpi-meta-sub">Cumplimiento contractual 900 c</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Ritmo Promedio</span><span>⚡</span></div>
+        <div class="kpi-value" id="picking-kpi-speed">0 c/h</div>
+        <div class="kpi-subtitle">Cajas / hora efectiva</div>
+      </div>
+      <div class="kpi-card alert">
+        <div class="kpi-header"><span>Exceso Inactividad</span><span>⏳</span></div>
+        <div class="kpi-value" id="picking-kpi-downtime">0 min</div>
+        <div class="kpi-subtitle" id="picking-kpi-downtime-sub">Promedio sobre descanso de 60m</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Total Tareas</span><span>📋</span></div>
+        <div class="kpi-value" id="picking-kpi-tareas">0</div>
+        <div class="kpi-subtitle" id="picking-kpi-task-duration">0.0 min promedio por tarea</div>
+      </div>
+    </section>
+
+    <!-- Gráficas Picking Global -->
+    <section class="charts-grid">
+      <div class="card">
+        <div class="card-title"><span>Cajas Surtidas por Tripulación y Turno</span></div>
+        <div class="chart-container" style="height: 280px;"><canvas id="chart-picking-bars"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Distribución de Desempeño vs Meta 900</span></div>
+        <div class="chart-container" style="height: 280px;"><canvas id="chart-picking-donut"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Matriz Cuadrillas Picking -->
+    <section class="card">
+      <div class="card-title"><span>Comparativa de Productividad por Cuadrilla (Picking)</span></div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Tripulación</th>
+              <th>Cajas Surtidas</th>
+              <th>Tareas Realizadas</th>
+              <th>Turnos Trabajados</th>
+              <th>Turnos ≥ 900</th>
+              <th>Promedio Cajas / Turno</th>
+              <th>Inactividad Excedente</th>
+            </tr>
+          </thead>
+          <tbody id="picking-tbody-crews">
+            <tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Sin datos de picking cargados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Ranking Acumulado por Picker -->
+    <section class="card">
+      <div class="card-title"><span>Ranking Individual Acumulado de Pickers</span></div>
+      <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario (TT)</th>
+              <th>Nombre del Colaborador</th>
+              <th>Puesto</th>
+              <th>Turnos</th>
+              <th>Total Cajas Surtidas</th>
+              <th>Promedio Cajas/Turno</th>
+              <th>Turnos ≥ 900</th>
+              <th>Tareas Totales</th>
+              <th>Inactividad Excedente</th>
+              <th>Estatus Meta</th>
+            </tr>
+          </thead>
+          <tbody id="picking-tbody-ranking">
+            <tr><td colspan="10" style="text-align:center; color: var(--text-muted);">No hay información de pickers.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- PESTAÑA 3: EVALUACIÓN DIARIA (TABLA OPERATIVA) -->
+  <!-- ======================================================== -->
+  <div id="tab-picking-diario" class="tab-content">
+    <section class="filters-bar">
+      <div class="filter-item">
+        <label for="diario-filter-user">Picker / Colaborador</label>
+        <select id="diario-filter-user">
+          <option value="ALL">Todos los colaboradores</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="diario-filter-crew">Tripulación</label>
+        <select id="diario-filter-crew">
+          <option value="ALL">Todas las tripulaciones</option>
+          <option value="A">Tripulación A (Amarillo)</option>
+          <option value="B">Tripulación B (Verde)</option>
+          <option value="C">Tripulación C (Azul)</option>
+          <option value="D">Tripulación D (Rojo)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="diario-filter-shift">Turno</label>
+        <select id="diario-filter-shift">
+          <option value="ALL">Todos los turnos</option>
+          <option value="T1">Turno 1 (06:00 - 14:00)</option>
+          <option value="T2">Turno 2 (14:00 - 22:00)</option>
+          <option value="T3">Turno 3 (22:00 - 06:00)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="diario-filter-meta">Cumplimiento Meta 900</label>
+        <select id="diario-filter-meta">
+          <option value="ALL">Todos los estatus</option>
+          <option value="OK">Cumplieron (≥ 900 cajas)</option>
+          <option value="NO">Bajo Meta (&lt; 900 cajas)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="diario-date-from">Fecha Desde</label>
+        <input type="date" id="diario-date-from" />
+      </div>
+      <div class="filter-item">
+        <label for="diario-date-to">Fecha Hasta</label>
+        <input type="date" id="diario-date-to" />
+      </div>
+      <button class="btn-reset" id="diario-btn-reset">Limpiar Filtros</button>
+    </section>
+
+    <!-- KPIs Vista Diaria -->
+    <section class="kpi-grid">
+      <div class="kpi-card accent">
+        <div class="kpi-header"><span>Total Tareas Realizadas</span><span>📋</span></div>
+        <div class="kpi-value" id="diario-kpi-tareas-total">0</div>
+        <div class="kpi-subtitle" id="diario-kpi-tareas-sub">Tareas en el periodo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Cajas Surtidas Totales</span><span>📦</span></div>
+        <div class="kpi-value" id="diario-kpi-total-cajas">0</div>
+        <div class="kpi-subtitle" id="diario-kpi-avg-cajas-sub">Promedio: 0 c/turno</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Promedio Tareas / Turno</span><span>📋</span></div>
+        <div class="kpi-value" id="diario-kpi-avg-tareas">0</div>
+        <div class="kpi-subtitle">Tareas por operador / turno</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Cajas por Tarea</span><span>📦</span></div>
+        <div class="kpi-value" id="diario-kpi-densidad">0.0</div>
+        <div class="kpi-subtitle">Promedio de cajas por misión</div>
+      </div>
+      <div class="kpi-card alert">
+        <div class="kpi-header"><span>Inactividad Excedente</span><span>⏳</span></div>
+        <div class="kpi-value" id="diario-kpi-inactividad">0 min</div>
+        <div class="kpi-subtitle" id="diario-kpi-inactividad-sub">Exceso sobre 60m descanso</div>
+      </div>
+    </section>
+
+    <!-- Gráfica Diario -->
+    <section class="card">
+      <div class="card-title">
+        <span>Comportamiento Diario: Volumen de Cajas (Barras) vs. Tareas Ejecutadas (Línea)</span>
+      </div>
+      <div class="chart-container" style="height: 300px;">
+        <canvas id="chart-diario-combo"></canvas>
+      </div>
+    </section>
+
+    <!-- Tabla Detalle Diario -->
+    <section class="card">
+      <div class="card-title">
+        <span>Detalle Diario por Picker y Turno (<span id="diario-row-count">0</span> turnos)</span>
+      </div>
+      <div class="table-container" style="max-height: 480px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha Operativa</th>
+              <th>Usuario (TT)</th>
+              <th>Nombre del Colaborador</th>
+              <th>Tripulación</th>
+              <th>Turno</th>
+              <th>Tareas</th>
+              <th>Cajas Surtidas</th>
+              <th>Cajas / Tarea</th>
+              <th>Inactividad Excedente</th>
+              <th>Meta 900 Cajas</th>
+            </tr>
+          </thead>
+          <tbody id="diario-tbody-table">
+            <tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin datos de evaluación diaria.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- PESTAÑA 4: GRÁFICOS ANALÍTICOS (EVALUACIÓN META 900) -->
+  <!-- ======================================================== -->
+  <div id="tab-meta-900" class="tab-content">
+    <section class="filters-bar">
+      <div class="filter-item">
+        <label for="meta900-filter-shift">Filtrar por Turno</label>
+        <select id="meta900-filter-shift">
+          <option value="ALL" selected>Todos los turnos</option>
+          <option value="T1">Turno 1 (06:00 - 14:00)</option>
+          <option value="T2">Turno 2 (14:00 - 22:00)</option>
+          <option value="T3">Turno 3 (22:00 - 06:00)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="meta900-filter-crew">Tripulación</label>
+        <select id="meta900-filter-crew">
+          <option value="ALL">Todas las tripulaciones</option>
+          <option value="A">Tripulación A (Amarillo)</option>
+          <option value="B">Tripulación B (Verde)</option>
+          <option value="C">Tripulación C (Azul)</option>
+          <option value="D">Tripulación D (Rojo)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="meta900-filter-date-mode">Día a Evaluar</label>
+        <select id="meta900-filter-date-mode">
+          <option value="ALL">Todos los días (Desglose)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="meta900-date-from">Fecha Desde</label>
+        <input type="date" id="meta900-date-from" />
+      </div>
+      <div class="filter-item">
+        <label for="meta900-date-to">Fecha Hasta</label>
+        <input type="date" id="meta900-date-to" />
+      </div>
+      <button class="btn-reset" id="meta900-btn-reset">Restablecer Filtros</button>
+    </section>
+
+    <!-- Resumen Meta 900 -->
+    <section class="kpi-grid">
+      <div class="kpi-card accent">
+        <div class="kpi-header"><span>Meta Diaria Estándar</span><span>🎯</span></div>
+        <div class="kpi-value">900 cajas</div>
+        <div class="kpi-subtitle">Objetivo por turno trabajado</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Pickers Evaluados</span><span>👥</span></div>
+        <div class="kpi-value" id="meta900-kpi-pickers">0</div>
+        <div class="kpi-subtitle">Colaboradores activos evaluados</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Cumplimiento Acumulado</span><span>📈</span></div>
+        <div class="kpi-value" id="meta900-kpi-cumplimiento">0%</div>
+        <div class="kpi-subtitle" id="meta900-kpi-cumplimiento-sub">0 de 0 turnos ≥ 900 cajas</div>
+      </div>
+    </section>
+
+    <!-- Panel de Gráficas Meta 900 -->
+    <section class="charts-grid" style="grid-template-columns: 1.25fr 1fr; margin-bottom: 25px;">
+      <div class="card">
+        <div class="card-title">
+          <span>1. Desglose por Turno / Día por Picker (Línea de Corte: 900 Cajas)</span>
+        </div>
+        <div class="chart-container" style="min-height: 420px;">
+          <canvas id="chart-meta900-desglose"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>2. Sumatoria Acumulada vs Meta Total (Turnos Laborados × 900)</span>
+        </div>
+        <div class="chart-container" style="min-height: 420px;">
+          <canvas id="chart-meta900-acumulado"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">
+    PROPIEDAD DE TRAXIÓN Y SUBSIDIARIAS — CUMPLIMIENTO CON PROCEDIMIENTO DE DASHBOARDS TSE-09-SIGEO-PR
+  </footer>
+
+  <script>
+    // ==========================================
+    // PLUGIN UNIVERSAL DE ETIQUETAS A PRUEBA DE ERRORES
+    // ==========================================
+    const barDataLabelsPlugin = {
+      id: 'barDataLabels',
+      afterDatasetsDraw(chart) {
+        if (!chart || chart.config.type === 'doughnut') return; // Se evita en dona para no colisionar con geometrías
+        const { ctx } = chart;
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+          const meta = chart.getDatasetMeta(datasetIndex);
+          if (!meta || meta.hidden) return;
+
+          meta.data.forEach((element, index) => {
+            const val = dataset.data[index];
+            if (val === null || val === undefined || val === 0) return;
+
+            try {
+              ctx.save();
+              ctx.font = 'bold 10px "Segoe UI", Roboto, sans-serif';
+
+              if (dataset.type === 'line' || meta.type === 'line') {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#4D5906';
+                ctx.fillText(`${val} t`, element.x, element.y - 4);
+              } else if (chart.options.indexAxis === 'y') {
+                const barWidth = Math.abs(element.x - element.base);
+                ctx.textBaseline = 'middle';
+                if (barWidth > 45) {
+                  ctx.textAlign = 'right';
+                  ctx.fillStyle = '#FFFFFF';
+                  ctx.fillText(val.toLocaleString(), element.x - 6, element.y);
+                } else {
+                  ctx.textAlign = 'left';
+                  ctx.fillStyle = '#1D2939';
+                  ctx.fillText(val.toLocaleString(), element.x + 5, element.y);
+                }
+              } else {
+                ctx.textAlign = 'center';
+                const barHeight = Math.abs(element.base - element.y);
+                if (barHeight > 24) {
+                  ctx.textBaseline = 'top';
+                  ctx.fillStyle = '#FFFFFF';
+                  ctx.fillText(val.toLocaleString(), element.x, element.y + 5);
+                } else {
+                  ctx.textBaseline = 'bottom';
+                  ctx.fillStyle = '#1D2939';
+                  ctx.fillText(val.toLocaleString(), element.x, element.y - 4);
+                }
+              }
+              ctx.restore();
+            } catch (err) {
+              // Si falla una coordenada no detiene el renderizado
+            }
+          });
+        });
+      }
+    };
+    Chart.register(barDataLabelsPlugin);
+
+    // ==========================================
+    // LÓGICA DE ROTACIÓN Y TURNOS
+    // ==========================================
+    const CYCLE_LENGTH = 24;
+    const CYCLE_T1 = ['C','C','C','C','C','C', 'A','A','A','A','A','A', 'B','B','B','B','B','B', 'D','D','D','D','D','D'];
+    const CYCLE_T2 = ['A','A','A','A', 'B','B','B','B','B','B', 'D','D','D','D','D','D', 'C','C','C','C','C','C', 'A','A'];
+    const CYCLE_T3 = ['B','B', 'D','D','D','D','D','D', 'C','C','C','C','C','C', 'A','A','A','A','A','A', 'B','B','B','B'];
+    const BASE_DATE_UTC = Date.UTC(2026, 8, 1);
+
+    function getCrewForDateAndShift(opDateStr, shiftKey) {
+      if (!opDateStr || !shiftKey) return 'N/A';
+      const parts = opDateStr.split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const d = parseInt(parts[2], 10);
+      const dateUtc = Date.UTC(y, m, d);
+
+      const diffDays = Math.floor((dateUtc - BASE_DATE_UTC) / (1000 * 60 * 60 * 24));
+      const cycleIdx = ((diffDays % CYCLE_LENGTH) + CYCLE_LENGTH) % CYCLE_LENGTH;
+
+      if (shiftKey === 'T1') return CYCLE_T1[cycleIdx];
+      if (shiftKey === 'T2') return CYCLE_T2[cycleIdx];
+      if (shiftKey === 'T3') return CYCLE_T3[cycleIdx];
+      return 'N/A';
+    }
+
+    // Parser robusto para fechas
+    function parseFlexibleDate(dateStr, timeStr) {
+      if (!dateStr) return null;
+      dateStr = String(dateStr).trim();
+      timeStr = timeStr ? String(timeStr).trim() : '00:00:00';
+
+      if (dateStr.includes(' ')) {
+        const p = dateStr.split(' ');
+        dateStr = p[0];
+        if (!timeStr || timeStr === '00:00:00') timeStr = p[1];
+      }
+
+      let y, m, d;
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length >= 3) {
+          if (parts[0].length === 4) {
+            y = parseInt(parts[0], 10); m = parseInt(parts[1], 10); d = parseInt(parts[2], 10);
+          } else {
+            d = parseInt(parts[0], 10); m = parseInt(parts[1], 10); y = parseInt(parts[2], 10);
+          }
+        }
+      } else if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length >= 3) {
+          if (parts[0].length === 4) {
+            y = parseInt(parts[0], 10); m = parseInt(parts[1], 10); d = parseInt(parts[2], 10);
+          } else {
+            d = parseInt(parts[0], 10); m = parseInt(parts[1], 10); y = parseInt(parts[2], 10);
+          }
+        }
+      }
+
+      if (!y || !m || !d) return null;
+      let hh = 0, mm = 0, ss = 0;
+      if (timeStr) {
+        const tp = timeStr.split(':');
+        hh = parseInt(tp[0] || '0', 10);
+        mm = parseInt(tp[1] || '0', 10);
+        ss = parseInt(tp[2] || '0', 10);
+      }
+
+      const dt = new Date(y, m - 1, d, hh, mm, ss);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function determineShiftAndOpDate(endDateStr, endTimeStr) {
+      const dt = parseFlexibleDate(endDateStr, endTimeStr);
+      if (!dt) return { shiftName: 'Turno no identificado', shiftKey: 'T1', opDate: '', dtEnd: null };
+
+      const hours = dt.getHours();
+      const decHour = hours + dt.getMinutes() / 60.0;
+
+      let shiftName = '';
+      let shiftKey = '';
+      let opDate = new Date(dt.getTime());
+
+      if (decHour >= 6.0 && decHour < 14.0) {
+        shiftName = 'Turno 1 (06:00 - 14:00)';
+        shiftKey = 'T1';
+      } else if (decHour >= 14.0 && decHour < 22.0) {
+        shiftName = 'Turno 2 (14:00 - 22:00)';
+        shiftKey = 'T2';
+      } else {
+        shiftName = 'Turno 3 (22:00 - 06:00)';
+        shiftKey = 'T3';
+        if (decHour < 6.0) opDate.setDate(opDate.getDate() - 1);
+      }
+
+      const yyyy = opDate.getFullYear();
+      const mm = String(opDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(opDate.getDate()).padStart(2, '0');
+      const opDateStr = `${yyyy}-${mm}-${dd}`;
+
+      return { shiftName, shiftKey, opDate: opDateStr, dtEnd: dt };
+    }
+
+    function formatMinutes(mins) {
+      if (isNaN(mins) || mins <= 0) return '0h 00m';
+      const h = Math.floor(mins / 60);
+      const m = Math.round(mins % 60);
+      return `${h}h ${String(m).padStart(2, '0')}m`;
+    }
+
+    function switchTab(tabId) {
+      const btns = document.querySelectorAll('.tab-btn');
+      btns.forEach(btn => btn.classList.remove('active'));
+
+      const contents = document.querySelectorAll('.tab-content');
+      contents.forEach(c => c.classList.remove('active'));
+
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+
+      if (tabId === 'tab-trafico') {
+        btns[0].classList.add('active');
+        renderTrafico();
+      } else if (tabId === 'tab-picking-global') {
+        btns[1].classList.add('active');
+        renderPickingGlobal();
+      } else if (tabId === 'tab-picking-diario') {
+        btns[2].classList.add('active');
+        renderDiario();
+      } else if (tabId === 'tab-meta-900') {
+        btns[3].classList.add('active');
+        renderMeta900View();
+      }
+    }
+
+    // ==========================================
+    // PESTAÑA 1: OPERACIONES MX12 (TRÁFICO)
+    // ==========================================
+    let traficoRecords = [];
+    let traficoBarChart = null;
+    let traficoDonutChart = null;
+
+    const dropZoneTrafico = document.getElementById('drop-zone-trafico');
+    const fileInputTrafico = document.getElementById('file-input-trafico');
+
+    dropZoneTrafico.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneTrafico.classList.add('dragover'); });
+    dropZoneTrafico.addEventListener('dragleave', () => dropZoneTrafico.classList.remove('dragover'));
+    dropZoneTrafico.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZoneTrafico.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleTraficoFiles(e.dataTransfer.files);
+    });
+    fileInputTrafico.addEventListener('change', (e) => {
+      if (e.target.files.length) handleTraficoFiles(e.target.files);
+    });
+
+    function handleTraficoFiles(files) {
+      const arr = Array.from(files);
+      let count = 0;
+      arr.forEach(file => {
+        const u = file.name.toUpperCase();
+        let tipo = 'Descargas';
+        if (u.includes('CARGAS') && !u.includes('DESCARGAS')) tipo = 'Cargas';
+        else if (u.includes('INTRA')) tipo = 'Intras';
+        else if (u.includes('DESCARGA')) tipo = 'Descargas';
+
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: function(results) {
+            processTraficoData(results.data, tipo);
+            count++;
+            if (count === arr.length) postUploadTrafico();
+          }
+        });
+      });
+    }
+
+    function processTraficoData(data, tipo) {
+      let c = 0;
+      data.forEach(row => {
+        const shipment = row['Shipment Number'] || row['Shipment'] || row['Embarque'] || '';
+        if (!shipment) return;
+
+        const checkInDate = row['Actual check-in date'] || row['Check-in date'] || '';
+        const checkInTime = row['Act. check-in time'] || row['Check-in time'] || '';
+        const startLoadDate = row['Curr.loading start'] || row['Loading start'] || '';
+        const startLoadTime = row['Act.load.start time'] || row['Load start time'] || '';
+        const endLoadDate = row['Act. loading end'] || row['Loading end'] || row['Fin maniobra'] || '';
+        const endLoadTime = row['Act. load. end time'] || row['Load end time'] || '';
+        const carrier = row['Name of service provider'] || row['Carrier'] || row['Transportista'] || 'N/A';
+
+        const dtStart = parseFlexibleDate(startLoadDate, startLoadTime);
+        const { shiftName, shiftKey, opDate, dtEnd } = determineShiftAndOpDate(endLoadDate, endLoadTime);
+        const crew = getCrewForDateAndShift(opDate, shiftKey);
+
+        let durationMinutes = 0;
+        if (dtStart && dtEnd && dtEnd >= dtStart) {
+          durationMinutes = Math.round((dtEnd - dtStart) / (1000 * 60));
+        }
+
+        traficoRecords.push({
+          shipment, tipo, carrier,
+          checkInStr: `${checkInDate} ${checkInTime}`.trim(),
+          endStr: `${endLoadDate} ${endLoadTime}`.trim(),
+          shiftName, shiftKey, crew, opDate, durationMinutes
+        });
+        c++;
+      });
+
+      if (tipo === 'Descargas') {
+        const p = document.getElementById('pill-descargas');
+        p.className = 'pill loaded'; p.textContent = `✓ DESCARGAS (${c} reg)`;
+      } else if (tipo === 'Cargas') {
+        const p = document.getElementById('pill-cargas');
+        p.className = 'pill loaded'; p.textContent = `✓ CARGAS (${c} reg)`;
+      } else if (tipo === 'Intras') {
+        const p = document.getElementById('pill-intras');
+        p.className = 'pill loaded'; p.textContent = `✓ INTRAS (${c} reg)`;
+      }
+    }
+
+    function postUploadTrafico() {
+      const dates = traficoRecords.map(r => r.opDate).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('trafico-date-from').value = dates[0];
+        document.getElementById('trafico-date-to').value = dates[dates.length - 1];
+      }
+      document.getElementById('meta-update-time').innerHTML = `Actualizado: <strong>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</strong>`;
+      renderTrafico();
+    }
+
+    function getFilteredTrafico() {
+      const crewF = document.getElementById('trafico-filter-crew').value;
+      const shiftF = document.getElementById('trafico-filter-shift').value;
+      const typeF = document.getElementById('trafico-filter-type').value;
+      const from = document.getElementById('trafico-date-from').value;
+      const to = document.getElementById('trafico-date-to').value;
+
+      return traficoRecords.filter(r => {
+        if (crewF !== 'ALL' && r.crew !== crewF) return false;
+        if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
+        if (typeF !== 'ALL' && r.tipo !== typeF) return false;
+        if (from && r.opDate && r.opDate < from) return false;
+        if (to && r.opDate && r.opDate > to) return false;
+        return true;
+      });
+    }
+
+    function renderTrafico() {
+      const data = getFilteredTrafico();
+      const total = data.length;
+
+      document.getElementById('trafico-kpi-total').textContent = total.toLocaleString();
+      const a = data.filter(r => r.crew === 'A').length;
+      const b = data.filter(r => r.crew === 'B').length;
+      const c = data.filter(r => r.crew === 'C').length;
+      const d = data.filter(r => r.crew === 'D').length;
+
+      document.getElementById('trafico-kpi-crew-a').textContent = a.toLocaleString();
+      document.getElementById('trafico-kpi-crew-b').textContent = b.toLocaleString();
+      document.getElementById('trafico-kpi-crew-c').textContent = c.toLocaleString();
+      document.getElementById('trafico-kpi-crew-d').textContent = d.toLocaleString();
+
+      document.getElementById('trafico-kpi-crew-a-pct').textContent = total > 0 ? `${((a/total)*100).toFixed(1)}% del volumen` : '0%';
+      document.getElementById('trafico-kpi-crew-b-pct').textContent = total > 0 ? `${((b/total)*100).toFixed(1)}% del volumen` : '0%';
+      document.getElementById('trafico-kpi-crew-c-pct').textContent = total > 0 ? `${((c/total)*100).toFixed(1)}% del volumen` : '0%';
+      document.getElementById('trafico-kpi-crew-d-pct').textContent = total > 0 ? `${((d/total)*100).toFixed(1)}% del volumen` : '0%';
+
+      const crews = ['A', 'B', 'C', 'D'];
+      const crewLabels = ['Tripulación A', 'Tripulación B', 'Tripulación C', 'Tripulación D'];
+      const descData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Descargas').length);
+      const cargData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Cargas').length);
+      const intrData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Intras').length);
+
+      // 1. Gráfica de Barras
+      if (traficoBarChart) traficoBarChart.destroy();
+      const ctxBar = document.getElementById('chart-trafico-bars');
+      if (ctxBar) {
+        traficoBarChart = new Chart(ctxBar.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: crewLabels,
+            datasets: [
+              { label: 'Descargas', data: descData, backgroundColor: '#D92D20', borderRadius: 4 },
+              { label: 'Cargas', data: cargData, backgroundColor: '#037A48', borderRadius: 4 },
+              { label: 'Intras', data: intrData, backgroundColor: '#D97706', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#F3F4F6' } } }
+          }
+        });
+      }
+
+      // 2. Gráfica de Dona (Totalmente blindada contra fallos de renderizado)
+      if (traficoDonutChart) traficoDonutChart.destroy();
+      const ctxDonut = document.getElementById('chart-trafico-donut');
+      if (ctxDonut) {
+        traficoDonutChart = new Chart(ctxDonut.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: crewLabels,
+            datasets: [{
+              data: [a, b, c, d],
+              backgroundColor: ['#D97706', '#15803D', '#0284C7', '#DC2626'],
+              borderWidth: 2, borderColor: '#FFFFFF'
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+            }
+          }
+        });
+      }
+
+      // 3. Matriz Resumen Cuadrillas
+      const tbodySummary = document.getElementById('trafico-tbody-summary');
+      if (!total) {
+        tbodySummary.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro actual.</td></tr>';
+      } else {
+        const cConfig = [
+          { k: 'A', n: 'Tripulación A (Amarillo)', b: 'badge-crew-a' },
+          { k: 'B', n: 'Tripulación B (Verde)', b: 'badge-crew-b' },
+          { k: 'C', n: 'Tripulación C (Azul)', b: 'badge-crew-c' },
+          { k: 'D', n: 'Tripulación D (Rojo)', b: 'badge-crew-d' }
+        ];
+        let h = '';
+        cConfig.forEach(cfg => {
+          const sub = data.filter(r => r.crew === cfg.k);
+          const t1 = sub.filter(r => r.shiftKey === 'T1').length;
+          const t2 = sub.filter(r => r.shiftKey === 'T2').length;
+          const t3 = sub.filter(r => r.shiftKey === 'T3').length;
+          const des = sub.filter(r => r.tipo === 'Descargas').length;
+          const car = sub.filter(r => r.tipo === 'Cargas').length;
+          const int = sub.filter(r => r.tipo === 'Intras').length;
+          const subTot = sub.length;
+          const pct = total > 0 ? ((subTot/total)*100).toFixed(1) : 0;
+          const validDurs = sub.map(r => r.durationMinutes).filter(m => m > 0);
+          const avgD = validDurs.length ? validDurs.reduce((x, y) => x + y, 0) / validDurs.length : 0;
+
+          h += `
+            <tr>
+              <td><span class="badge ${cfg.b}">${cfg.n}</span></td>
+              <td>${t1}</td><td>${t2}</td><td>${t3}</td>
+              <td><strong>${des}</strong></td><td><strong>${car}</strong></td><td><strong>${int}</strong></td>
+              <td><strong>${subTot}</strong></td><td><strong>${pct}%</strong></td>
+              <td>${formatMinutes(avgD)}</td>
+            </tr>
+          `;
+        });
+        tbodySummary.innerHTML = h;
+      }
+
+      // 4. Detalle de Operaciones
+      const tbodyDet = document.getElementById('trafico-tbody-details');
+      document.getElementById('trafico-row-count').textContent = total;
+      if (!total) {
+        tbodyDet.innerHTML = '<tr><td colspan="9" style="text-align:center; color: var(--text-muted);">Sin registros disponibles.</td></tr>';
+      } else {
+        let hd = '';
+        data.slice(0, 150).forEach(r => {
+          let bType = 'badge-descarga';
+          if (r.tipo === 'Cargas') bType = 'badge-carga';
+          if (r.tipo === 'Intras') bType = 'badge-intra';
+          let bCrew = `badge-crew-${(r.crew || 'a').toLowerCase()}`;
+
+          hd += `
+            <tr>
+              <td><strong>${r.shipment}</strong></td>
+              <td><span class="badge ${bType}">${r.tipo}</span></td>
+              <td>${r.endStr || '-'}</td>
+              <td>${r.opDate || '-'}</td>
+              <td>${r.shiftKey}</td>
+              <td><span class="badge ${bCrew}">Tripulación ${r.crew}</span></td>
+              <td>${formatMinutes(r.durationMinutes)}</td>
+              <td>${r.checkInStr || '-'}</td>
+              <td>${r.carrier}</td>
+            </tr>
+          `;
+        });
+        if (total > 150) hd += `<tr><td colspan="9" style="text-align:center; font-style:italic; color:var(--text-muted);">Mostrando primeros 150 de ${total} registros. Usa los filtros para acotar.</td></tr>`;
+        tbodyDet.innerHTML = hd;
+      }
+    }
+
+    ['trafico-filter-crew', 'trafico-filter-shift', 'trafico-filter-type', 'trafico-date-from', 'trafico-date-to'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderTrafico);
+    });
+    document.getElementById('trafico-btn-reset').addEventListener('click', () => {
+      document.getElementById('trafico-filter-crew').value = 'ALL';
+      document.getElementById('trafico-filter-shift').value = 'ALL';
+      document.getElementById('trafico-filter-type').value = 'ALL';
+      const dates = traficoRecords.map(r => r.opDate).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('trafico-date-from').value = dates[0];
+        document.getElementById('trafico-date-to').value = dates[dates.length - 1];
+      }
+      renderTrafico();
+    });
+
+    // ==========================================
+    // PESTAÑAS 2, 3 Y 4: LÓGICA DE PICKING
+    // ==========================================
+    let pickingTasks = [];
+    let employeeCatalog = {};
+    let pickingBarChart = null;
+    let pickingDonutChart = null;
+    let comboChartDiario = null;
+    let chartMeta900Desglose = null;
+    let chartMeta900Acumulado = null;
+
+    const dropZonePicking = document.getElementById('drop-zone-picking');
+    const fileInputPicking = document.getElementById('file-input-picking');
+
+    dropZonePicking.addEventListener('dragover', (e) => { e.preventDefault(); dropZonePicking.classList.add('dragover'); });
+    dropZonePicking.addEventListener('dragleave', () => dropZonePicking.classList.remove('dragover'));
+    dropZonePicking.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZonePicking.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handlePickingFiles(e.dataTransfer.files);
+    });
+    fileInputPicking.addEventListener('change', (e) => {
+      if (e.target.files.length) handlePickingFiles(e.target.files);
+    });
+
+    function handlePickingFiles(files) {
+      const fileArr = Array.from(files);
+      fileArr.forEach(file => {
+        const nameUpper = file.name.toUpperCase();
+        if (nameUpper.endsWith('.XLSX') || nameUpper.endsWith('.XLS')) {
+          processExcelAttendance(file);
+        } else if (nameUpper.endsWith('.CSV')) {
+          processCsvPicking(file);
+        }
+      });
+    }
+
+    function processExcelAttendance(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        let loadedEmployees = 0;
+
+        if (workbook.SheetNames.includes('Operacion')) {
+          const sheet = workbook.Sheets['Operacion'];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          for (let r = 2; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row || row.length < 6) continue;
+            const trip = String(row[1] || '').trim();
+            const tt = String(row[3] || '').trim();
+            const id = String(row[4] || '').trim();
+            const nombre = String(row[5] || '').trim();
+            const puesto = String(row[6] || '').trim();
+
+            if (tt && tt !== 'undefined' && nombre && nombre !== 'undefined' && nombre !== 'VACANTE') {
+              employeeCatalog[tt] = { nombre, puesto, tripulacionOficial: trip, id };
+              if (id) {
+                employeeCatalog[id] = { nombre, puesto, tripulacionOficial: trip, id };
+                employeeCatalog[id + 'rf'] = { nombre, puesto, tripulacionOficial: trip, id };
+              }
+              loadedEmployees++;
+            }
+          }
+        }
+
+        if (workbook.SheetNames.includes('Vacaciones')) {
+          const sheet = workbook.Sheets['Vacaciones'];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row || row.length < 3) continue;
+            const idEmp = String(row[0] || '').trim();
+            const ttAcreedor = String(row[1] || '').trim();
+            const nombre = String(row[2] || '').trim();
+
+            if (nombre && nombre !== 'undefined') {
+              if (ttAcreedor && !employeeCatalog[ttAcreedor]) {
+                employeeCatalog[ttAcreedor] = { nombre, puesto: 'Personal Operativo', tripulacionOficial: 'Apoyo', id: idEmp };
+              }
+              if (idEmp && !employeeCatalog[idEmp]) {
+                employeeCatalog[idEmp] = { nombre, puesto: 'Personal Operativo', tripulacionOficial: 'Apoyo', id: idEmp };
+                employeeCatalog[idEmp + 'rf'] = { nombre, puesto: 'Personal Operativo', tripulacionOficial: 'Apoyo', id: idEmp };
+              }
+            }
+          }
+        }
+
+        const pill = document.getElementById('pill-picking-xlsx');
+        pill.className = 'pill loaded';
+        pill.textContent = `✓ ${file.name} (${loadedEmployees} colaboradores)`;
+
+        if (pickingTasks.length) {
+          updateUserSelectors();
+          refreshActiveView();
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function processCsvPicking(file) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          pickingTasks = [];
+          results.data.forEach(row => {
+            const tarea = row['Tarea'] || '';
+            const user = row['Usuario'] || '';
+            if (!tarea || !user) return;
+
+            const estatus = row['Estatus'] || 'FI';
+            const cajasPed = parseFloat(row['Cajas']) || 0;
+            const cajasSur = parseFloat(row['Cajas surtidas']) || 0;
+
+            const fIni = row['F. Inicio'] || '';
+            const fFin = row['F. Fin'] || '';
+            const dtIni = parseFlexibleDate(fIni);
+            const dtFin = parseFlexibleDate(fFin);
+
+            let endD = '', endT = '';
+            if (fFin) {
+              const parts = fFin.trim().split(' ');
+              endD = parts[0]; endT = parts[1] || '';
+            }
+
+            const { shiftName, shiftKey, opDate } = determineShiftAndOpDate(endD, endT);
+            const crew = getCrewForDateAndShift(opDate, shiftKey);
+
+            let durMin = 0;
+            if (dtIni && dtFin && dtFin >= dtIni) durMin = (dtFin - dtIni) / (1000 * 60);
+
+            pickingTasks.push({
+              tarea, user, estatus, cajasPed, cajasSur,
+              dtIni, dtFin, shiftName, shiftKey, opDate, crew, durMin
+            });
+          });
+
+          pickingTasks.sort((a, b) => {
+            if (a.user !== b.user) return a.user.localeCompare(b.user);
+            if (!a.dtIni || !b.dtIni) return 0;
+            return a.dtIni - b.dtIni;
+          });
+
+          for (let i = 1; i < pickingTasks.length; i++) {
+            const curr = pickingTasks[i];
+            const prev = pickingTasks[i - 1];
+            if (curr.user === prev.user && curr.dtIni && prev.dtFin) {
+              const gapMin = (curr.dtIni - prev.dtFin) / (1000 * 60);
+              if (gapMin >= 15.0 && gapMin <= 180.0) {
+                curr.gapMin = gapMin;
+                curr.esTiempoMuerto = true;
+              } else {
+                curr.gapMin = 0;
+                curr.esTiempoMuerto = false;
+              }
+            } else {
+              curr.gapMin = 0;
+              curr.esTiempoMuerto = false;
+            }
+          }
+
+          const pill = document.getElementById('pill-picking-csv');
+          pill.className = 'pill loaded';
+          pill.textContent = `✓ ${file.name} (${pickingTasks.length} tareas)`;
+
+          const dates = pickingTasks.map(r => r.opDate).filter(Boolean).sort();
+          if (dates.length) {
+            ['picking-date-from', 'diario-date-from', 'meta900-date-from'].forEach(id => document.getElementById(id).value = dates[0]);
+            ['picking-date-to', 'diario-date-to', 'meta900-date-to'].forEach(id => document.getElementById(id).value = dates[dates.length - 1]);
+          }
+
+          updateUserSelectors();
+          const allUniqueDates = Array.from(new Set(pickingTasks.map(r => r.opDate).filter(Boolean))).sort();
+          updateMeta900DateSelector(allUniqueDates);
+          refreshActiveView();
+        }
+      });
+    }
+
+    function refreshActiveView() {
+      const activeContent = document.querySelector('.tab-content.active');
+      if (!activeContent) return;
+      if (activeContent.id === 'tab-picking-global') renderPickingGlobal();
+      else if (activeContent.id === 'tab-picking-diario') renderDiario();
+      else if (activeContent.id === 'tab-meta-900') renderMeta900View();
+      else if (activeContent.id === 'tab-trafico') renderTrafico();
+    }
+
+    function updateUserSelectors() {
+      const userSelects = [document.getElementById('picking-filter-user'), document.getElementById('diario-filter-user')];
+      const usersSet = new Set(pickingTasks.map(t => t.user));
+
+      userSelects.forEach(sel => {
+        sel.innerHTML = '<option value="ALL">Todos los colaboradores</option>';
+        Array.from(usersSet).sort().forEach(u => {
+          const emp = employeeCatalog[u];
+          const label = emp ? `${emp.nombre} (${u})` : `Operador ${u}`;
+          const opt = document.createElement('option');
+          opt.value = u;
+          opt.textContent = label;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    // Helper unificado para construir jornadas
+    function buildJourneys(taskList) {
+      const dailyMap = {};
+      taskList.forEach(t => {
+        if (!t.opDate || !t.user) return;
+        const key = `${t.opDate}_${t.shiftKey}_${t.user}`;
+        if (!dailyMap[key]) {
+          dailyMap[key] = {
+            opDate: t.opDate,
+            user: t.user,
+            crew: t.crew,
+            shiftKey: t.shiftKey,
+            shiftName: t.shiftName,
+            cajas: 0,
+            cajasPed: 0,
+            tareas: 0,
+            durMin: 0,
+            downtimeMin: 0
+          };
+        }
+        dailyMap[key].cajas += t.cajasSur;
+        dailyMap[key].cajasPed += t.cajasPed;
+        dailyMap[key].tareas += 1;
+        dailyMap[key].durMin += (t.durMin || 0);
+        if (t.esTiempoMuerto) dailyMap[key].downtimeMin += t.gapMin;
+      });
+
+      return Object.values(dailyMap).map(j => {
+        const excesoMin = Math.max(0, Math.round(j.downtimeMin - 60));
+        return {
+          ...j,
+          excesoDowntimeMin: excesoMin,
+          cumpleMeta900: j.cajas >= 900
+        };
+      });
+    }
+
+    // ==========================================
+    // RENDER PESTAÑA 2: PICKING GLOBAL
+    // ==========================================
+    function getFilteredPickingGlobal() {
+      const crewF = document.getElementById('picking-filter-crew').value;
+      const shiftF = document.getElementById('picking-filter-shift').value;
+      const userF = document.getElementById('picking-filter-user').value;
+      const from = document.getElementById('picking-date-from').value;
+      const to = document.getElementById('picking-date-to').value;
+
+      return pickingTasks.filter(r => {
+        if (crewF !== 'ALL' && r.crew !== crewF) return false;
+        if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
+        if (userF !== 'ALL' && r.user !== userF) return false;
+        if (from && r.opDate && r.opDate < from) return false;
+        if (to && r.opDate && r.opDate > to) return false;
+        return true;
+      });
+    }
+
+    function renderPickingGlobal() {
+      const tasks = getFilteredPickingGlobal();
+      const totalTareas = tasks.length;
+
+      const totalCajasPed = tasks.reduce((acc, r) => acc + r.cajasPed, 0);
+      const totalCajasSur = tasks.reduce((acc, r) => acc + r.cajasSur, 0);
+      const efectividadPct = totalCajasPed > 0 ? ((totalCajasSur / totalCajasPed) * 100).toFixed(1) : 0;
+
+      document.getElementById('picking-kpi-cajas').textContent = Math.round(totalCajasSur).toLocaleString();
+      document.getElementById('picking-kpi-efectividad').textContent = `${efectividadPct}% efectividad vs pedido`;
+
+      const totalDurMin = tasks.reduce((acc, r) => acc + (r.durMin || 0), 0);
+      const avgTaskDur = totalTareas > 0 ? (totalDurMin / totalTareas).toFixed(1) : 0;
+      document.getElementById('picking-kpi-tareas').textContent = totalTareas.toLocaleString();
+      document.getElementById('picking-kpi-task-duration').textContent = `${avgTaskDur} min promedio por tarea`;
+
+      const speedHora = totalDurMin > 0 ? Math.round((totalCajasSur / (totalDurMin / 60))) : 0;
+      document.getElementById('picking-kpi-speed').textContent = `${speedHora} c/h`;
+
+      const dailyJourneys = buildJourneys(tasks);
+      const journeysOk = dailyJourneys.filter(j => j.cumpleMeta900).length;
+      document.getElementById('picking-kpi-meta-count').textContent = journeysOk.toLocaleString();
+      document.getElementById('picking-kpi-meta-sub').textContent = `De ${dailyJourneys.length} turnos evaluados`;
+
+      const totalExcesoInactividad = dailyJourneys.reduce((acc, j) => acc + j.excesoDowntimeMin, 0);
+      const avgExcesoPorTurno = dailyJourneys.length > 0 ? Math.round(totalExcesoInactividad / dailyJourneys.length) : 0;
+      document.getElementById('picking-kpi-downtime').textContent = `${avgExcesoPorTurno} min`;
+
+      const crews = ['A', 'B', 'C', 'D'];
+      const crewLabels = ['Tripulación A', 'Tripulación B', 'Tripulación C', 'Tripulación D'];
+
+      const seriesT1 = crews.map(k => tasks.filter(r => r.crew === k && r.shiftKey === 'T1').reduce((a, b) => a + b.cajasSur, 0));
+      const seriesT2 = crews.map(k => tasks.filter(r => r.crew === k && r.shiftKey === 'T2').reduce((a, b) => a + b.cajasSur, 0));
+      const seriesT3 = crews.map(k => tasks.filter(r => r.crew === k && r.shiftKey === 'T3').reduce((a, b) => a + b.cajasSur, 0));
+
+      if (pickingBarChart) pickingBarChart.destroy();
+      const ctxBar = document.getElementById('chart-picking-bars');
+      if (ctxBar) {
+        pickingBarChart = new Chart(ctxBar.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: crewLabels,
+            datasets: [
+              { label: 'T1 (06-14)', data: seriesT1, backgroundColor: '#0284C7', borderRadius: 4 },
+              { label: 'T2 (14-22)', data: seriesT2, backgroundColor: '#E07A00', borderRadius: 4 },
+              { label: 'T3 (22-06)', data: seriesT3, backgroundColor: '#7C3AED', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#F3F4F6' } } }
+          }
+        });
+      }
+
+      const sobreMeta = dailyJourneys.filter(j => j.cajas >= 1100).length;
+      const enMeta = dailyJourneys.filter(j => j.cajas >= 900 && j.cajas < 1100).length;
+      const moderado = dailyJourneys.filter(j => j.cajas >= 650 && j.cajas < 900).length;
+      const bajo = dailyJourneys.filter(j => j.cajas < 650).length;
+
+      if (pickingDonutChart) pickingDonutChart.destroy();
+      const ctxDonut = document.getElementById('chart-picking-donut');
+      if (ctxDonut) {
+        pickingDonutChart = new Chart(ctxDonut.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Sobresaliente (≥1100)', 'Cumple Meta (900-1099)', 'En Riesgo (650-899)', 'Crítico (<650)'],
+            datasets: [{
+              data: [sobreMeta, enMeta, moderado, bajo],
+              backgroundColor: ['#037A48', '#10B981', '#F59E0B', '#DC2626'],
+              borderWidth: 2, borderColor: '#FFFFFF'
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, weight: 'bold' } } } }
+          }
+        });
+      }
+
+      const tbodyCrews = document.getElementById('picking-tbody-crews');
+      if (!totalTareas) {
+        tbodyCrews.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Sin datos de picking.</td></tr>';
+      } else {
+        const cConfig = [
+          { k: 'A', n: 'Tripulación A (Amarillo)', b: 'badge-crew-a' },
+          { k: 'B', n: 'Tripulación B (Verde)', b: 'badge-crew-b' },
+          { k: 'C', n: 'Tripulación C (Azul)', b: 'badge-crew-c' },
+          { k: 'D', n: 'Tripulación D (Rojo)', b: 'badge-crew-d' }
+        ];
+        let h = '';
+        cConfig.forEach(cfg => {
+          const subTasks = tasks.filter(r => r.crew === cfg.k);
+          const subJourneys = dailyJourneys.filter(j => j.crew === cfg.k);
+          const cSur = subTasks.reduce((a, b) => a + b.cajasSur, 0);
+          const jTotal = subJourneys.length;
+          const jOk = subJourneys.filter(j => j.cumpleMeta900).length;
+          const avgCajas = jTotal > 0 ? Math.round(cSur / jTotal) : 0;
+          const excTotal = subJourneys.reduce((a, b) => a + b.excesoDowntimeMin, 0);
+          const promExceso = jTotal > 0 ? Math.round(excTotal / jTotal) : 0;
+
+          h += `
+            <tr>
+              <td><span class="badge ${cfg.b}">${cfg.n}</span></td>
+              <td><strong>${Math.round(cSur).toLocaleString()}</strong></td>
+              <td>${subTasks.length.toLocaleString()}</td>
+              <td>${jTotal}</td>
+              <td><span class="badge badge-meta-ok">${jOk}</span></td>
+              <td>${avgCajas} cajas</td>
+              <td>${promExceso} min/turno</td>
+            </tr>
+          `;
+        });
+        tbodyCrews.innerHTML = h;
+      }
+
+      const tbodyRank = document.getElementById('picking-tbody-ranking');
+      if (!totalTareas) {
+        tbodyRank.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin información de pickers.</td></tr>';
+      } else {
+        const userAgg = {};
+        dailyJourneys.forEach(j => {
+          if (!userAgg[j.user]) {
+            userAgg[j.user] = { user: j.user, journeys: 0, cajas: 0, journeysOk: 0, tareas: 0, excesoMin: 0 };
+          }
+          userAgg[j.user].journeys += 1;
+          userAgg[j.user].cajas += j.cajas;
+          if (j.cumpleMeta900) userAgg[j.user].journeysOk += 1;
+          userAgg[j.user].tareas += j.tareas;
+          userAgg[j.user].excesoMin += j.excesoDowntimeMin;
+        });
+
+        const rankingList = Object.values(userAgg).sort((a, b) => b.cajas - a.cajas);
+        let hr = '';
+
+        rankingList.forEach(u => {
+          const avgDay = u.journeys > 0 ? Math.round(u.cajas / u.journeys) : 0;
+          const avgExceso = u.journeys > 0 ? Math.round(u.excesoMin / u.journeys) : 0;
+          const emp = employeeCatalog[u.user] || { nombre: 'No registrado en asistencia', puesto: 'Operativo', id: '-' };
+
+          let badgeStatus = 'badge-meta-ok';
+          let labelStatus = 'Cumple';
+          if (avgDay < 650) { badgeStatus = 'badge-meta-bad'; labelStatus = 'Crítico'; }
+          else if (avgDay < 900) { badgeStatus = 'badge-meta-risk'; labelStatus = 'En Riesgo'; }
+          else if (avgDay >= 1100) { labelStatus = 'Sobresaliente'; }
+
+          hr += `
+            <tr>
+              <td><strong>${u.user}</strong></td>
+              <td>${emp.nombre}</td>
+              <td><span style="color:var(--text-muted); font-size:11px;">${emp.puesto}</span></td>
+              <td>${u.journeys}</td>
+              <td><strong>${Math.round(u.cajas).toLocaleString()}</strong></td>
+              <td><strong>${avgDay}</strong> c/turno</td>
+              <td>${u.journeysOk}</td>
+              <td>${u.tareas}</td>
+              <td>${avgExceso} min</td>
+              <td><span class="badge ${badgeStatus}">${labelStatus}</span></td>
+            </tr>
+          `;
+        });
+
+        tbodyRank.innerHTML = hr;
+      }
+    }
+
+    // ========================================================
+    // RENDER PESTAÑA 3: EVALUACIÓN DIARIA
+    // ========================================================
+    function getFilteredDiario() {
+      const userF = document.getElementById('diario-filter-user').value;
+      const crewF = document.getElementById('diario-filter-crew').value;
+      const shiftF = document.getElementById('diario-filter-shift').value;
+      const metaF = document.getElementById('diario-filter-meta').value;
+      const from = document.getElementById('diario-date-from').value;
+      const to = document.getElementById('diario-date-to').value;
+
+      const tasks = pickingTasks.filter(r => {
+        if (userF !== 'ALL' && r.user !== userF) return false;
+        if (crewF !== 'ALL' && r.crew !== crewF) return false;
+        if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
+        if (from && r.opDate && r.opDate < from) return false;
+        if (to && r.opDate && r.opDate > to) return false;
+        return true;
+      });
+
+      let list = buildJourneys(tasks);
+
+      if (metaF === 'OK') list = list.filter(j => j.cumpleMeta900);
+      else if (metaF === 'NO') list = list.filter(j => !j.cumpleMeta900);
+
+      list.sort((a, b) => {
+        if (a.opDate !== b.opDate) return b.opDate.localeCompare(a.opDate);
+        return b.cajas - a.cajas;
+      });
+
+      return list;
+    }
+
+    function renderDiario() {
+      const dailyList = getFilteredDiario();
+      const count = dailyList.length;
+
+      document.getElementById('diario-row-count').textContent = count;
+
+      if (!count) {
+        document.getElementById('diario-kpi-tareas-total').textContent = '0';
+        document.getElementById('diario-kpi-tareas-sub').textContent = '0 tareas en el periodo';
+        document.getElementById('diario-kpi-total-cajas').textContent = '0';
+        document.getElementById('diario-kpi-avg-cajas-sub').textContent = 'Promedio: 0 c/turno';
+        document.getElementById('diario-kpi-avg-tareas').textContent = '0';
+        document.getElementById('diario-kpi-densidad').textContent = '0.0';
+        document.getElementById('diario-kpi-inactividad').textContent = '0 min';
+        document.getElementById('diario-tbody-table').innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro seleccionado.</td></tr>';
+        if (comboChartDiario) comboChartDiario.destroy();
+        return;
+      }
+
+      const totalCajas = dailyList.reduce((acc, r) => acc + r.cajas, 0);
+      const totalTareas = dailyList.reduce((acc, r) => acc + r.tareas, 0);
+      const totalExcesoInactividad = dailyList.reduce((acc, r) => acc + r.excesoDowntimeMin, 0);
+
+      const avgCajas = Math.round(totalCajas / count);
+      const avgTareas = (totalTareas / count).toFixed(1);
+      const cajasPorParada = totalTareas > 0 ? (totalCajas / totalTareas).toFixed(1) : 0;
+      const avgDowntimeTurno = Math.round(totalExcesoInactividad / count);
+
+      document.getElementById('diario-kpi-tareas-total').textContent = totalTareas.toLocaleString();
+      const numDias = new Set(dailyList.map(r => r.opDate)).size;
+      document.getElementById('diario-kpi-tareas-sub').textContent = `En ${numDias} día(s) | ${(totalTareas / numDias).toFixed(0)} tareas/día`;
+
+      document.getElementById('diario-kpi-total-cajas').textContent = Math.round(totalCajas).toLocaleString();
+      document.getElementById('diario-kpi-avg-cajas-sub').textContent = `Promedio: ${avgCajas.toLocaleString()} c/turno`;
+
+      document.getElementById('diario-kpi-avg-tareas').textContent = avgTareas;
+      document.getElementById('diario-kpi-densidad').textContent = `${cajasPorParada} c/tarea`;
+      document.getElementById('diario-kpi-inactividad').textContent = `${avgDowntimeTurno} min`;
+
+      const tbody = document.getElementById('diario-tbody-table');
+      let html = '';
+
+      dailyList.forEach(r => {
+        const emp = employeeCatalog[r.user] || { nombre: 'No registrado en asistencia', puesto: 'Operativo' };
+        const densidad = r.tareas > 0 ? (r.cajas / r.tareas).toFixed(1) : 0;
+        const badgeCrew = `badge-crew-${(r.crew || 'a').toLowerCase()}`;
+        const shiftClass = (r.shiftKey || 't1').toLowerCase();
+
+        const badgeInactividad = r.excesoDowntimeMin > 0 
+          ? `<span class="badge badge-meta-bad">+${r.excesoDowntimeMin} min</span>` 
+          : `<span class="badge badge-meta-ok">Normal</span>`;
+
+        const badgeMeta = r.cumpleMeta900 
+          ? `<span class="badge badge-meta-ok">Cumple</span>` 
+          : `<span class="badge badge-meta-bad">Bajo Meta</span>`;
+
+        html += `
+          <tr>
+            <td><strong>${r.opDate}</strong></td>
+            <td><strong>${r.user}</strong></td>
+            <td>${emp.nombre}</td>
+            <td><span class="badge ${badgeCrew}">Tripulación ${r.crew}</span></td>
+            <td><span class="badge badge-${shiftClass}">${r.shiftKey}</span></td>
+            <td><strong>${r.tareas}</strong></td>
+            <td><strong>${Math.round(r.cajas).toLocaleString()}</strong> cajas</td>
+            <td>${densidad} c/tarea</td>
+            <td>${badgeInactividad}</td>
+            <td>${badgeMeta}</td>
+          </tr>
+        `;
+      });
+
+      tbody.innerHTML = html;
+
+      const dateMap = {};
+      dailyList.forEach(r => {
+        if (!dateMap[r.opDate]) dateMap[r.opDate] = { cajas: 0, tareas: 0 };
+        dateMap[r.opDate].cajas += r.cajas;
+        dateMap[r.opDate].tareas += r.tareas;
+      });
+
+      const datesSorted = Object.keys(dateMap).sort();
+      const seriesCajas = datesSorted.map(d => Math.round(dateMap[d].cajas));
+      const seriesTareas = datesSorted.map(d => dateMap[d].tareas);
+
+      const ctxCombo = document.getElementById('chart-diario-combo');
+      if (comboChartDiario) comboChartDiario.destroy();
+
+      if (ctxCombo) {
+        comboChartDiario = new Chart(ctxCombo.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: datesSorted,
+            datasets: [
+              {
+                type: 'bar',
+                label: 'Cajas Surtidas',
+                data: seriesCajas,
+                backgroundColor: '#182237',
+                yAxisID: 'yCajas',
+                borderRadius: 4
+              },
+              {
+                type: 'line',
+                label: 'Tareas Realizadas',
+                data: seriesTareas,
+                borderColor: '#C0D838',
+                backgroundColor: '#C0D838',
+                borderWidth: 2.5,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                yAxisID: 'yTareas'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              yCajas: {
+                type: 'linear',
+                position: 'left',
+                title: { display: true, text: 'Cajas', font: { size: 10, weight: 'bold' } },
+                grid: { color: '#F3F4F6' }
+              },
+              yTareas: {
+                type: 'linear',
+                position: 'right',
+                title: { display: true, text: 'Tareas', font: { size: 10, weight: 'bold' } },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // ========================================================
+    // RENDER PESTAÑA 4: EVALUACIÓN META 900
+    // ========================================================
+    function updateMeta900DateSelector(dates) {
+      const sel = document.getElementById('meta900-filter-date-mode');
+      if (!sel) return;
+      const currentVal = sel.value;
+      sel.innerHTML = '<option value="ALL">Todos los días (Desglose)</option>';
+      dates.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = `Día: ${d}`;
+        sel.appendChild(opt);
+      });
+      if (dates.includes(currentVal)) sel.value = currentVal;
+    }
+
+    function renderMeta900View() {
+      const shiftF = document.getElementById('meta900-filter-shift').value;
+      const crewF = document.getElementById('meta900-filter-crew').value;
+      const dateModeF = document.getElementById('meta900-filter-date-mode').value;
+      const from = document.getElementById('meta900-date-from').value;
+      const to = document.getElementById('meta900-date-to').value;
+
+      const tasks = pickingTasks.filter(r => {
+        if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
+        if (crewF !== 'ALL' && r.crew !== crewF) return false;
+        if (from && r.opDate && r.opDate < from) return false;
+        if (to && r.opDate && r.opDate > to) return false;
+        return true;
+      });
+
+      let records = buildJourneys(tasks);
+
+      if (dateModeF !== 'ALL') {
+        records = records.filter(r => r.opDate === dateModeF);
+      }
+
+      const pickerMap = {};
+      records.forEach(r => {
+        if (!pickerMap[r.user]) {
+          const emp = employeeCatalog[r.user] || { nombre: `Operador ${r.user}` };
+          pickerMap[r.user] = {
+            user: r.user,
+            crew: r.crew,
+            name: emp.nombre.length > 20 ? emp.nombre.substring(0, 18) + '...' : emp.nombre,
+            dates: {},
+            totalCajas: 0,
+            turnos: 0
+          };
+        }
+        pickerMap[r.user].dates[r.opDate] = (pickerMap[r.user].dates[r.opDate] || 0) + r.cajas;
+        pickerMap[r.user].totalCajas += r.cajas;
+        pickerMap[r.user].turnos += 1;
+      });
+
+      const pickersArr = Object.values(pickerMap).sort((a, b) => b.totalCajas - a.totalCajas);
+      const pickerLabels = pickersArr.map(p => `${p.name} (T-${p.crew})`);
+
+      const uniqueDates = Array.from(new Set(records.map(r => r.opDate))).sort();
+
+      const numPickers = Math.max(1, pickersArr.length);
+      const barsPerPicker = Math.max(1, uniqueDates.length);
+      const dynamicHeightDesglose = Math.max(420, numPickers * (barsPerPicker * 22 + 25));
+      const dynamicHeightAcumulado = Math.max(420, numPickers * 55);
+
+      const container1 = document.getElementById('chart-meta900-desglose').parentElement;
+      const container2 = document.getElementById('chart-meta900-acumulado').parentElement;
+      container1.style.height = `${dynamicHeightDesglose}px`;
+      container2.style.height = `${dynamicHeightAcumulado}px`;
+
+      document.getElementById('meta900-kpi-pickers').textContent = pickersArr.length;
+      const totalTurnos = records.length;
+      const turnosOk = records.filter(r => r.cumpleMeta900).length;
+      const pctCumplimiento = totalTurnos > 0 ? ((turnosOk / totalTurnos) * 100).toFixed(1) : 0;
+      document.getElementById('meta900-kpi-cumplimiento').textContent = `${pctCumplimiento}%`;
+      document.getElementById('meta900-kpi-cumplimiento-sub').textContent = `${turnosOk} de ${totalTurnos} turnos ≥ 900 cajas`;
+
+      const dayColors = ['#1E293B', '#0284C7', '#6366F1', '#D97706', '#10B981', '#EC4899', '#8B5CF6', '#F59E0B', '#0F766E'];
+
+      const datasetsDesglose = uniqueDates.map((dStr, idx) => ({
+        label: dStr,
+        data: pickersArr.map(p => p.dates[dStr] || 0),
+        backgroundColor: dayColors[idx % dayColors.length],
+        borderRadius: 4,
+        barPercentage: 0.85,
+        categoryPercentage: 0.85
+      }));
+
+      const vlinePlugin900 = {
+        id: 'vline900',
+        afterDraw(chart) {
+          try {
+            const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+            const xPos = x.getPixelForValue(900);
+            if (xPos >= chart.chartArea.left && xPos <= chart.chartArea.right) {
+              ctx.save();
+              ctx.strokeStyle = '#DC2626';
+              ctx.lineWidth = 2.5;
+              ctx.setLineDash([5, 5]);
+              ctx.beginPath();
+              ctx.moveTo(xPos, top);
+              ctx.lineTo(xPos, bottom);
+              ctx.stroke();
+              ctx.fillStyle = '#DC2626';
+              ctx.font = 'bold 11px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('Meta 900', xPos, top - 6);
+              ctx.restore();
+            }
+          } catch (e) {}
+        }
+      };
+
+      const ctxDesglose = document.getElementById('chart-meta900-desglose');
+      if (chartMeta900Desglose) chartMeta900Desglose.destroy();
+
+      if (ctxDesglose) {
+        chartMeta900Desglose = new Chart(ctxDesglose.getContext('2d'), {
+          type: 'bar',
+          data: { labels: pickerLabels, datasets: datasetsDesglose },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                grid: { color: '#F3F4F6' },
+                title: { display: true, text: 'Cajas Surtidas por Día', font: { size: 10, weight: 'bold' } }
+              },
+              y: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' } } }
+            }
+          },
+          plugins: [vlinePlugin900]
+        });
+      }
+
+      const metasTotales = pickersArr.map(p => p.turnos * 900);
+      const cajasReales = pickersArr.map(p => Math.round(p.totalCajas));
+      const colorsReal = cajasReales.map((c, i) => c >= metasTotales[i] ? '#15803D' : '#DC2626');
+
+      const ctxAcumulado = document.getElementById('chart-meta900-acumulado');
+      if (chartMeta900Acumulado) chartMeta900Acumulado.destroy();
+
+      if (ctxAcumulado) {
+        chartMeta900Acumulado = new Chart(ctxAcumulado.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: pickerLabels,
+            datasets: [
+              {
+                label: 'Meta Acumulada (Turnos × 900)',
+                data: metasTotales,
+                backgroundColor: '#94A3B8',
+                borderRadius: 4,
+                barPercentage: 0.85,
+                categoryPercentage: 0.85
+              },
+              {
+                label: 'Real Surtido Acumulado',
+                data: cajasReales,
+                backgroundColor: colorsReal,
+                borderRadius: 4,
+                barPercentage: 0.85,
+                categoryPercentage: 0.85
+              }
+            ]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } } }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                grid: { color: '#F3F4F6' },
+                title: { display: true, text: 'Cajas Totales en el Periodo', font: { size: 10, weight: 'bold' } }
+              },
+              y: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' } } }
+            }
+          }
+        });
+      }
+    }
+
+    // Handlers filtros Diarios
+    ['diario-filter-user', 'diario-filter-crew', 'diario-filter-shift', 'diario-filter-meta', 'diario-date-from', 'diario-date-to'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderDiario);
+    });
+    document.getElementById('diario-btn-reset').addEventListener('click', () => {
+      document.getElementById('diario-filter-user').value = 'ALL';
+      document.getElementById('diario-filter-crew').value = 'ALL';
+      document.getElementById('diario-filter-shift').value = 'ALL';
+      document.getElementById('diario-filter-meta').value = 'ALL';
+      const dates = pickingTasks.map(r => r.opDate).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('diario-date-from').value = dates[0];
+        document.getElementById('diario-date-to').value = dates[dates.length - 1];
+      }
+      renderDiario();
+    });
+
+    // Handlers filtros Meta 900
+    ['meta900-filter-shift', 'meta900-filter-crew', 'meta900-filter-date-mode', 'meta900-date-from', 'meta900-date-to'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderMeta900View);
+    });
+    document.getElementById('meta900-btn-reset').addEventListener('click', () => {
+      document.getElementById('meta900-filter-shift').value = 'ALL';
+      document.getElementById('meta900-filter-crew').value = 'ALL';
+      document.getElementById('meta900-filter-date-mode').value = 'ALL';
+      const dates = pickingTasks.map(r => r.opDate).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('meta900-date-from').value = dates[0];
+        document.getElementById('meta900-date-to').value = dates[dates.length - 1];
+      }
+      renderMeta900View();
+    });
+
+    // ========================================================
+    // EXPORTACIÓN INTEGRAL MULTIPESTAÑA A EXCEL (.XLSX)
+    // ========================================================
+    function exportarTodoAExcel() {
+      if (!traficoRecords.length && !pickingTasks.length) {
+        alert('No hay datos cargados para exportar. Por favor carga primero los reportes de Tráfico o Picking.');
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // HOJA 1: OPERACIONES MX12
+      const traficoExportData = getFilteredTrafico().map(r => ({
+        'Shipment #': r.shipment,
+        'Tipo Operación': r.tipo,
+        'Fecha Operativa': r.opDate || '',
+        'Turno': r.shiftKey,
+        'Tripulación': `Tripulación ${r.crew}`,
+        'Duración Maniobra (min)': r.durationMinutes,
+        'Fin Maniobra': r.endStr,
+        'Check-In Llegada': r.checkInStr,
+        'Transportista': r.carrier
+      }));
+      const wsTrafico = XLSX.utils.json_to_sheet(traficoExportData.length ? traficoExportData : [{ 'Aviso': 'Sin datos de Operaciones MX12' }]);
+      XLSX.utils.book_append_sheet(wb, wsTrafico, 'OPERACIONES_MX12');
+
+      // HOJA 2: PRODUCTIVIDAD GLOBAL (RANKING PICKERS)
+      const tasksGlobal = getFilteredPickingGlobal();
+      const journeysGlobal = buildJourneys(tasksGlobal);
+      const userAgg = {};
+      journeysGlobal.forEach(j => {
+        if (!userAgg[j.user]) {
+          userAgg[j.user] = { user: j.user, journeys: 0, cajas: 0, journeysOk: 0, tareas: 0, excesoMin: 0 };
+        }
+        userAgg[j.user].journeys += 1;
+        userAgg[j.user].cajas += j.cajas;
+        if (j.cumpleMeta900) userAgg[j.user].journeysOk += 1;
+        userAgg[j.user].tareas += j.tareas;
+        userAgg[j.user].excesoMin += j.excesoDowntimeMin;
+      });
+
+      const rankingExportData = Object.values(userAgg).sort((a,b) => b.cajas - a.cajas).map(u => {
+        const emp = employeeCatalog[u.user] || { nombre: 'No registrado', puesto: 'Operativo' };
+        const avgDay = u.journeys > 0 ? Math.round(u.cajas / u.journeys) : 0;
+        const avgExceso = u.journeys > 0 ? Math.round(u.excesoMin / u.journeys) : 0;
+        let estatus = 'Cumple';
+        if (avgDay < 650) estatus = 'Crítico';
+        else if (avgDay < 900) estatus = 'En Riesgo';
+        else if (avgDay >= 1100) estatus = 'Sobresaliente';
+
+        return {
+          'Usuario (TT)': u.user,
+          'Nombre del Colaborador': emp.nombre,
+          'Puesto': emp.puesto,
+          'Turnos Laborados': u.journeys,
+          'Total Cajas Surtidas': Math.round(u.cajas),
+          'Promedio Cajas / Turno': avgDay,
+          'Turnos ≥ Meta 900': u.journeysOk,
+          'Tareas Totales': u.tareas,
+          'Inactividad Excedente Prom (min)': avgExceso,
+          'Estatus Desempeño': estatus
+        };
+      });
+      const wsRanking = XLSX.utils.json_to_sheet(rankingExportData.length ? rankingExportData : [{ 'Aviso': 'Sin datos de Picking Global' }]);
+      XLSX.utils.book_append_sheet(wb, wsRanking, 'Picking_Global_Ranking');
+
+      // HOJA 3: TABLA OPERATIVA (EVALUACIÓN DIARIA)
+      const dailyExportData = getFilteredDiario().map(r => {
+        const emp = employeeCatalog[r.user] || { nombre: 'No registrado', puesto: 'Operativo' };
+        const densidad = r.tareas > 0 ? (r.cajas / r.tareas).toFixed(1) : 0;
+        return {
+          'Fecha Operativa': r.opDate,
+          'Usuario (TT)': r.user,
+          'Nombre del Colaborador': emp.nombre,
+          'Tripulación': `Tripulación ${r.crew}`,
+          'Turno': r.shiftKey,
+          'Tareas Realizadas': r.tareas,
+          'Cajas Surtidas': Math.round(r.cajas),
+          'Cajas / Tarea': parseFloat(densidad),
+          'Inactividad Excedente (min)': r.excesoDowntimeMin,
+          'Cumplimiento Meta 900': r.cumpleMeta900 ? 'CUMPLE' : 'BAJO META'
+        };
+      });
+      const wsDiario = XLSX.utils.json_to_sheet(dailyExportData.length ? dailyExportData : [{ 'Aviso': 'Sin datos de Evaluación Diaria' }]);
+      XLSX.utils.book_append_sheet(wb, wsDiario, 'Evaluacion_Diaria');
+
+      // HOJA 4: ANALÍTICO META 900 (CONSOLIDADO ACUMULADO)
+      const shiftF = document.getElementById('meta900-filter-shift').value;
+      const crewF = document.getElementById('meta900-filter-crew').value;
+      const dateModeF = document.getElementById('meta900-filter-date-mode').value;
+      const from = document.getElementById('meta900-date-from').value;
+      const to = document.getElementById('meta900-date-to').value;
+
+      const tasks900 = pickingTasks.filter(r => {
+        if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
+        if (crewF !== 'ALL' && r.crew !== crewF) return false;
+        if (from && r.opDate && r.opDate < from) return false;
+        if (to && r.opDate && r.opDate > to) return false;
+        return true;
+      });
+      let records900 = buildJourneys(tasks900);
+      if (dateModeF !== 'ALL') records900 = records900.filter(r => r.opDate === dateModeF);
+
+      const pickerMap900 = {};
+      records900.forEach(r => {
+        if (!pickerMap900[r.user]) {
+          const emp = employeeCatalog[r.user] || { nombre: `Operador ${r.user}` };
+          pickerMap900[r.user] = {
+            user: r.user,
+            crew: r.crew,
+            name: emp.nombre,
+            totalCajas: 0,
+            turnos: 0
+          };
+        }
+        pickerMap900[r.user].totalCajas += r.cajas;
+        pickerMap900[r.user].turnos += 1;
+      });
+
+      const meta900ExportData = Object.values(pickerMap900).sort((a,b) => b.totalCajas - a.totalCajas).map(p => {
+        const metaEsperada = p.turnos * 900;
+        const cajasReales = Math.round(p.totalCajas);
+        const cumplimientoPct = metaEsperada > 0 ? ((cajasReales / metaEsperada) * 100).toFixed(1) : 0;
+        return {
+          'Usuario (TT)': p.user,
+          'Nombre del Colaborador': p.name,
+          'Tripulación': `Tripulación ${p.crew}`,
+          'Turnos Laborados': p.turnos,
+          'Meta Total Requerida (Turnos × 900)': metaEsperada,
+          'Cajas Reales Surtidas': cajasReales,
+          '% Cumplimiento': `${cumplimientoPct}%`,
+          'Estatus Acumulado': cajasReales >= metaEsperada ? 'APROBADO' : 'NO ALCANZADO'
+        };
+      });
+      const wsMeta900 = XLSX.utils.json_to_sheet(meta900ExportData.length ? meta900ExportData : [{ 'Aviso': 'Sin datos de Analítico Meta 900' }]);
+      XLSX.utils.book_append_sheet(wb, wsMeta900, 'Analitico_Meta_900');
+
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const filename = `TRAXION_Reporte_Operativo_MX12_${yyyy}${mm}${dd}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+    }
+  </script>
+</body>
+</html>
