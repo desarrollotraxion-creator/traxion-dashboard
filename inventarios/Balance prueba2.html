@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Balance de Almacén Multiformato: SAP vs Izel</title>
+  <!-- SheetJS para lectura y exportación universal de Excel/CSV en cliente -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #1e3a8a;
+      --primary-dark: #172554;
+      --accent: #cbd51b;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; }
+    .container { max-width: 1350px; margin: 0 auto; }
+
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border); }
+    h1 { font-size: 1.5rem; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .grid-upload { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card h3 { font-size: 1.05rem; margin-bottom: 8px; color: var(--primary-dark); }
+    .card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px; }
+    .badge-fmt { display: inline-block; padding: 2px 8px; background: #e0e7ff; color: #3730a3; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; }
+    input[type="file"] { width: 100%; font-size: 0.85rem; padding: 8px; background: #f1f5f9; border-radius: 6px; border: 1px dashed var(--border); }
+
+    .corte-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .corte-bar label { font-size: 0.9rem; font-weight: 600; color: var(--primary-dark); }
+    .corte-bar input[type="text"] {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      width: 140px;
+      text-align: center;
+    }
+    .corte-bar span { font-size: 0.8rem; color: var(--text-muted); }
+
+    .action-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-secondary { background: #475569; color: #fff; }
+    .btn-excel { background: #15803d; color: #fff; }
+
+    .table-container { background: var(--surface); border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; max-height: 600px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+    th { position: sticky; top: 0; background: #1e293b; color: #ffffff; padding: 10px 12px; z-index: 2; }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    tr:hover { background-color: #f8fafc; }
+
+    .row-total-sku { background-color: #e2e8f0; font-weight: bold; }
+    .row-gran-total { background-color: var(--accent); color: #000; font-weight: 800; font-size: 0.95rem; }
+    .num-negativo { color: var(--danger); font-weight: bold; }
+    .num-positivo { color: var(--success); font-weight: bold; }
+
+    .date-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .chip { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; background: #fff; font-size: 0.85rem; }
+    .chip.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .tag-tendencia { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; }
+    .tag-aumento { background: #fee2e2; color: #b91c1c; }
+    .tag-disminucion { background: #dcfce7; color: #15803d; }
+    .tag-fluctuante { background: #fef3c7; color: #b45309; }
+    .tag-estancado { background: #f1f5f9; color: #64748b; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>📦 Balance de Almacén: SAP vs Izel</h1>
+    <span id="status-tag" style="font-size: 0.85rem; color: var(--text-muted);">Listo para procesar</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="cambiarTab('tab-carga')">1. Carga Multiformato</button>
+    <button class="tab-btn" onclick="cambiarTab('tab-match')">2. Balance MATCH</button>
+    <button class="tab-btn" onclick="cambiarTab('tab-historico')">3. Historial y Comparativa</button>
+  </div>
+
+  <!-- TAB 1: CARGA MULTIFORMATO -->
+  <div id="tab-carga" class="tab-content active">
+    <div class="grid-upload">
+      <div class="card">
+        <span class="badge-fmt">Acepta .xlsx, .xls o .csv</span>
+        <h3>1. Reporte SAP</h3>
+        <p>Reporte consolidado de SAP (ej. <i>SSR SAP 04 OCTUBRE 2026.csv</i>).</p>
+        <input type="file" id="file-sap" accept=".csv, .xlsx, .xls" onchange="actualizarFechaDetectada()" />
+      </div>
+
+      <div class="card">
+        <span class="badge-fmt">Acepta .xlsx, .xls o .csv</span>
+        <h3>2. Existencias Izel / Áreas</h3>
+        <p>Reporte de piso (ej. <i>SSR IZEL 04 OCTUBRE 2026.xlsx</i>).</p>
+        <input type="file" id="file-izel" accept=".csv, .xlsx, .xls" onchange="actualizarFechaDetectada()" />
+      </div>
+
+      <div class="card">
+        <span class="badge-fmt">Acepta .xlsx, .xls o .csv (Opcional)</span>
+        <h3>3. Maestro de Materiales</h3>
+        <p>Catálogo para valorizar diferencias monetarias por SKU.</p>
+        <input type="file" id="file-maestro" accept=".csv, .xlsx, .xls" />
+      </div>
+    </div>
+
+    <!-- Barra de Fecha de Corte detectada -->
+    <div class="corte-bar">
+      <label for="input-fecha-corte">📅 Fecha de Corte Detectada:</label>
+      <input type="text" id="input-fecha-corte" placeholder="DD/MM/YYYY" />
+      <span id="fecha-origen-label">(Se extraerá del nombre del archivo al seleccionarlo)</span>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="procesarArchivos()">⚡ Ejecutar Conciliación</button>
+    </div>
+  </div>
+
+  <!-- TAB 2: TABLA MATCH -->
+  <div id="tab-match" class="tab-content">
+    <div class="action-bar">
+      <button class="btn btn-success" onclick="guardarEnHistorico()">💾 Guardar en Historial (Fecha de Corte)</button>
+      <button class="btn btn-secondary" onclick="exportarExcelMatch()">📥 Exportar MATCH del Día a Excel</button>
+      <input type="text" id="filtro-sku" placeholder="Buscar por SKU..." oninput="filtrarTablaMatch()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);" />
+    </div>
+
+    <div class="table-container">
+      <table id="tabla-match">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Descripción</th>
+            <th>Sloc</th>
+            <th>Carga_Excel_Areas</th>
+            <th>Balance_Consolidado</th>
+            <th id="th-fecha-corte">Dif Piezas</th>
+            <th>Dif $</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-match">
+          <tr><td colspan="7" style="text-align:center; padding: 24px;">No se ha generado conciliación aún.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: HISTORIAL Y COMPARATIVA -->
+  <div id="tab-historico" class="tab-content">
+    <div class="card" style="margin-bottom: 20px;">
+      <h3>Fechas de Archivos Registradas</h3>
+      <p>Selecciona fechas para evaluar variaciones y tendencias, o exporta el historial consolidado:</p>
+      <div id="contenedor-fechas" class="date-chips"></div>
+      <div class="action-bar">
+        <button class="btn btn-primary" onclick="ejecutarComparativa()">📈 Comparar Fechas Seleccionadas</button>
+        <!-- BOTÓN PRINCIPAL PARA EXPORTAR HISTORIAL ESTILO APPS SCRIPT -->
+        <button class="btn btn-excel" onclick="exportarHistoricoCompletoExcel()">📑 Exportar Histórico Completo (7 Cols por Día)</button>
+        <button class="btn btn-secondary" onclick="limpiarTodoHistorico()" style="background: #dc2626;">Borrar Historial</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table id="tabla-comparativa">
+        <thead id="thead-comparativa">
+          <tr>
+            <th>SKU</th>
+            <th>Sloc</th>
+            <th>Variación Total</th>
+            <th>Tendencia (Regla)</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-comparativa">
+          <tr><td colspan="4" style="text-align:center; padding: 24px;">Selecciona fechas y ejecuta la comparación.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let datosMatchGenerados = [];
+  let mapaMaestroGlobal = {};
+  let fechasSeleccionadas = [];
+  let fechaCorteActual = "";
+
+  function cambiarTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+
+  // ==========================================
+  // PARSER DE FECHAS DESDE NOMBRES DE ARCHIVO
+  // ==========================================
+  function extraerFechaDeNombre(nombreArchivo) {
+    if (!nombreArchivo) return null;
+    const sinExt = (nombreArchivo.substring(0, nombreArchivo.lastIndexOf('.')) || nombreArchivo).toUpperCase().trim();
+
+    const meses = {
+      "ENERO": "01", "ENE": "01",
+      "FEBRERO": "02", "FEB": "02",
+      "MARZO": "03", "MAR": "03",
+      "ABRIL": "04", "ABR": "04",
+      "MAYO": "05", "MAY": "05",
+      "JUNIO": "06", "JUN": "06",
+      "JULIO": "07", "JUL": "07",
+      "AGOSTO": "08", "AGO": "08",
+      "SEPTIEMBRE": "09", "SEP": "09", "SETIEMBRE": "09",
+      "OCTUBRE": "10", "OCT": "10",
+      "NOVIEMBRE": "11", "NOV": "11",
+      "DICIEMBRE": "12", "DIC": "12"
+    };
+
+    const mesesPattern = Object.keys(meses).join("|");
+    const regexTexto = new RegExp(`\\b(0?[1-9]|[12]\\d|3[01])(?:\\s+DE\\s+|\\s+)(${mesesPattern})(?:\\s+DE\\s+|\\s+)(20\\d{2})\\b`);
+    let m = sinExt.match(regexTexto);
+    if (m) {
+      const dia = String(m[1]).padStart(2, '0');
+      const mes = meses[m[2]];
+      const anio = m[3];
+      return `${dia}/${mes}/${anio}`;
+    }
+
+    m = sinExt.match(/\b(20\d{2})[-_.](0[1-9]|1[0-2])[-_.](0[1-9]|[12]\d|3[01])\b/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+    m = sinExt.match(/\b(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+    m = sinExt.match(/\b(0[1-9]|[12]\d|3[01])[-_.](0[1-9]|1[0-2])[-_.](20\d{2})\b/);
+    if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+
+    m = sinExt.match(/\b(0[1-9]|[12]\d|3[01])[-_.](0[1-9]|1[0-2])[-_.](2\d)\b/);
+    if (m) return `${m[1]}/${m[2]}/20${m[3]}`;
+
+    return null;
+  }
+
+  function actualizarFechaDetectada() {
+    const fileSap = document.getElementById('file-sap').files[0];
+    const fileIzel = document.getElementById('file-izel').files[0];
+    const inputFecha = document.getElementById('input-fecha-corte');
+    const labelOrigen = document.getElementById('fecha-origen-label');
+
+    let fechaSap = fileSap ? extraerFechaDeNombre(fileSap.name) : null;
+    let fechaIzel = fileIzel ? extraerFechaDeNombre(fileIzel.name) : null;
+
+    if (fechaSap) {
+      inputFecha.value = fechaSap;
+      labelOrigen.textContent = `(Extraída de SAP: "${fileSap.name}")`;
+    } else if (fechaIzel) {
+      inputFecha.value = fechaIzel;
+      labelOrigen.textContent = `(Extraída de Izel: "${fileIzel.name}")`;
+    } else {
+      labelOrigen.textContent = "(No se detectó fecha en los nombres; puedes escribirla manualmente)";
+    }
+  }
+
+  // ==========================================
+  // LECTOR UNIVERSAL (CSV / XLSX / XLS)
+  // ==========================================
+  function leerArchivoUniversal(file, sheetTargetName = "") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          
+          let targetSheet = workbook.SheetNames[0];
+          if (sheetTargetName) {
+            const match = workbook.SheetNames.find(n => n.toLowerCase().includes(sheetTargetName.toLowerCase()));
+            if (match) targetSheet = match;
+          }
+
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheet], { header: 1, defval: "" });
+          resolve(rows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function limpiarNumero(val) {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const cleanStr = String(val).trim().replace(/,/g, "");
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // ==========================================
+  // PARSEO FLEXIBLE DE FUENTES
+  // ==========================================
+  async function procesarArchivos() {
+    const fileSap = document.getElementById('file-sap').files[0];
+    const fileIzel = document.getElementById('file-izel').files[0];
+    const fileMaestro = document.getElementById('file-maestro').files[0];
+    const inputFecha = document.getElementById('input-fecha-corte');
+
+    if (!fileSap || !fileIzel) {
+      alert("Debes seleccionar tanto el archivo de SAP como el de Izel.");
+      return;
+    }
+
+    fechaCorteActual = inputFecha.value.trim();
+    if (!fechaCorteActual) {
+      const hoy = new Date();
+      const dd = String(hoy.getDate()).padStart(2, '0');
+      const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+      const yyyy = hoy.getFullYear();
+      fechaCorteActual = `${dd}/${mm}/${yyyy}`;
+      inputFecha.value = fechaCorteActual;
+    }
+
+    document.getElementById('status-tag').textContent = `Procesando corte: ${fechaCorteActual}...`;
+
+    try {
+      if (fileMaestro) {
+        const rowsMaestro = await leerArchivoUniversal(fileMaestro, "maestro mat");
+        mapaMaestroGlobal = parsearMaestro(rowsMaestro);
+      }
+
+      const rowsSap = await leerArchivoUniversal(fileSap);
+      const mapaBalance = parsearSAP(rowsSap);
+
+      const rowsIzel = await leerArchivoUniversal(fileIzel);
+      const mapaExcel = parsearIzel(rowsIzel);
+
+      generarTablaMatch(mapaBalance, mapaExcel, mapaMaestroGlobal, fechaCorteActual);
+
+      document.querySelectorAll('.tab-btn')[1].click();
+      document.getElementById('status-tag').textContent = `Conciliación lista (${fechaCorteActual})`;
+    } catch (err) {
+      alert("Error al procesar: " + err.message);
+      document.getElementById('status-tag').textContent = "Error en procesamiento";
+      console.error(err);
+    }
+  }
+
+  function parsearSAP(rows) {
+    if (!rows || rows.length < 2) throw new Error("El archivo de SAP no contiene suficientes datos.");
+
+    const h0 = rows[0].map(c => String(c).trim().toLowerCase());
+    let idxSku = h0.findIndex(h => h.includes("material") || h.includes("sku") || h.includes("artículo") || h.includes("articulo"));
+    let idxSloc = h0.findIndex(h => h.includes("storage") || h.includes("sloc") || h.includes("almacén") || h.includes("almacen") || h.includes("ub"));
+    let idxQty = h0.findIndex(h => h.includes("bum") || h.includes("libre") || h.includes("cantidad") || h.includes("qty"));
+
+    if (idxSku === -1) idxSku = 1;
+    if (idxSloc === -1) idxSloc = 5;
+    if (idxQty === -1) idxQty = 6;
+
+    const mapa = {};
+    for (let i = 1; i < rows.length; i++) {
+      const fila = rows[i];
+      if (!fila || fila.length <= Math.max(idxSku, idxSloc)) continue;
+
+      const material = String(fila[idxSku] || "").trim().replace(/\./g, "");
+      const slocRaw = String(fila[idxSloc] || "").trim().toUpperCase();
+      const qty = limpiarNumero(fila[idxQty]);
+
+      if (!material || !slocRaw) continue;
+      if (material.includes("HMXTAR04") || material.includes("HMXTAR02")) continue;
+
+      let sloc = "FG";
+      if (slocRaw.includes("QR")) sloc = "QR";
+      else if (slocRaw.includes("DAÑO") || slocRaw.includes("DR")) sloc = "DR";
+      else if (slocRaw.includes("FG") || slocRaw.includes("LIBRE")) sloc = "FG";
+
+      const clave = `${material}_${sloc}`;
+      mapa[clave] = (mapa[clave] || 0) + qty;
+    }
+    return mapa;
+  }
+
+  function parsearIzel(rows) {
+    if (!rows || rows.length < 2) throw new Error("El archivo de Izel no contiene suficientes datos.");
+
+    const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
+    const idxCant = headers.findIndex(h => h.includes("cantidad") || h.includes("qty") || h.includes("cajas"));
+    const idxSku = headers.findIndex(h => h.includes("sku") || h.includes("material") || h.includes("codigo") || h.includes("código"));
+    const idxArea = headers.findIndex(h => h.includes("area") || h.includes("área") || h.includes("ubicacion") || h.includes("ubicación") || h.includes("sloc"));
+
+    if (idxCant === -1 || idxSku === -1 || idxArea === -1) {
+      throw new Error("No se localizaron las columnas ('Cantidad', 'SKU', 'Area') en el archivo de Izel.");
+    }
+
+    const mapa = {};
+    for (let i = 1; i < rows.length; i++) {
+      const fila = rows[i];
+      if (!fila) continue;
+
+      const sku = String(fila[idxSku] || "").trim().replace(/\./g, "");
+      const areaOriginal = String(fila[idxArea] || "").trim().toUpperCase();
+      const cantidad = limpiarNumero(fila[idxCant]);
+
+      if (!sku || sku.includes("HMXTAR04") || sku.includes("HMXTAR02")) continue;
+
+      let sloc = "FG";
+      if (areaOriginal.includes("QR")) sloc = "QR";
+      else if (areaOriginal.includes("DAÑO") || areaOriginal.includes("DAÑOS") || areaOriginal.includes("DR")) sloc = "DR";
+
+      const clave = `${sku}_${sloc}`;
+      mapa[clave] = (mapa[clave] || 0) + cantidad;
+    }
+    return mapa;
+  }
+
+  function parsearMaestro(rows) {
+    const mapa = {};
+    if (!rows || rows.length < 7) return mapa;
+
+    for (let i = 6; i < rows.length; i++) {
+      const colA = rows[i][0];
+      const colB = rows[i][1];
+      const colAA = rows[i][26];
+
+      if (colA !== undefined && colA !== null && colA !== "") {
+        const sku = String(colA).trim().replace(/\./g, "");
+        mapa[sku] = {
+          descripcion: String(colB || "").trim(),
+          precio: limpiarNumero(colAA)
+        };
+      }
+    }
+    return mapa;
+  }
+
+  // ==========================================
+  // CONCILIACIÓN (MATCH)
+  // ==========================================
+  function generarTablaMatch(mapaBalance, mapaExcel, mapaMaestro, fechaCorte) {
+    const todosSkusSet = new Set();
+    Object.keys(mapaBalance).forEach(k => todosSkusSet.add(k.split("_")[0]));
+    Object.keys(mapaExcel).forEach(k => todosSkusSet.add(k.split("_")[0]));
+
+    const todosSkus = Array.from(todosSkusSet).sort();
+    document.getElementById('th-fecha-corte').textContent = `${fechaCorte} (Dif Piezas)`;
+
+    const filas = [];
+    let granTotalExcel = 0;
+    let granTotalBalance = 0;
+    let granTotalDifPiezas = 0;
+    let granTotalDifDinero = 0;
+
+    todosSkus.forEach(sku => {
+      const slocs = new Set();
+      Object.keys(mapaBalance).forEach(k => { if (k.startsWith(sku + "_")) slocs.add(k.split("_")[1]); });
+      Object.keys(mapaExcel).forEach(k => { if (k.startsWith(sku + "_")) slocs.add(k.split("_")[1]); });
+
+      const infoMaestro = mapaMaestro[sku] || { descripcion: "Sin Registro", precio: 0 };
+      let totExcelSku = 0;
+      let totBalSku = 0;
+
+      slocs.forEach(sloc => {
+        const clave = `${sku}_${sloc}`;
+        const valEx = mapaExcel[clave] || 0;
+        const valBal = mapaBalance[clave] || 0;
+        const difPz = valEx - valBal;
+        const difDin = difPz * infoMaestro.precio;
+
+        filas.push({
+          sku,
+          desc: infoMaestro.descripcion,
+          sloc,
+          excel: valEx,
+          balance: valBal,
+          difPiezas: difPz,
+          difDinero: difDin,
+          esTotal: false
+        });
+
+        totExcelSku += valEx;
+        totBalSku += valBal;
+      });
+
+      const totDifPz = totExcelSku - totBalSku;
+      const totDifDin = totDifPz * infoMaestro.precio;
+
+      filas.push({
+        sku: `Total ${sku}`,
+        desc: infoMaestro.descripcion,
+        sloc: "",
+        excel: totExcelSku,
+        balance: totBalSku,
+        difPiezas: totDifPz,
+        difDinero: totDifDin,
+        esTotal: true
+      });
+
+      granTotalExcel += totExcelSku;
+      granTotalBalance += totBalSku;
+      granTotalDifPiezas += totDifPz;
+      granTotalDifDinero += totDifDin;
+    });
+
+    filas.push({
+      sku: "GRAN TOTAL",
+      desc: "",
+      sloc: "",
+      excel: granTotalExcel,
+      balance: granTotalBalance,
+      difPiezas: granTotalDifPiezas,
+      difDinero: granTotalDifDinero,
+      esGranTotal: true
+    });
+
+    datosMatchGenerados = filas;
+    renderizarTablaMatch(filas);
+  }
+
+  function renderizarTablaMatch(filas) {
+    const tbody = document.getElementById('tbody-match');
+    tbody.innerHTML = "";
+
+    filas.forEach(f => {
+      const tr = document.createElement('tr');
+      if (f.esGranTotal) tr.className = "row-gran-total";
+      else if (f.esTotal) tr.className = "row-total-sku";
+
+      const difPzClass = f.difPiezas < 0 ? "num-negativo" : (f.difPiezas > 0 ? "num-positivo" : "");
+
+      tr.innerHTML = `
+        <td>${f.sku}</td>
+        <td>${f.desc}</td>
+        <td>${f.sloc}</td>
+        <td>${f.excel ? f.excel.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td>${f.balance ? f.balance.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td class="${difPzClass}">${f.difPiezas !== "" ? f.difPiezas.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td>${f.difDinero !== "" ? '$' + f.difDinero.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filtrarTablaMatch() {
+    const q = document.getElementById('filtro-sku').value.trim().toLowerCase();
+    if (!q) {
+      renderizarTablaMatch(datosMatchGenerados);
+      return;
+    }
+    const filtrados = datosMatchGenerados.filter(f => f.sku.toLowerCase().includes(q) || f.esGranTotal);
+    renderizarTablaMatch(filtrados);
+  }
+
+  // ==========================================
+  // HISTORIAL CON ESTRUCTURA COMPLETA
+  // ==========================================
+  function guardarEnHistorico() {
+    if (!datosMatchGenerados || datosMatchGenerados.length === 0) {
+      alert("No hay datos de match para guardar.");
+      return;
+    }
+
+    const fechaGuardar = fechaCorteActual || document.getElementById('input-fecha-corte').value.trim();
+    if (!fechaGuardar) {
+      alert("No se especificó la fecha de corte a guardar.");
+      return;
+    }
+
+    let historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+
+    // Guardar el bloque idéntico a Balance MATCH
+    historico[fechaGuardar] = datosMatchGenerados;
+    localStorage.setItem('balance_historico_completo', JSON.stringify(historico));
+
+    alert(`¡Éxito! Registrado balance histórico con la fecha: ${fechaGuardar}.`);
+    cargarChipsFechas();
+  }
+
+  function cargarChipsFechas() {
+    const contenedor = document.getElementById('contenedor-fechas');
+    contenedor.innerHTML = "";
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const fechas = Object.keys(historico);
+
+    if (fechas.length === 0) {
+      contenedor.innerHTML = "<span style='color: var(--text-muted); font-size:0.85rem;'>No hay fechas guardadas aún.</span>";
+      return;
+    }
+
+    fechas.forEach(f => {
+      const chip = document.createElement('div');
+      chip.className = "chip" + (fechasSeleccionadas.includes(f) ? " selected" : "");
+      chip.textContent = f;
+      chip.onclick = () => {
+        if (fechasSeleccionadas.includes(f)) {
+          fechasSeleccionadas = fechasSeleccionadas.filter(x => x !== f);
+        } else {
+          fechasSeleccionadas.push(f);
+        }
+        cargarChipsFechas();
+      };
+      contenedor.appendChild(chip);
+    });
+  }
+
+  function limpiarTodoHistorico() {
+    if (confirm("¿Estás seguro de vaciar el historial guardado?")) {
+      localStorage.removeItem('balance_historico_completo');
+      fechasSeleccionadas = [];
+      cargarChipsFechas();
+      document.getElementById('tbody-comparativa').innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 24px;">Historial limpio.</td></tr>';
+    }
+  }
+
+  // ==========================================
+  // EXPORTAR HISTÓRICO COMPLETO ESTILO APPS SCRIPT
+  // ==========================================
+  function parseFechaOrden(fStr) {
+    const parts = fStr.split('/');
+    if (parts.length === 3) {
+      return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+    }
+    return 0;
+  }
+
+  function exportarHistoricoCompletoExcel() {
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const fechas = Object.keys(historico);
+
+    if (fechas.length === 0) {
+      alert("No hay ningún corte guardado en el historial para exportar.");
+      return;
+    }
+
+    // Ordenar fechas en orden descendente (la más reciente a la izquierda, exactamente igual a Apps Script)
+    const fechasDescendentes = fechas.sort((a, b) => parseFechaOrden(b) - parseFechaOrden(a));
+
+    // Determinar la cantidad máxima de filas
+    let maxFilas = 0;
+    fechasDescendentes.forEach(f => {
+      if (historico[f].length > maxFilas) maxFilas = historico[f].length;
+    });
+
+    // Fila 0: Fecha combinada (A1:G1, H1:N1, etc.)
+    // Fila 1: Encabezados de columnas
+    // Fila 2 en adelante: Datos
+    const matriz = [];
+    const totalFilasMatriz = maxFilas + 2;
+
+    for (let r = 0; r < totalFilasMatriz; r++) {
+      matriz.push(new Array(fechasDescendentes.length * 7).fill(""));
+    }
+
+    const merges = [];
+
+    fechasDescendentes.forEach((fechaStr, bIdx) => {
+      const colInicio = bIdx * 7;
+
+      // 1. Fila 0: Fecha en la primera celda del bloque
+      matriz[0][colInicio] = fechaStr;
+      merges.push({
+        s: { r: 0, c: colInicio },
+        e: { r: 0, c: colInicio + 6 }
+      });
+
+      // 2. Fila 1: Encabezados del bloque
+      const encabezados = ["SKU", "Descripción", "Sloc", "Carga_Excel_A", "Balance_Consc", "Fecha_Dif", "Dif $"];
+      encabezados.forEach((h, hIdx) => {
+        matriz[1][colInicio + hIdx] = h;
+      });
+
+      // 3. Filas de datos
+      const datosBloque = historico[fechaStr];
+      datosBloque.forEach((filaItem, rIdx) => {
+        const filaDestino = rIdx + 2;
+        matriz[filaDestino][colInicio + 0] = filaItem.sku;
+        matriz[filaDestino][colInicio + 1] = filaItem.desc;
+        matriz[filaDestino][colInicio + 2] = filaItem.sloc;
+        matriz[filaDestino][colInicio + 3] = filaItem.excel !== 0 ? filaItem.excel : "";
+        matriz[filaDestino][colInicio + 4] = filaItem.balance !== 0 ? filaItem.balance : "";
+        matriz[filaDestino][colInicio + 5] = filaItem.difPiezas;
+        matriz[filaDestino][colInicio + 6] = filaItem.difDinero;
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(matriz);
+    ws['!merges'] = merges;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Historico_Diferencias");
+
+    const fechaHoyDescarga = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Historico_Diferencias_${fechaHoyDescarga}.xlsx`);
+  }
+
+  // ==========================================
+  // COMPARATIVA MULTIFECHA Y TENDENCIAS
+  // ==========================================
+  function ejecutarComparativa() {
+    if (fechasSeleccionadas.length < 2) {
+      alert("Selecciona al menos 2 fechas en los botones superiores para comparar.");
+      return;
+    }
+
+    // Cronológico ascendente para evaluar tendencias
+    const fechasOrdenadas = [...fechasSeleccionadas].sort((a, b) => parseFechaOrden(a) - parseFechaOrden(b));
+
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const todasClaves = new Set();
+    const mapasPorFecha = {};
+
+    fechasOrdenadas.forEach(f => {
+      mapasPorFecha[f] = {};
+      const filasCorte = historico[f] || [];
+      filasCorte.filter(it => !it.esTotal && !it.esGranTotal && it.sloc).forEach(item => {
+        const clave = `${item.sku}_${item.sloc}`.toUpperCase();
+        todasClaves.add(clave);
+        mapasPorFecha[f][clave] = item.difPiezas;
+      });
+    });
+
+    const thead = document.getElementById('thead-comparativa');
+    let thHtml = `<tr><th>SKU</th><th>Sloc</th>`;
+    fechasOrdenadas.forEach(f => {
+      thHtml += `<th>Dif (${f})</th>`;
+    });
+    thHtml += `<th>Variación Total</th><th>Tendencia (Regla)</th></tr>`;
+    thead.innerHTML = thHtml;
+
+    const tbody = document.getElementById('tbody-comparativa');
+    tbody.innerHTML = "";
+
+    Array.from(todasClaves).sort().forEach(clave => {
+      const [sku, sloc] = clave.split("_");
+      const valores = fechasOrdenadas.map(f => mapasPorFecha[f][clave] || 0);
+
+      const primera = valores[0];
+      const ultima = valores[valores.length - 1];
+      const variacionTotal = ultima - primera;
+
+      let subio = false;
+      let bajo = false;
+      for (let i = 0; i < valores.length - 1; i++) {
+        const diff = valores[i + 1] - valores[i];
+        if (diff > 0) subio = true;
+        if (diff < 0) bajo = true;
+      }
+
+      let tendencia = "Sin Movimiento (Estancado)";
+      let tagClass = "tag-estancado";
+
+      if (subio && !bajo) {
+        tendencia = "Aumento Continuo";
+        tagClass = "tag-aumento";
+      } else if (bajo && !subio) {
+        tendencia = "Disminución Continua";
+        tagClass = "tag-disminucion";
+      } else if (subio && bajo) {
+        tendencia = "Fluctuante";
+        tagClass = "tag-fluctuante";
+      }
+
+      const tieneMovimiento = valores.some(v => v !== 0);
+      if (!tieneMovimiento) return;
+
+      const tr = document.createElement('tr');
+      let celdas = `<td>${sku}</td><td>${sloc}</td>`;
+      valores.forEach(v => {
+        celdas += `<td>${v.toLocaleString('es-MX')}</td>`;
+      });
+      celdas += `<td><b>${variacionTotal.toLocaleString('es-MX')}</b></td>`;
+      celdas += `<td><span class="tag-tendencia ${tagClass}">${tendencia}</span></td>`;
+
+      tr.innerHTML = celdas;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ==========================================
+  // EXPORTACIÓN MATCH DEL DÍA A EXCEL
+  // ==========================================
+  function exportarExcelMatch() {
+    if (!datosMatchGenerados || datosMatchGenerados.length === 0) {
+      alert("No hay información para exportar.");
+      return;
+    }
+
+    const colFecha = `${fechaCorteActual || 'Corte'} (Dif Piezas)`;
+    const dataExcel = [
+      ["SKU", "Descripción", "Sloc", "Carga_Excel_Areas", "Balance_Consolidado", colFecha, "Dif $"]
+    ];
+
+    datosMatchGenerados.forEach(f => {
+      dataExcel.push([
+        f.sku,
+        f.desc,
+        f.sloc,
+        f.excel || 0,
+        f.balance || 0,
+        f.difPiezas || 0,
+        f.difDinero || 0
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(dataExcel);
+    const wb = XLSX.utils.book_new();
+    const safeFecha = (fechaCorteActual || 'Corte').replace(/\//g, "-");
+    XLSX.utils.book_append_sheet(wb, ws, "Balance_MATCH");
+    XLSX.writeFile(wb, `Balance_MATCH_${safeFecha}.xlsx`);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    cargarChipsFechas();
+  });
+</script>
+</body>
+</html>
