@@ -3,88 +3,232 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Balance de Almacén Multiformato: SAP vs Izel</title>
+  <title>Balance de Almacén: SAP vs Izel | Traxión</title>
   <!-- SheetJS para lectura y exportación universal de Excel/CSV en cliente -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
+    /* ============================================================
+       LINEAMIENTOS INSTITUCIONALES TRAXIÓN (TSE-09-SIGEO-PR)
+    ============================================================ */
     :root {
-      --primary: #1e3a8a;
-      --primary-dark: #172554;
-      --accent: #cbd51b;
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --border: #e2e8f0;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --danger: #ef4444;
-      --success: #10b981;
+      --primary: #182237;         /* Azul Oscuro institucional */
+      --primary-dark: #100848;    /* Azul Oscuro headers / barras */
+      --accent: #cbd51b;          /* Verde Limón Traxión */
+      --accent-line: #C0D838;     /* Línea de acento institucional */
+      --bg: #F4F6F8;              /* Fondo Layout gris muy claro */
+      --surface: #FFFFFF;         /* Fondo de tarjetas */
+      --border: #E5E7EB;          /* Líneas y bordes suaves */
+      --text: #1D2939;            /* Texto principal */
+      --text-muted: #6B7280;      /* Texto secundario y metadatos */
+      --danger: #D92D20;          /* Rojo Crítico */
+      --danger-bg: #FEE4E2;       /* Fondo suave Rojo */
+      --success: #037A48;         /* Verde Cumplimiento / Tiempo */
+      --warning: #E07A00;         /* Naranja Riesgo */
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 24px; }
-    .container { max-width: 1350px; margin: 0 auto; }
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", Arial, sans-serif; 
+    }
 
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border); }
-    h1 { font-size: 1.5rem; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    body { 
+      background-color: var(--bg); 
+      color: var(--text); 
+      padding: 24px; 
+    }
 
-    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .container { 
+      max-width: 1400px; 
+      margin: 0 auto; 
+    }
+
+    header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 24px; 
+      padding-bottom: 16px; 
+      border-bottom: 3px solid var(--accent-line); 
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      border-right: 2px solid var(--border);
+      padding-right: 16px;
+    }
+
+    .brand-logo span:first-child {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .brand-logo span:last-child {
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      line-height: 1.4;
+    }
+
+    h1 { 
+      font-size: 20px; 
+      font-weight: 800; 
+      color: var(--primary); 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+    }
+
+    .header-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .tabs { 
+      display: flex; 
+      gap: 10px; 
+      margin-bottom: 20px; 
+    }
+
     .tab-btn {
       padding: 10px 20px;
       border: 1px solid var(--border);
       background: var(--surface);
       cursor: pointer;
       border-radius: 8px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       color: var(--text-muted);
       transition: all 0.2s ease;
+      text-transform: uppercase;
     }
+
     .tab-btn.active {
       background: var(--primary);
-      color: #fff;
+      color: #FFFFFF;
       border-color: var(--primary);
     }
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    .grid-upload { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .card h3 { font-size: 1.05rem; margin-bottom: 8px; color: var(--primary-dark); }
-    .card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px; }
-    .badge-fmt { display: inline-block; padding: 2px 8px; background: #e0e7ff; color: #3730a3; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; }
-    input[type="file"] { width: 100%; font-size: 0.85rem; padding: 8px; background: #f1f5f9; border-radius: 6px; border: 1px dashed var(--border); }
+    /* GRID DE CARGA */
+    .grid-upload { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+      gap: 16px; 
+      margin-bottom: 20px; 
+    }
+
+    .card { 
+      background: var(--surface); 
+      border: 1px solid var(--border); 
+      border-radius: 10px; 
+      padding: 20px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+    }
+
+    .card h3 { 
+      font-size: 14px; 
+      font-weight: 700; 
+      margin-bottom: 8px; 
+      color: var(--primary-dark); 
+      text-transform: uppercase; 
+    }
+
+    .card p { 
+      font-size: 12px; 
+      color: var(--text-muted); 
+      margin-bottom: 14px; 
+    }
+
+    .badge-fmt { 
+      display: inline-block; 
+      padding: 3px 8px; 
+      background: #eff6ff; 
+      color: var(--primary); 
+      border: 1px solid #bfdbfe; 
+      border-radius: 4px; 
+      font-size: 11px; 
+      font-weight: 700; 
+      margin-bottom: 8px; 
+    }
+
+    input[type="file"] { 
+      width: 100%; 
+      font-size: 12px; 
+      padding: 8px; 
+      background: #f8fafc; 
+      border-radius: 6px; 
+      border: 1px dashed var(--border); 
+    }
 
     .corte-bar {
       display: flex;
       align-items: center;
       gap: 16px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      padding: 12px 16px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 12px 18px;
       border-radius: 8px;
       margin-bottom: 20px;
       flex-wrap: wrap;
     }
-    .corte-bar label { font-size: 0.9rem; font-weight: 600; color: var(--primary-dark); }
+
+    .corte-bar label { 
+      font-size: 13px; 
+      font-weight: 700; 
+      color: var(--primary-dark); 
+    }
+
     .corte-bar input[type="text"] {
       padding: 8px 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 0.9rem;
+      font-size: 13px;
       font-weight: bold;
       width: 140px;
       text-align: center;
+      color: var(--text);
     }
-    .corte-bar span { font-size: 0.8rem; color: var(--text-muted); }
 
-    .action-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .corte-bar span { 
+      font-size: 12px; 
+      color: var(--text-muted); 
+    }
+
+    .action-bar { 
+      display: flex; 
+      gap: 12px; 
+      margin-bottom: 20px; 
+      flex-wrap: wrap; 
+      align-items: center; 
+    }
+
     .btn {
-      padding: 10px 18px;
+      padding: 9px 18px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 0.9rem;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
       transition: opacity 0.2s;
       display: inline-flex;
       align-items: center;
@@ -92,38 +236,151 @@
     }
     .btn:hover { opacity: 0.9; }
     .btn-primary { background: var(--primary); color: #fff; }
-    .btn-success { background: #059669; color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
     .btn-secondary { background: #475569; color: #fff; }
     .btn-excel { background: #15803d; color: #fff; }
 
-    .table-container { background: var(--surface); border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; max-height: 600px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
-    th { position: sticky; top: 0; background: #1e293b; color: #ffffff; padding: 10px 12px; z-index: 2; }
-    td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    /* TARJETAS KPI RESUMEN */
+    .kpi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      border-top: 4px solid var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .kpi-card.kpi-danger { border-top-color: var(--danger); }
+    .kpi-card.kpi-success { border-top-color: var(--success); }
+    .kpi-card.kpi-warning { border-top-color: var(--warning); }
+    .kpi-card.kpi-accent { border-top-color: var(--accent); }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* FILTROS */
+    .filter-control {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      background: #FFFFFF;
+      color: var(--text);
+      outline: none;
+    }
+    .filter-control:focus {
+      border-color: var(--primary);
+    }
+
+    /* TABLAS */
+    .table-container { 
+      background: var(--surface); 
+      border-radius: 8px; 
+      border: 1px solid var(--border); 
+      overflow-x: auto; 
+      max-height: 600px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03); 
+    }
+
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-size: 12px; 
+      text-align: left; 
+    }
+
+    th { 
+      position: sticky; 
+      top: 0; 
+      background: var(--primary-dark); 
+      color: #ffffff; 
+      padding: 10px 12px; 
+      z-index: 2; 
+      font-size: 11px; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+      border-right: 1px solid rgba(255,255,255,0.1); 
+      user-select: none;
+    }
+
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { background: #182237; }
+
+    td { 
+      padding: 8px 12px; 
+      border-bottom: 1px solid var(--border); 
+      color: var(--text); 
+    }
+
     tr:hover { background-color: #f8fafc; }
 
-    .row-total-sku { background-color: #e2e8f0; font-weight: bold; }
-    .row-gran-total { background-color: var(--accent); color: #000; font-weight: 800; font-size: 0.95rem; }
-    .num-negativo { color: var(--danger); font-weight: bold; }
-    .num-positivo { color: var(--success); font-weight: bold; }
+    .row-total-sku { background-color: #f1f5f9; font-weight: 700; }
+    .row-gran-total { background-color: var(--accent); color: #000; font-weight: 800; font-size: 13px; }
+    
+    .num-negativo { color: var(--danger); font-weight: 700; }
+    .num-positivo { color: var(--success); font-weight: 700; }
 
     .date-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-    .chip { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; background: #fff; font-size: 0.85rem; }
-    .chip.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .chip { 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      border: 1px solid var(--border); 
+      cursor: pointer; 
+      background: #fff; 
+      font-size: 12px; 
+      font-weight: 600; 
+    }
+    .chip.selected { 
+      background: var(--primary); 
+      color: #fff; 
+      border-color: var(--primary); 
+    }
 
-    .tag-tendencia { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; }
-    .tag-aumento { background: #fee2e2; color: #b91c1c; }
-    .tag-disminucion { background: #dcfce7; color: #15803d; }
-    .tag-fluctuante { background: #fef3c7; color: #b45309; }
-    .tag-estancado { background: #f1f5f9; color: #64748b; }
+    .tag-tendencia { padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; text-transform: uppercase; display: inline-block; }
+    .tag-aumento { background: var(--danger-bg); color: var(--danger); }
+    .tag-disminucion { background: #dcfce7; color: var(--success); }
+    .tag-fluctuante { background: #fef3c7; color: var(--warning); }
+    .tag-estancado { background: #f1f5f9; color: var(--text-muted); }
   </style>
 </head>
 <body>
 
 <div class="container">
   <header>
-    <h1>📦 Balance de Almacén: SAP vs Izel</h1>
-    <span id="status-tag" style="font-size: 0.85rem; color: var(--text-muted);">Listo para procesar</span>
+    <div class="brand-box">
+      <div class="brand-logo">
+        <span>TRAXION</span>
+        <span>VIDA EN MOVIMIENTO</span>
+      </div>
+      <h1>Balance de Almacén: SAP vs Izel</h1>
+    </div>
+    <span id="status-tag" class="header-meta">Listo para procesar</span>
   </header>
 
   <div class="tabs">
@@ -157,7 +414,7 @@
       </div>
     </div>
 
-    <!-- Barra de Fecha de Corte detectada -->
+    <!-- Barra de Fecha de Corte -->
     <div class="corte-bar">
       <label for="input-fecha-corte">📅 Fecha de Corte Detectada:</label>
       <input type="text" id="input-fecha-corte" placeholder="DD/MM/YYYY" />
@@ -171,23 +428,57 @@
 
   <!-- TAB 2: TABLA MATCH -->
   <div id="tab-match" class="tab-content">
+    
+    <!-- TARJETAS KPIS MATCH -->
+    <div class="kpi-container">
+      <div class="kpi-card kpi-accent">
+        <div class="kpi-title">Total SKUs Conciliados</div>
+        <div class="kpi-value" id="kpi-total-skus">0</div>
+        <div class="kpi-sub">Materiales procesados</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-title">SKUs con Discrepancia</div>
+        <div class="kpi-value" id="kpi-skus-dif" style="color: var(--danger);">0</div>
+        <div class="kpi-sub">Requieren aclaración de piso</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Diferencia Total Piezas</div>
+        <div class="kpi-value" id="kpi-total-pzas">0</div>
+        <div class="kpi-sub">Piso vs Sistema</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-title">Impacto Financiero Total</div>
+        <div class="kpi-value" id="kpi-total-dinero">$0.00</div>
+        <div class="kpi-sub">Valorización con Maestro</div>
+      </div>
+    </div>
+
     <div class="action-bar">
-      <button class="btn btn-success" onclick="guardarEnHistorico()">💾 Guardar en Historial (Fecha de Corte)</button>
+      <button class="btn btn-success" onclick="guardarEnHistorico()">💾 Guardar en Historial</button>
       <button class="btn btn-secondary" onclick="exportarExcelMatch()">📥 Exportar MATCH del Día a Excel</button>
-      <input type="text" id="filtro-sku" placeholder="Buscar por SKU..." oninput="filtrarTablaMatch()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);" />
+      
+      <!-- Búsqueda por SKU -->
+      <input type="text" id="filtro-sku" class="filter-control" placeholder="Buscar por SKU..." oninput="filtrarTablaMatch()" style="width: 200px;" />
+      
+      <!-- Filtro por Estado de Diferencia -->
+      <select id="filtro-diferencia" class="filter-control" onchange="filtrarTablaMatch()">
+        <option value="todos">Todos los registros</option>
+        <option value="con_dif">Solo Con Diferencia (≠ 0)</option>
+        <option value="sin_dif">Solo Sin Diferencia (= 0)</option>
+      </select>
     </div>
 
     <div class="table-container">
       <table id="tabla-match">
         <thead>
           <tr>
-            <th>SKU</th>
-            <th>Descripción</th>
-            <th>Sloc</th>
-            <th>Carga_Excel_Areas</th>
-            <th>Balance_Consolidado</th>
-            <th id="th-fecha-corte">Dif Piezas</th>
-            <th>Dif $</th>
+            <th class="sortable" onclick="ordenarTablaMatch('sku')">SKU <span id="sort-sku"></span></th>
+            <th class="sortable" onclick="ordenarTablaMatch('desc')">DESCRIPCIÓN <span id="sort-desc"></span></th>
+            <th>SLOC</th>
+            <th class="sortable" onclick="ordenarTablaMatch('excel')">CARGA_EXCEL_AREAS <span id="sort-excel"></span></th>
+            <th class="sortable" onclick="ordenarTablaMatch('balance')">BALANCE_CONSOLIDADO <span id="sort-balance"></span></th>
+            <th class="sortable" id="th-fecha-corte" onclick="ordenarTablaMatch('difPiezas')">DIF PIEZAS <span id="sort-difPiezas"></span></th>
+            <th class="sortable" onclick="ordenarTablaMatch('difDinero')">DIF $ <span id="sort-difDinero"></span></th>
           </tr>
         </thead>
         <tbody id="tbody-match">
@@ -199,15 +490,70 @@
 
   <!-- TAB 3: HISTORIAL Y COMPARATIVA -->
   <div id="tab-historico" class="tab-content">
+    
+    <!-- TARJETAS KPIS HISTORIAL COMPARATIVA -->
+    <div class="kpi-container" id="kpi-container-comp" style="display: none;">
+      <div class="kpi-card kpi-accent">
+        <div class="kpi-title">Casos Comparados</div>
+        <div class="kpi-value" id="kpi-comp-total">0</div>
+        <div class="kpi-sub">Combinaciones SKU/Sloc</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-title">Aumento Continuo</div>
+        <div class="kpi-value" id="kpi-comp-aumento" style="color: var(--danger);">0</div>
+        <div class="kpi-sub">Tendencia crítica creciente</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-title">Disminución Continua</div>
+        <div class="kpi-value" id="kpi-comp-disminucion" style="color: var(--success);">0</div>
+        <div class="kpi-sub">Tendencia correctiva / resuelta</div>
+      </div>
+      <div class="kpi-card kpi-warning">
+        <div class="kpi-title">Fluctuantes / Estancados</div>
+        <div class="kpi-value" id="kpi-comp-otros">0</div>
+        <div class="kpi-sub">Intermitentes o sin cambio</div>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom: 20px;">
       <h3>Fechas de Archivos Registradas</h3>
       <p>Selecciona fechas para evaluar variaciones y tendencias, o exporta el historial consolidado:</p>
       <div id="contenedor-fechas" class="date-chips"></div>
+      
       <div class="action-bar">
         <button class="btn btn-primary" onclick="ejecutarComparativa()">📈 Comparar Fechas Seleccionadas</button>
-        <!-- BOTÓN PRINCIPAL PARA EXPORTAR HISTORIAL ESTILO APPS SCRIPT -->
-        <button class="btn btn-excel" onclick="exportarHistoricoCompletoExcel()">📑 Exportar Histórico Completo (7 Cols por Día)</button>
-        <button class="btn btn-secondary" onclick="limpiarTodoHistorico()" style="background: #dc2626;">Borrar Historial</button>
+        <button class="btn btn-excel" onclick="exportarHistoricoCompletoExcel()">📑 Exportar Histórico Completo (7 Cols)</button>
+        <button class="btn btn-secondary" onclick="exportarComparativaExcel()">📊 Exportar Comparativa Actual a Excel</button>
+        
+        <!-- Respaldos de Base de Datos Local -->
+        <button class="btn btn-secondary" onclick="exportarBackupJSON()">📤 Respaldar Historial (JSON)</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('input-restore-json').click()">📥 Restaurar Respaldo</button>
+        <input type="file" id="input-restore-json" accept=".json" style="display:none;" onchange="restaurarBackupJSON(event)" />
+        
+        <button class="btn btn-secondary" onclick="limpiarTodoHistorico()" style="background: var(--danger); margin-left:auto;">Borrar Historial</button>
+      </div>
+
+      <!-- FILTROS COMBINADOS: SKU + TENDENCIA + SLOC -->
+      <div class="action-bar" style="margin-bottom: 0; padding-top: 10px; border-top: 1px solid var(--border);">
+        <input type="text" id="filtro-sku-comp" class="filter-control" placeholder="Buscar SKU en comparativa..." oninput="filtrarTablaComparativa()" style="width: 220px;" />
+        
+        <select id="filtro-tendencia-comp" class="filter-control" onchange="filtrarTablaComparativa()">
+          <option value="todos">Todas las tendencias</option>
+          <option value="aumento">Solo Aumento Continuo</option>
+          <option value="disminucion">Solo Disminución Continua</option>
+          <option value="fluctuante">Solo Fluctuante</option>
+          <option value="estancado">Solo Estancado / Sin Movimiento</option>
+        </select>
+
+        <!-- NUEVO FILTRO POR SLOC EN COMBINACIÓN -->
+        <select id="filtro-sloc-comp" class="filter-control" onchange="filtrarTablaComparativa()">
+          <option value="todos">Todos los Sloc (Almacén)</option>
+          <option value="FG">Solo FG (Piso / Libre)</option>
+          <option value="QR">Solo QR (Cuarentena / Calidad)</option>
+          <option value="DR">Solo DR (Daño / Merma)</option>
+        </select>
+
+        <span id="label-resumen-comp" style="font-size: 12px; color: var(--text-muted); font-weight: 600;"></span>
       </div>
     </div>
 
@@ -215,10 +561,10 @@
       <table id="tabla-comparativa">
         <thead id="thead-comparativa">
           <tr>
-            <th>SKU</th>
-            <th>Sloc</th>
-            <th>Variación Total</th>
-            <th>Tendencia (Regla)</th>
+            <th class="sortable" onclick="ordenarComparativa('sku')">SKU <span id="sort-comp-sku"></span></th>
+            <th class="sortable" onclick="ordenarComparativa('sloc')">SLOC <span id="sort-comp-sloc"></span></th>
+            <th class="sortable" onclick="ordenarComparativa('variacionTotal')">VARIACIÓN TOTAL <span id="sort-comp-variacionTotal"></span></th>
+            <th class="sortable" onclick="ordenarComparativa('tendencia')">TENDENCIA (REGLA) <span id="sort-comp-tendencia"></span></th>
           </tr>
         </thead>
         <tbody id="tbody-comparativa">
@@ -235,6 +581,16 @@
   let mapaMaestroGlobal = {};
   let fechasSeleccionadas = [];
   let fechaCorteActual = "";
+
+  // Variables para ordenamiento de MATCH
+  let ordenColMatch = "";
+  let ordenAscMatch = true;
+
+  // Variables para datos y ordenamiento de COMPARATIVA
+  let datosComparativaGenerados = [];
+  let fechasComparativaActuales = [];
+  let ordenColComp = "";
+  let ordenAscComp = true;
 
   function cambiarTab(tabId) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -492,13 +848,14 @@
     Object.keys(mapaExcel).forEach(k => todosSkusSet.add(k.split("_")[0]));
 
     const todosSkus = Array.from(todosSkusSet).sort();
-    document.getElementById('th-fecha-corte').textContent = `${fechaCorte} (Dif Piezas)`;
+    document.getElementById('th-fecha-corte').innerHTML = `${fechaCorte} (DIF PIEZAS) <span id="sort-difPiezas"></span>`;
 
     const filas = [];
     let granTotalExcel = 0;
     let granTotalBalance = 0;
     let granTotalDifPiezas = 0;
     let granTotalDifDinero = 0;
+    let countSkusConDiferencia = 0;
 
     todosSkus.forEach(sku => {
       const slocs = new Set();
@@ -534,6 +891,10 @@
       const totDifPz = totExcelSku - totBalSku;
       const totDifDin = totDifPz * infoMaestro.precio;
 
+      if (Math.abs(totDifPz) > 0.0001) {
+        countSkusConDiferencia++;
+      }
+
       filas.push({
         sku: `Total ${sku}`,
         desc: infoMaestro.descripcion,
@@ -562,13 +923,30 @@
       esGranTotal: true
     });
 
+    // Actualizar Tarjetas KPI de Match
+    document.getElementById('kpi-total-skus').textContent = todosSkus.length.toLocaleString('es-MX');
+    document.getElementById('kpi-skus-dif').textContent = countSkusConDiferencia.toLocaleString('es-MX');
+    
+    const elemPzas = document.getElementById('kpi-total-pzas');
+    elemPzas.textContent = granTotalDifPiezas.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    elemPzas.className = 'kpi-value ' + (granTotalDifPiezas < 0 ? 'num-negativo' : (granTotalDifPiezas > 0 ? 'num-positivo' : ''));
+
+    const elemDin = document.getElementById('kpi-total-dinero');
+    elemDin.textContent = '$' + granTotalDifDinero.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    elemDin.className = 'kpi-value ' + (granTotalDifDinero < 0 ? 'num-negativo' : (granTotalDifDinero > 0 ? 'num-positivo' : ''));
+
     datosMatchGenerados = filas;
-    renderizarTablaMatch(filas);
+    filtrarTablaMatch();
   }
 
   function renderizarTablaMatch(filas) {
     const tbody = document.getElementById('tbody-match');
     tbody.innerHTML = "";
+
+    if (!filas || filas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 24px;">No hay registros que coincidan con el filtro.</td></tr>';
+      return;
+    }
 
     filas.forEach(f => {
       const tr = document.createElement('tr');
@@ -576,6 +954,7 @@
       else if (f.esTotal) tr.className = "row-total-sku";
 
       const difPzClass = f.difPiezas < 0 ? "num-negativo" : (f.difPiezas > 0 ? "num-positivo" : "");
+      const difDinClass = f.difDinero < 0 ? "num-negativo" : (f.difDinero > 0 ? "num-positivo" : "");
 
       tr.innerHTML = `
         <td>${f.sku}</td>
@@ -584,24 +963,77 @@
         <td>${f.excel ? f.excel.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
         <td>${f.balance ? f.balance.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
         <td class="${difPzClass}">${f.difPiezas !== "" ? f.difPiezas.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
-        <td>${f.difDinero !== "" ? '$' + f.difDinero.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td class="${difDinClass}">${f.difDinero !== "" ? '$' + f.difDinero.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
       `;
       tbody.appendChild(tr);
     });
   }
 
   function filtrarTablaMatch() {
-    const q = document.getElementById('filtro-sku').value.trim().toLowerCase();
-    if (!q) {
-      renderizarTablaMatch(datosMatchGenerados);
-      return;
+    if (!datosMatchGenerados || datosMatchGenerados.length === 0) return;
+
+    const q = (document.getElementById('filtro-sku').value || "").trim().toLowerCase();
+    const filtroDif = document.getElementById('filtro-diferencia').value;
+
+    let filtrados = datosMatchGenerados.filter(f => {
+      if (f.esGranTotal) return false;
+
+      const coincideSku = !q || f.sku.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q);
+      if (!coincideSku) return false;
+
+      if (filtroDif === "con_dif") {
+        return Math.abs(f.difPiezas) > 0.0001;
+      } else if (filtroDif === "sin_dif") {
+        return Math.abs(f.difPiezas) <= 0.0001;
+      }
+
+      return true;
+    });
+
+    if (ordenColMatch) {
+      filtrados.sort((a, b) => {
+        let valA = a[ordenColMatch];
+        let valB = b[ordenColMatch];
+
+        if (typeof valA === 'string') {
+          return ordenAscMatch ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          return ordenAscMatch ? (valA - valB) : (valB - valA);
+        }
+      });
     }
-    const filtrados = datosMatchGenerados.filter(f => f.sku.toLowerCase().includes(q) || f.esGranTotal);
+
+    const granTotalRow = datosMatchGenerados.find(f => f.esGranTotal);
+    if (granTotalRow && filtrados.length > 0) {
+      filtrados.push(granTotalRow);
+    }
+
     renderizarTablaMatch(filtrados);
   }
 
+  function ordenarTablaMatch(columna) {
+    if (ordenColMatch === columna) {
+      ordenAscMatch = !ordenAscMatch;
+    } else {
+      ordenColMatch = columna;
+      ordenAscMatch = true;
+    }
+
+    ['sku', 'desc', 'excel', 'balance', 'difPiezas', 'difDinero'].forEach(col => {
+      const el = document.getElementById(`sort-${col}`);
+      if (el) el.textContent = "";
+    });
+
+    const activeHeader = document.getElementById(`sort-${columna}`);
+    if (activeHeader) {
+      activeHeader.textContent = ordenAscMatch ? " ▲" : " ▼";
+    }
+
+    filtrarTablaMatch();
+  }
+
   // ==========================================
-  // HISTORIAL CON ESTRUCTURA COMPLETA
+  // HISTORIAL Y BASE DE DATOS LOCAL
   // ==========================================
   function guardarEnHistorico() {
     if (!datosMatchGenerados || datosMatchGenerados.length === 0) {
@@ -616,8 +1048,6 @@
     }
 
     let historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
-
-    // Guardar el bloque idéntico a Balance MATCH
     historico[fechaGuardar] = datosMatchGenerados;
     localStorage.setItem('balance_historico_completo', JSON.stringify(historico));
 
@@ -632,7 +1062,7 @@
     const fechas = Object.keys(historico);
 
     if (fechas.length === 0) {
-      contenedor.innerHTML = "<span style='color: var(--text-muted); font-size:0.85rem;'>No hay fechas guardadas aún.</span>";
+      contenedor.innerHTML = "<span style='color: var(--text-muted); font-size:12px;'>No hay fechas guardadas aún.</span>";
       return;
     }
 
@@ -653,16 +1083,55 @@
   }
 
   function limpiarTodoHistorico() {
-    if (confirm("¿Estás seguro de vaciar el historial guardado?")) {
+    if (confirm("¿Estás seguro de vaciar todo el historial guardado? Esta acción no se puede deshacer.")) {
       localStorage.removeItem('balance_historico_completo');
       fechasSeleccionadas = [];
+      datosComparativaGenerados = [];
       cargarChipsFechas();
       document.getElementById('tbody-comparativa').innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 24px;">Historial limpio.</td></tr>';
+      document.getElementById('label-resumen-comp').textContent = "";
+      document.getElementById('kpi-container-comp').style.display = 'none';
     }
   }
 
+  // Backup y Restore JSON
+  function exportarBackupJSON() {
+    const historico = localStorage.getItem('balance_historico_completo');
+    if (!historico || historico === "{}") {
+      alert("No hay datos en el historial para respaldar.");
+      return;
+    }
+    const blob = new Blob([historico], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Respaldo_Balance_Historico_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function restaurarBackupJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (typeof parsed !== 'object') throw new Error("Estructura JSON inválida.");
+        localStorage.setItem('balance_historico_completo', JSON.stringify(parsed));
+        alert("¡Historial restaurado correctamente!");
+        cargarChipsFechas();
+      } catch (err) {
+        alert("Error al leer el archivo de respaldo: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  }
+
   // ==========================================
-  // EXPORTAR HISTÓRICO COMPLETO ESTILO APPS SCRIPT
+  // COMPARATIVA MULTIFECHA Y TENDENCIAS
   // ==========================================
   function parseFechaOrden(fStr) {
     const parts = fStr.split('/');
@@ -672,6 +1141,269 @@
     return 0;
   }
 
+  function ejecutarComparativa() {
+    if (fechasSeleccionadas.length < 2) {
+      alert("Selecciona al menos 2 fechas en los botones superiores para comparar.");
+      return;
+    }
+
+    fechasComparativaActuales = [...fechasSeleccionadas].sort((a, b) => parseFechaOrden(a) - parseFechaOrden(b));
+
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const todasClaves = new Set();
+    const mapasPorFecha = {};
+
+    fechasComparativaActuales.forEach(f => {
+      mapasPorFecha[f] = {};
+      const filasCorte = historico[f] || [];
+      filasCorte.filter(it => !it.esTotal && !it.esGranTotal && it.sloc).forEach(item => {
+        const clave = `${item.sku}_${item.sloc}`.toUpperCase();
+        todasClaves.add(clave);
+        mapasPorFecha[f][clave] = item.difPiezas;
+      });
+    });
+
+    const listaProcesada = [];
+
+    Array.from(todasClaves).sort().forEach(clave => {
+      const [sku, sloc] = clave.split("_");
+      const valores = fechasComparativaActuales.map(f => mapasPorFecha[f][clave] || 0);
+
+      const primera = valores[0];
+      const ultima = valores[valores.length - 1];
+      const variacionTotal = ultima - primera;
+
+      let subio = false;
+      let bajo = false;
+      for (let i = 0; i < valores.length - 1; i++) {
+        const diff = valores[i + 1] - valores[i];
+        if (diff > 0) subio = true;
+        if (diff < 0) bajo = true;
+      }
+
+      let tendencia = "Sin Movimiento (Estancado)";
+      let tagClass = "tag-estancado";
+      let tipoTendencia = "estancado";
+
+      if (subio && !bajo) {
+        tendencia = "Aumento Continuo";
+        tagClass = "tag-aumento";
+        tipoTendencia = "aumento";
+      } else if (bajo && !subio) {
+        tendencia = "Disminución Continua";
+        tagClass = "tag-disminucion";
+        tipoTendencia = "disminucion";
+      } else if (subio && bajo) {
+        tendencia = "Fluctuante";
+        tagClass = "tag-fluctuante";
+        tipoTendencia = "fluctuante";
+      }
+
+      const tieneMovimiento = valores.some(v => v !== 0);
+      if (!tieneMovimiento) return;
+
+      listaProcesada.push({
+        sku,
+        sloc,
+        valores,
+        variacionTotal,
+        tendencia,
+        tagClass,
+        tipoTendencia
+      });
+    });
+
+    datosComparativaGenerados = listaProcesada;
+
+    // Actualizar cabeceras dinámicas con soporte de Sort
+    const thead = document.getElementById('thead-comparativa');
+    let thHtml = `<tr>
+      <th class="sortable" onclick="ordenarComparativa('sku')">SKU <span id="sort-comp-sku"></span></th>
+      <th class="sortable" onclick="ordenarComparativa('sloc')">SLOC <span id="sort-comp-sloc"></span></th>`;
+    
+    fechasComparativaActuales.forEach(f => {
+      thHtml += `<th>DIF (${f})</th>`;
+    });
+    
+    thHtml += `
+      <th class="sortable" onclick="ordenarComparativa('variacionTotal')">VARIACIÓN TOTAL <span id="sort-comp-variacionTotal"></span></th>
+      <th class="sortable" onclick="ordenarComparativa('tendencia')">TENDENCIA (REGLA) <span id="sort-comp-tendencia"></span></th>
+    </tr>`;
+    thead.innerHTML = thHtml;
+
+    filtrarTablaComparativa();
+  }
+
+  function actualizarKpisComparativa(items) {
+    const container = document.getElementById('kpi-container-comp');
+    if (!items || items.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'grid';
+
+    let countAumento = 0;
+    let countDisminucion = 0;
+    let countOtros = 0;
+
+    items.forEach(it => {
+      if (it.tipoTendencia === 'aumento') countAumento++;
+      else if (it.tipoTendencia === 'disminucion') countDisminucion++;
+      else countOtros++;
+    });
+
+    document.getElementById('kpi-comp-total').textContent = items.length.toLocaleString('es-MX');
+    document.getElementById('kpi-comp-aumento').textContent = countAumento.toLocaleString('es-MX');
+    document.getElementById('kpi-comp-disminucion').textContent = countDisminucion.toLocaleString('es-MX');
+    document.getElementById('kpi-comp-otros').textContent = countOtros.toLocaleString('es-MX');
+  }
+
+  function renderizarTablaComparativa(items) {
+    const tbody = document.getElementById('tbody-comparativa');
+    tbody.innerHTML = "";
+
+    const totalCols = 4 + fechasComparativaActuales.length;
+
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center; padding: 24px;">No hay registros para mostrar con los filtros aplicados.</td></tr>`;
+      return;
+    }
+
+    items.forEach(item => {
+      const tr = document.createElement('tr');
+      let celdas = `<td>${item.sku}</td><td>${item.sloc}</td>`;
+      
+      item.valores.forEach(v => {
+        const valClass = v < 0 ? "num-negativo" : (v > 0 ? "num-positivo" : "");
+        celdas += `<td class="${valClass}">${v.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
+      });
+
+      const varClass = item.variacionTotal < 0 ? "num-negativo" : (item.variacionTotal > 0 ? "num-positivo" : "");
+      celdas += `<td class="${varClass}"><b>${item.variacionTotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}</b></td>`;
+      celdas += `<td><span class="tag-tendencia ${item.tagClass}">${item.tendencia}</span></td>`;
+
+      tr.innerHTML = celdas;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('label-resumen-comp').textContent = `Mostrando ${items.length} combinaciones SKU/Sloc`;
+  }
+
+  // ==========================================
+  // FILTRADO COMBINADO DE COMPARATIVA (SKU + TENDENCIA + SLOC)
+  // ==========================================
+  function filtrarTablaComparativa() {
+    if (!datosComparativaGenerados || datosComparativaGenerados.length === 0) return;
+
+    const q = (document.getElementById('filtro-sku-comp').value || "").trim().toLowerCase();
+    const filtroTendencia = document.getElementById('filtro-tendencia-comp').value;
+    const filtroSloc = document.getElementById('filtro-sloc-comp').value;
+
+    let filtrados = datosComparativaGenerados.filter(item => {
+      // 1. Filtro por SKU
+      const matchSku = !q || item.sku.toLowerCase().includes(q);
+      if (!matchSku) return false;
+
+      // 2. Filtro por Tendencia
+      if (filtroTendencia !== "todos" && item.tipoTendencia !== filtroTendencia) {
+        return false;
+      }
+
+      // 3. Filtro por Sloc (Almacén)
+      if (filtroSloc !== "todos" && item.sloc !== filtroSloc) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Actualizar las tarjetas KPI reflejando el filtro combinado activo
+    actualizarKpisComparativa(filtrados);
+
+    // Ordenamiento activo
+    if (ordenColComp) {
+      filtrados.sort((a, b) => {
+        let valA = a[ordenColComp];
+        let valB = b[ordenColComp];
+
+        if (typeof valA === 'string') {
+          return ordenAscComp ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          return ordenAscComp ? (valA - valB) : (valB - valA);
+        }
+      });
+    }
+
+    renderizarTablaComparativa(filtrados);
+  }
+
+  function ordenarComparativa(columna) {
+    if (ordenColComp === columna) {
+      ordenAscComp = !ordenAscComp;
+    } else {
+      ordenColComp = columna;
+      ordenAscComp = true;
+    }
+
+    ['sku', 'sloc', 'variacionTotal', 'tendencia'].forEach(col => {
+      const el = document.getElementById(`sort-comp-${col}`);
+      if (el) el.textContent = "";
+    });
+
+    const activeHeader = document.getElementById(`sort-comp-${columna}`);
+    if (activeHeader) {
+      activeHeader.textContent = ordenAscComp ? " ▲" : " ▼";
+    }
+
+    filtrarTablaComparativa();
+  }
+
+  // ==========================================
+  // EXPORTAR TABLA COMPARATIVA A EXCEL
+  // ==========================================
+  function exportarComparativaExcel() {
+    if (!datosComparativaGenerados || datosComparativaGenerados.length === 0) {
+      alert("No se ha ejecutado ninguna comparativa para exportar.");
+      return;
+    }
+
+    const q = (document.getElementById('filtro-sku-comp').value || "").trim().toLowerCase();
+    const filtroTendencia = document.getElementById('filtro-tendencia-comp').value;
+    const filtroSloc = document.getElementById('filtro-sloc-comp').value;
+
+    const filtrados = datosComparativaGenerados.filter(item => {
+      const matchSku = !q || item.sku.toLowerCase().includes(q);
+      if (!matchSku) return false;
+      if (filtroTendencia !== "todos" && item.tipoTendencia !== filtroTendencia) return false;
+      if (filtroSloc !== "todos" && item.sloc !== filtroSloc) return false;
+      return true;
+    });
+
+    const encabezados = ["SKU", "Sloc", ...fechasComparativaActuales.map(f => `Dif (${f})`), "Variación Total", "Tendencia"];
+    const matriz = [encabezados];
+
+    filtrados.forEach(it => {
+      matriz.push([
+        it.sku,
+        it.sloc,
+        ...it.valores,
+        it.variacionTotal,
+        it.tendencia
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(matriz);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Comparativa_Tendencias");
+
+    const fechaHoy = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Comparativa_Tendencias_${fechaHoy}.xlsx`);
+  }
+
+  // ==========================================
+  // EXPORTAR HISTÓRICO COMPLETO ESTILO APPS SCRIPT
+  // ==========================================
   function exportarHistoricoCompletoExcel() {
     const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
     const fechas = Object.keys(historico);
@@ -681,18 +1413,13 @@
       return;
     }
 
-    // Ordenar fechas en orden descendente (la más reciente a la izquierda, exactamente igual a Apps Script)
     const fechasDescendentes = fechas.sort((a, b) => parseFechaOrden(b) - parseFechaOrden(a));
 
-    // Determinar la cantidad máxima de filas
     let maxFilas = 0;
     fechasDescendentes.forEach(f => {
       if (historico[f].length > maxFilas) maxFilas = historico[f].length;
     });
 
-    // Fila 0: Fecha combinada (A1:G1, H1:N1, etc.)
-    // Fila 1: Encabezados de columnas
-    // Fila 2 en adelante: Datos
     const matriz = [];
     const totalFilasMatriz = maxFilas + 2;
 
@@ -705,20 +1432,17 @@
     fechasDescendentes.forEach((fechaStr, bIdx) => {
       const colInicio = bIdx * 7;
 
-      // 1. Fila 0: Fecha en la primera celda del bloque
       matriz[0][colInicio] = fechaStr;
       merges.push({
         s: { r: 0, c: colInicio },
         e: { r: 0, c: colInicio + 6 }
       });
 
-      // 2. Fila 1: Encabezados del bloque
       const encabezados = ["SKU", "Descripción", "Sloc", "Carga_Excel_A", "Balance_Consc", "Fecha_Dif", "Dif $"];
       encabezados.forEach((h, hIdx) => {
         matriz[1][colInicio + hIdx] = h;
       });
 
-      // 3. Filas de datos
       const datosBloque = historico[fechaStr];
       datosBloque.forEach((filaItem, rIdx) => {
         const filaDestino = rIdx + 2;
@@ -740,89 +1464,6 @@
 
     const fechaHoyDescarga = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `Historico_Diferencias_${fechaHoyDescarga}.xlsx`);
-  }
-
-  // ==========================================
-  // COMPARATIVA MULTIFECHA Y TENDENCIAS
-  // ==========================================
-  function ejecutarComparativa() {
-    if (fechasSeleccionadas.length < 2) {
-      alert("Selecciona al menos 2 fechas en los botones superiores para comparar.");
-      return;
-    }
-
-    // Cronológico ascendente para evaluar tendencias
-    const fechasOrdenadas = [...fechasSeleccionadas].sort((a, b) => parseFechaOrden(a) - parseFechaOrden(b));
-
-    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
-    const todasClaves = new Set();
-    const mapasPorFecha = {};
-
-    fechasOrdenadas.forEach(f => {
-      mapasPorFecha[f] = {};
-      const filasCorte = historico[f] || [];
-      filasCorte.filter(it => !it.esTotal && !it.esGranTotal && it.sloc).forEach(item => {
-        const clave = `${item.sku}_${item.sloc}`.toUpperCase();
-        todasClaves.add(clave);
-        mapasPorFecha[f][clave] = item.difPiezas;
-      });
-    });
-
-    const thead = document.getElementById('thead-comparativa');
-    let thHtml = `<tr><th>SKU</th><th>Sloc</th>`;
-    fechasOrdenadas.forEach(f => {
-      thHtml += `<th>Dif (${f})</th>`;
-    });
-    thHtml += `<th>Variación Total</th><th>Tendencia (Regla)</th></tr>`;
-    thead.innerHTML = thHtml;
-
-    const tbody = document.getElementById('tbody-comparativa');
-    tbody.innerHTML = "";
-
-    Array.from(todasClaves).sort().forEach(clave => {
-      const [sku, sloc] = clave.split("_");
-      const valores = fechasOrdenadas.map(f => mapasPorFecha[f][clave] || 0);
-
-      const primera = valores[0];
-      const ultima = valores[valores.length - 1];
-      const variacionTotal = ultima - primera;
-
-      let subio = false;
-      let bajo = false;
-      for (let i = 0; i < valores.length - 1; i++) {
-        const diff = valores[i + 1] - valores[i];
-        if (diff > 0) subio = true;
-        if (diff < 0) bajo = true;
-      }
-
-      let tendencia = "Sin Movimiento (Estancado)";
-      let tagClass = "tag-estancado";
-
-      if (subio && !bajo) {
-        tendencia = "Aumento Continuo";
-        tagClass = "tag-aumento";
-      } else if (bajo && !subio) {
-        tendencia = "Disminución Continua";
-        tagClass = "tag-disminucion";
-      } else if (subio && bajo) {
-        tendencia = "Fluctuante";
-        tagClass = "tag-fluctuante";
-      }
-
-      const tieneMovimiento = valores.some(v => v !== 0);
-      if (!tieneMovimiento) return;
-
-      const tr = document.createElement('tr');
-      let celdas = `<td>${sku}</td><td>${sloc}</td>`;
-      valores.forEach(v => {
-        celdas += `<td>${v.toLocaleString('es-MX')}</td>`;
-      });
-      celdas += `<td><b>${variacionTotal.toLocaleString('es-MX')}</b></td>`;
-      celdas += `<td><span class="tag-tendencia ${tagClass}">${tendencia}</span></td>`;
-
-      tr.innerHTML = celdas;
-      tbody.appendChild(tr);
-    });
   }
 
   // ==========================================
