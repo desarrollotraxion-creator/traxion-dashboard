@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN | Tablero de Control Operativo - Portal Maestro</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --color-primary-header: #182237;
+      --color-primary-dark: #100848;
+      --color-bg-layout: #F4F6F8;
+      --color-card-bg: #FFFFFF;
+      --color-borders: #E5E7EB;
+      --color-text-secondary: #6B7280;
+      --color-text-main: #1D2939;
+      --color-accent-lime: #C0D838;
+      --color-accent-hover: #D0E934;
+      --color-status-ok: #037A48;
+      --sidebar-width: 310px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--color-bg-layout);
+      color: var(--color-text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #sidebar {
+      width: var(--sidebar-width);
+      background-color: var(--color-primary-header);
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
+      z-index: 100;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+    }
+
+    .brand-box {
+      padding: 20px 24px;
+      background-color: var(--color-primary-dark);
+      border-bottom: 4px solid var(--color-accent-lime);
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+    }
+
+    .logo-main-text {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      color: #FFFFFF;
+      line-height: 1;
+    }
+
+    .logo-sub-text {
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 2.8px;
+      color: var(--color-accent-lime);
+      margin-top: 5px;
+      text-transform: uppercase;
+    }
+
+    .search-box-wrap {
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .search-input {
+      width: 100%;
+      background: #101726;
+      border: 1px solid var(--color-borders);
+      color: #FFFFFF;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--color-accent-lime);
+    }
+
+    .search-input::placeholder {
+      color: var(--color-text-secondary);
+      font-size: 11.5px;
+    }
+
+    .nav-sections-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 0;
+    }
+
+    .nav-group {
+      margin-bottom: 6px;
+    }
+
+    .group-header {
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+
+    .group-header:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: #FFFFFF;
+    }
+
+    .group-title-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .icon-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--color-accent-lime);
+    }
+
+    .group-arrow {
+      font-size: 9px;
+      color: var(--color-text-secondary);
+      transition: transform 0.25s ease;
+    }
+
+    .nav-group.open .group-arrow {
+      transform: rotate(90deg);
+      color: var(--color-accent-lime);
+    }
+
+    .group-items-list {
+      display: none;
+      list-style: none;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-group.open .group-items-list {
+      display: block;
+    }
+
+    .nav-item-link {
+      padding: 10px 20px 10px 42px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+      border-left: 3.5px solid transparent;
+      text-decoration: none;
+    }
+
+    .nav-item-link:hover {
+      color: #FFFFFF;
+      background: rgba(192, 216, 56, 0.08);
+      border-left-color: rgba(192, 216, 56, 0.4);
+    }
+
+    .nav-item-link.active {
+      color: #FFFFFF;
+      background: rgba(192, 216, 56, 0.15);
+      border-left-color: var(--color-accent-lime);
+      font-weight: 700;
+    }
+
+    .badge-norm {
+      font-size: 9.5px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.08);
+      color: #cbd5e1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .sidebar-footer {
+      padding: 14px 20px;
+      background-color: var(--color-primary-dark);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 10.5px;
+      color: var(--color-text-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background-color: var(--color-status-ok);
+      border-radius: 50%;
+      margin-right: 5px;
+      box-shadow: 0 0 6px var(--color-status-ok);
+    }
+
+    #main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background-color: var(--color-bg-layout);
+    }
+
+    .content-top-header {
+      background-color: var(--color-card-bg);
+      border-bottom: 1px solid var(--color-borders);
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      height: 64px;
+    }
+
+    .header-titles-wrap h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--color-primary-header);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    .header-titles-wrap p {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .header-meta-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .meta-time-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: var(--color-text-secondary);
+      background: var(--color-bg-layout);
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--color-borders);
+    }
+
+    .btn-top-action {
+      background-color: var(--color-card-bg);
+      border: 1px solid var(--color-borders);
+      color: var(--color-text-main);
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-top-action:hover {
+      background-color: var(--color-bg-layout);
+      border-color: var(--color-primary-header);
+    }
+
+    .viewer-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .viewer-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+      background-color: var(--color-bg-layout);
+    }
+
+    .welcome-container {
+      flex: 1;
+      padding: 30px 40px;
+      overflow-y: auto;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .welcome-banner {
+      background: var(--color-primary-header);
+      color: #FFFFFF;
+      border-top: 4px solid var(--color-accent-lime);
+      border-radius: 8px;
+      padding: 24px 30px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .welcome-banner h2 {
+      font-size: 22px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .welcome-banner p {
+      font-size: 13px;
+      color: #cbd5e1;
+      max-width: 800px;
+      line-height: 1.5;
+    }
+
+    .welcome-badge-norma {
+      background: rgba(192, 216, 56, 0.15);
+      border: 1px solid var(--color-accent-lime);
+      color: var(--color-accent-lime);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-primary-header);
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .portal-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .portal-card {
+      background: var(--color-card-bg);
+      border: 1px solid var(--color-borders);
+      border-left: 5px solid var(--color-accent-lime);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .portal-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      border-color: #cbd5e1;
+    }
+
+    .card-top-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .card-kpi-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--color-bg-layout);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.6px;
+    }
+
+    .card-heading {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--color-text-main);
+      margin: 4px 0 8px;
+      line-height: 1.25;
+    }
+
+    .card-desc {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    .card-footer-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid var(--color-borders);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--color-primary-header);
+    }
+
+    .card-footer-action span {
+      color: var(--color-accent-lime);
+      background: var(--color-primary-header);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+    }
+
+    .portal-notice {
+      background: var(--color-card-bg);
+      border: 1px solid var(--color-borders);
+      padding: 14px 20px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      color: var(--color-text-secondary);
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <aside id="sidebar">
+    <div class="brand-box" onclick="irInicio()">
+      <span class="logo-main-text">TRAXION</span>
+      <span class="logo-sub-text">VIDA EN MOVIMIENTO</span>
+    </div>
+
+    <div class="search-box-wrap">
+      <input type="text" id="menuSearchInput" class="search-input" placeholder="🔍 Buscar módulo o tablero..." oninput="filtrarNavegacion()">
+    </div>
+
+    <!-- Contenedor dinámico generado por la API de GitHub -->
+    <nav class="nav-sections-container" id="menuContainer">
+      <div style="padding: 20px; color: #94a3b8; font-size: 12px; text-align: center;">
+        ⏳ Cargando módulos desde GitHub...
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div><span class="status-dot"></span>Operativo</div>
+      <div style="font-family:'JetBrains Mono',monospace;">TSE-09-SIGEO-PR</div>
+    </div>
+  </aside>
+
+  <main id="main-content">
+    <header class="content-top-header">
+      <div class="header-titles-wrap">
+        <h1 id="activeModuleTitle">PORTAL DE CONTROL OPERATIVO TRAXIÓN</h1>
+        <p id="activeModuleSubtitle">Norma Técnica de Homologación Gráfica y Visual · TSE-09-SIGEO-PR</p>
+      </div>
+
+      <div class="header-meta-actions">
+        <div class="meta-time-badge">
+          Actualizado: <strong id="topMetaDate">--</strong>
+        </div>
+        <button class="btn-top-action" id="btnHome" onclick="irInicio()">
+          🏠 Inicio
+        </button>
+        <button class="btn-top-action" id="btnReload" onclick="recargarModulo()" style="display: none;">
+          🔄 Actualizar
+        </button>
+        <a class="btn-top-action" id="btnFullscreen" target="_blank" style="display: none;">
+          ↗️ Pantalla Completa
+        </a>
+      </div>
+    </header>
+
+    <div class="viewer-container">
+      <iframe id="portalViewer" class="viewer-iframe" title="Visor de Tableros"></iframe>
+
+      <div class="welcome-container" id="welcomePortal">
+        <div class="welcome-banner">
+          <div>
+            <h2>Plataforma Centralizada de Tableros Operativos</h2>
+            <p>Selecciona un tablero desde el menú lateral o desde las tarjetas inferiores para iniciar el monitoreo de almacén, existencias y auditorías.</p>
+          </div>
+          <div class="welcome-badge-norma">
+            Norma: TSE-09-SIGEO-PR
+          </div>
+        </div>
+
+        <div class="section-title">
+          <span>📌</span> Módulos Operativos Disponibles
+        </div>
+
+        <!-- Tarjetas dinámicas -->
+        <div class="portal-cards-grid" id="welcomeCardsGrid"></div>
+
+        <div class="portal-notice">
+          Este tablero contiene información propiedad de <strong>Traxión y Subsidiarias</strong>, considerada confidencial y para fines internos. Su uso fuera de estas instancias está prohibido y será sancionado en apego al Código de Ética de la Compañía.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Configuración del repositorio GitHub
+    const GITHUB_USER = 'desarrollotraxion-creator';
+    const GITHUB_REPO = 'traxion-dashboard';
+    const GITHUB_BRANCH = 'main';
+
+    document.getElementById('topMetaDate').textContent = new Date().toLocaleDateString('es-MX', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+
+    // Mapeo de iconos opcionales por nombre de carpeta
+    const CATEGORY_ICONS = {
+      'inventarios': '📦',
+      'operaciones': '⚙️',
+      'trafico': '⏱️',
+      'embarques': '🚚',
+      'calidad': '🚦'
+    };
+
+    function obtenerIcono(categoria) {
+      const normalizada = categoria.toLowerCase();
+      for (const key in CATEGORY_ICONS) {
+        if (normalizada.includes(key)) return CATEGORY_ICONS[key];
+      }
+      return '📁';
+    }
+
+    function formatearTitulo(nombreArchivo) {
+      return decodeURIComponent(nombreArchivo)
+        .replace(/\.html$/i, '')
+        .replace(/[-_]/g, ' ')
+        .trim();
+    }
+
+    // Exploración recursiva de carpetas y archivos HTML
+    async function cargarEstructuraGitHub() {
+      const menuContainer = document.getElementById('menuContainer');
+      const cardsGrid = document.getElementById('welcomeCardsGrid');
+
+      try {
+        // Obtenemos el árbol completo del repositorio en una sola petición
+        const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/git/trees/${GITHUB_BRANCH}?recursive=1`;
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+          throw new Error(`Error en API GitHub: ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        const tree = data.tree || [];
+
+        // Filtrar únicamente los archivos .html dentro de subcarpetas (excluyendo el index.html raíz)
+        const htmlFiles = tree.filter(item => 
+          item.type === 'blob' && 
+          item.path.toLowerCase().endsWith('.html') &&
+          item.path.includes('/') &&
+          !item.path.startsWith('.')
+        );
+
+        if (htmlFiles.length === 0) {
+          menuContainer.innerHTML = '<div style="padding:20px;color:#94a3b8;font-size:12px;text-align:center;">No se encontraron archivos HTML en las carpetas.</div>';
+          return;
+        }
+
+        // Agrupar archivos por carpeta principal
+        const carpetasMap = {};
+        htmlFiles.forEach(file => {
+          const partes = file.path.split('/');
+          const carpeta = partes[0];
+          if (!carpetasMap[carpeta]) {
+            carpetasMap[carpeta] = [];
+          }
+          carpetasMap[carpeta].push({
+            rutaCompleta: file.path,
+            nombreArchivo: partes.slice(1).join('/')
+          });
+        });
+
+        // Limpiar contenedores
+        menuContainer.innerHTML = '';
+        cardsGrid.innerHTML = '';
+
+        let grupoIndex = 1;
+
+        for (const [carpeta, archivos] of Object.entries(carpetasMap)) {
+          const icono = obtenerIcono(carpeta);
+          const nombreSeccion = `${grupoIndex}. ${carpeta.charAt(0).toUpperCase() + carpeta.slice(1)}`;
+
+          // 1. Crear el grupo en la barra lateral
+          const groupDiv = document.createElement('div');
+          groupDiv.className = 'nav-group open';
+
+          const groupHeader = document.createElement('div');
+          groupHeader.className = 'group-header';
+          groupHeader.onclick = () => groupDiv.classList.toggle('open');
+          groupHeader.innerHTML = `
+            <div class="group-title-content">
+              <span class="icon-badge">${icono}</span>
+              <span>${nombreSeccion}</span>
+            </div>
+            <span class="group-arrow">▶</span>
+          `;
+
+          const itemsList = document.createElement('ul');
+          itemsList.className = 'group-items-list';
+
+          archivos.forEach(item => {
+            const tituloLimpio = formatearTitulo(item.nombreArchivo.split('/').pop());
+
+            // Elemento de Menú
+            const li = document.createElement('li');
+            const link = document.createElement('a');
+            link.className = 'nav-item-link';
+            link.innerHTML = `
+              <span>📄 ${tituloLimpio}</span>
+              <span class="badge-norm">HTML</span>
+            `;
+            link.onclick = () => cargarModulo(item.rutaCompleta, tituloLimpio, carpeta.toUpperCase(), link);
+            li.appendChild(link);
+            itemsList.appendChild(li);
+
+            // Tarjeta de la página principal
+            const card = document.createElement('div');
+            card.className = 'portal-card';
+            card.innerHTML = `
+              <div>
+                <div class="card-top-info">
+                  <span class="card-label">${carpeta}</span>
+                  <div class="card-kpi-icon">${icono}</div>
+                </div>
+                <h3 class="card-heading">${tituloLimpio}</h3>
+                <p class="card-desc">Archivo: <code>${item.rutaCompleta}</code> listo para consulta y monitoreo operativo.</p>
+              </div>
+              <div class="card-footer-action">
+                <span>ABRIR TABLERO</span>
+                <strong>Consultar →</strong>
+              </div>
+            `;
+            card.onclick = () => cargarModulo(item.rutaCompleta, tituloLimpio, carpeta.toUpperCase(), link);
+            cardsGrid.appendChild(card);
+          });
+
+          groupDiv.appendChild(groupHeader);
+          groupDiv.appendChild(itemsList);
+          menuContainer.appendChild(groupDiv);
+
+          grupoIndex++;
+        }
+
+      } catch (err) {
+        console.error('Error cargando estructura:', err);
+        menuContainer.innerHTML = `
+          <div style="padding:15px; color:#f87171; font-size:11px; line-height:1.4;">
+            ⚠️ No se pudieron cargar los módulos automáticamente.<br>
+            Verifica la conexión a GitHub.
+          </div>
+        `;
+      }
+    }
+
+    function cargarModulo(rutaHtml, tituloModulo, seccionNombre, navElement) {
+      document.querySelectorAll('.nav-item-link').forEach(el => el.classList.remove('active'));
+      if (navElement) {
+        navElement.classList.add('active');
+      }
+
+      const welcomeView = document.getElementById('welcomePortal');
+      const iframe = document.getElementById('portalViewer');
+      const titleEl = document.getElementById('activeModuleTitle');
+      const subTitleEl = document.getElementById('activeModuleSubtitle');
+      const btnFullscreen = document.getElementById('btnFullscreen');
+      const btnReload = document.getElementById('btnReload');
+
+      welcomeView.style.display = 'none';
+      iframe.style.display = 'block';
+      iframe.src = encodeURI(rutaHtml);
+
+      titleEl.textContent = tituloModulo.toUpperCase();
+      subTitleEl.textContent = `Sección: ${seccionNombre} · Procedimiento TSE-09-SIGEO-PR`;
+
+      btnFullscreen.href = encodeURI(rutaHtml);
+      btnFullscreen.style.display = 'inline-flex';
+      btnReload.style.display = 'inline-flex';
+    }
+
+    function irInicio() {
+      document.querySelectorAll('.nav-item-link').forEach(el => el.classList.remove('active'));
+      document.getElementById('portalViewer').style.display = 'none';
+      document.getElementById('welcomePortal').style.display = 'block';
+      document.getElementById('activeModuleTitle').textContent = 'PORTAL DE CONTROL OPERATIVO TRAXIÓN';
+      document.getElementById('activeModuleSubtitle').textContent = 'Norma Técnica de Homologación Gráfica y Visual · TSE-09-SIGEO-PR';
+      document.getElementById('btnFullscreen').style.display = 'none';
+      document.getElementById('btnReload').style.display = 'none';
+    }
+
+    function recargarModulo() {
+      const iframe = document.getElementById('portalViewer');
+      if (iframe.src) iframe.src = iframe.src;
+    }
+
+    function filtrarNavegacion() {
+      const query = document.getElementById('menuSearchInput').value.toLowerCase().trim();
+      const groups = document.querySelectorAll('.nav-group');
+
+      groups.forEach(group => {
+        let hasMatchInGroup = false;
+        const items = group.querySelectorAll('.nav-item-link');
+
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          const match = text.includes(query);
+          item.parentElement.style.display = match ? 'block' : 'none';
+          if (match) hasMatchInGroup = true;
+        });
+
+        group.style.display = hasMatchInGroup ? 'block' : 'none';
+        if (query.length > 0 && hasMatchInGroup) {
+          group.classList.add('open');
+        }
+      });
+    }
+
+    // Iniciar carga automática al entrar
+    window.addEventListener('DOMContentLoaded', cargarEstructuraGitHub);
+  </script>
+</body>
+</html>
