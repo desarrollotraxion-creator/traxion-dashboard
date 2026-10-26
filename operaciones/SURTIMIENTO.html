@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAM-21 - Sistema Integral de Almacén (Surtimiento, Compactación y Recolección)</title>
+  
+  <!-- Tipografía Sans-Serif Geométrica - Estándar TSE-09-SIGEO-PR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SheetJS para Excel (.xlsx) y CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Roboto', 'Arial', 'sans-serif'],
+          },
+          colors: {
+            traxion: {
+              navy: '#182237',
+              navyDark: '#100848',
+              lime: '#C0D838',
+              limeBright: '#D0E934',
+              bg: '#F4F6F8',
+              card: '#FFFFFF',
+              border: '#E5E7EB',
+              textPrimary: '#1D2939',
+              textSecondary: '#6B7280',
+              criticalRed: '#D92D20',
+              criticalBg: '#FEE4E2',
+              riskOrange: '#E07A00',
+              riskBg: '#FEF0C7',
+              successGreen: '#037A48',
+              successBg: '#ECFDF3',
+              infoBlue: '#0070C0',
+              infoBg: '#EFF8FF',
+              purpleTraspaso: '#7E22CE',
+              purpleBg: '#F3E8FF'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F4F6F8;
+      color: #1D2939;
+      font-family: 'Inter', sans-serif;
+    }
+    .traxion-line {
+      height: 4px;
+      background: linear-gradient(90deg, #C0D838 0%, #D0E934 100%);
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- LÍNEA INSTITUCIONAL VERDE LIMÓN -->
+  <div class="traxion-line w-full"></div>
+
+  <!-- ENCABEZADO INSTITUCIONAL SAM-21 -->
+  <header class="bg-[#182237] text-white px-6 py-4 shadow-md">
+    <div class="max-w-[1700px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      
+      <!-- LOGO Y TÍTULOS -->
+      <div class="flex items-center gap-5">
+        <div class="flex flex-col border-r border-gray-600 pr-5">
+          <span class="text-2xl font-black tracking-widest text-[#C0D838] leading-none">SAM-21</span>
+          <span class="text-[9px] font-semibold tracking-wider text-gray-300 mt-0.5">SISTEMA INTEGRAL DE ALMACÉN</span>
+        </div>
+        
+        <div>
+          <h1 class="text-xl md:text-[20px] font-extrabold uppercase tracking-wide leading-tight text-white">
+            1. SURTIMIENTO RACKS • 2. COMPACTACIÓN BODEGAS • 3. CUMPLIMIENTO RECOLECCIÓN
+          </h1>
+          <div class="flex flex-wrap items-center gap-2 mt-1 text-xs">
+            <span id="badge-pick-rules" class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">Regla Pick: Pendiente</span>
+            <span id="badge-bulk-rules" class="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">Regla Bulk: Pendiente</span>
+            <span class="text-gray-400">•</span>
+            <span id="txt-updated" class="text-gray-300">Catálogo Materiales GIO: <b>Activo (Embebido)</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTONES DE CARGA DE ARCHIVOS -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <label class="cursor-pointer bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1.5 transition" title="Selecciona PICKING.csv y BULKPICKING.csv al mismo tiempo">
+          <i data-lucide="file-check" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>1. Cargar Reglas (Pick & Bulk)</span>
+          <input type="file" id="file-rules" accept=".csv,.xlsx,.xls" multiple class="hidden">
+        </label>
+
+        <label class="cursor-pointer bg-[#C0D838] hover:bg-[#b5cc32] text-[#182237] text-xs px-3.5 py-2 rounded-lg font-bold flex items-center gap-1.5 shadow transition">
+          <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+          <span>2. Cargar Inventario WMS</span>
+          <input type="file" id="file-input" accept=".csv" class="hidden">
+        </label>
+
+        <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1.5 shadow transition">
+          <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+          <span>3. Cargar Recolección (CSV)</span>
+          <input type="file" id="file-recoleccion" accept=".csv" class="hidden">
+        </label>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-[1700px] w-full mx-auto p-4 md:p-6 flex-1 flex flex-col gap-5">
+
+    <!-- SECCIÓN DE NAVEGACIÓN: TRES MÓDULOS DE SAM-21 -->
+    <section class="bg-white rounded-xl border border-[#E5E7EB] p-2 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <div class="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+        <button id="btn-mod-1" onclick="switchMainModule(1)" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition bg-[#182237] text-white shadow-sm">
+          <i data-lucide="shopping-cart" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>Módulo 1: Surtimiento de Racks</span>
+        </button>
+
+        <button id="btn-mod-2" onclick="switchMainModule(2)" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#6B7280] hover:text-[#182237] transition">
+          <i data-lucide="minimize-2" class="w-4 h-4 text-[#E07A00]"></i>
+          <span>Módulo 2: Compactación de Bodegas</span>
+        </button>
+
+        <button id="btn-mod-3" onclick="switchMainModule(3)" class="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#6B7280] hover:text-[#182237] transition">
+          <i data-lucide="check-square" class="w-4 h-4 text-blue-600"></i>
+          <span>Módulo 3: Cumplimiento de Recolección (GIO)</span>
+        </button>
+      </div>
+
+      <!-- ACCIONES DEPENDIENTES DEL MÓDULO -->
+      <div id="mod-actions" class="flex items-center gap-2">
+        <button id="btn-action-export" onclick="exportModuleData()" class="bg-[#F4F6F8] hover:bg-[#E5E7EB] border border-gray-300 text-[#182237] text-xs px-3.5 py-2 rounded-lg font-bold flex items-center gap-1.5 transition">
+          <i data-lucide="download" class="w-4 h-4 text-[#0070C0]"></i>
+          <span id="txt-action-export">Descargar Plan de Surtido</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ESTADO VACÍO INICIAL -->
+    <section id="empty-state" class="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center shadow-sm">
+      <div class="w-16 h-16 rounded-full bg-[#EFF8FF] text-[#0070C0] mx-auto flex items-center justify-center mb-4">
+        <i data-lucide="file-spreadsheet" class="w-8 h-8"></i>
+      </div>
+      <h3 class="text-base font-bold text-[#182237] uppercase">SAM-21: Tablero en Espera de Archivos</h3>
+      <p class="text-xs text-[#6B7280] max-w-lg mx-auto mt-1 mb-5">
+        Para comenzar, carga tus reglas de almacenaje (<b>PICKING.csv</b> y <b>BULKPICKING.csv</b>) y luego el <b>CSV de Inventario</b> del WMS. Si deseas auditar pedidos de surtido, carga también la <b>Lista de Recolección</b>.
+      </p>
+      <div class="flex flex-wrap justify-center gap-3">
+        <label class="cursor-pointer bg-white hover:bg-gray-50 border border-gray-300 text-[#182237] text-xs px-4 py-2.5 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="file-check" class="w-4 h-4 text-[#0070C0]"></i>
+          <span>Paso 1: Cargar Reglas (.csv / .xlsx)</span>
+          <input type="file" id="file-rules-empty" accept=".csv,.xlsx,.xls" multiple class="hidden">
+        </label>
+        <label class="cursor-pointer bg-[#182237] hover:bg-[#C0D838] hover:text-[#182237] text-white text-xs px-5 py-2.5 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span>Paso 2: Cargar CSV Inventario</span>
+          <input type="file" id="file-input-empty" accept=".csv" class="hidden">
+        </label>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MÓDULO 1: SURTIMIENTO DE RACKS                                      -->
+    <!-- =================================================================== -->
+    <div id="module-1-container" class="space-y-4">
+      
+      <!-- SUB-BARRA DE VISTAS Y FILTROS DEL MÓDULO 1 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200">
+        <div class="flex items-center bg-[#F4F6F8] p-1 rounded-lg border border-gray-200">
+          <button id="btn-sub-cards" onclick="switchSubViewM1('cards')" class="px-3.5 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs">Tarjetas de Carril (3 en 1)</button>
+          <button id="btn-sub-map" onclick="switchSubViewM1('map')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold text-gray-500 hover:text-black">Plano Cuadrícula Almacén</button>
+          <button id="btn-sub-table" onclick="switchSubViewM1('table')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold text-gray-500 hover:text-black">Tareas Montacargas</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-500 font-bold">Zona:</span>
+            <select id="sel-zone" onchange="renderM1()" class="border border-gray-300 rounded px-2.5 py-1.5 text-xs font-bold text-[#182237] focus:outline-none">
+              <option value="ALL">Todas las Zonas (A - T)</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-500 font-bold">Estatus:</span>
+            <select id="sel-status" onchange="renderM1()" class="border border-gray-300 rounded px-2.5 py-1.5 text-xs font-bold text-[#182237] focus:outline-none">
+              <option value="ALL">Todos los estatus</option>
+              <option value="critico">🔴 Picking Crítico (≤ 10% o Vacíos)</option>
+              <option value="preventivo">🟡 Picking Preventivo (11-25%)</option>
+              <option value="racks_deficit">📦 Falta Tarima en Racks (N4-6)</option>
+              <option value="bulk_faltantes">📦 Falta Tarima en Bulk (N2-3)</option>
+              <option value="completo">🟢 Estándar Completo (6 Pallets)</option>
+            </select>
+          </div>
+          <div class="relative w-full sm:w-60">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-2.5"></i>
+            <input type="text" id="txt-search" oninput="renderM1()" placeholder="Buscar SKU, Desc o Ubicación..." class="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIS INTERACTIVOS DEL MÓDULO 1 -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        
+        <div class="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[12px] font-bold text-[#6B7280] uppercase tracking-wider">TOTAL CARRILES</span>
+            <div class="text-[30px] font-bold text-[#1D2939] leading-none mt-1" id="kpi-total">0</div>
+            <div class="mt-1.5 flex items-center gap-1.5">
+              <span class="text-[11px] font-semibold text-[#182237] bg-gray-100 px-1.5 py-0.5 rounded" id="kpi-total-pct">0%</span>
+              <span class="text-[11px] text-[#6B7280]">Zonas A - T</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-[#EFF8FF] flex items-center justify-center text-[#0070C0]">
+            <i data-lucide="layers" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-red-400 transition" onclick="setQuickFilter('criticos')">
+          <div>
+            <span class="text-[12px] font-bold text-[#D92D20] uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-[#D92D20] animate-ping"></span>
+              PICK CRÍTICO (≤ 10%)
+            </span>
+            <div class="text-[30px] font-bold text-[#D92D20] leading-none mt-1" id="kpi-criticos">0</div>
+            <div class="mt-1.5 flex items-center gap-1.5">
+              <span class="text-[11px] font-black text-[#D92D20] bg-[#FEE4E2] px-1.5 py-0.5 rounded" id="kpi-criticos-pct">0.0%</span>
+              <span class="text-[11px] text-red-600 font-medium">Requiere surtido urgente</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-[#FEE4E2] flex items-center justify-center text-[#D92D20]">
+            <i data-lucide="alert-octagon" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition" onclick="setQuickFilter('preventivos')">
+          <div>
+            <span class="text-[12px] font-bold text-[#E07A00] uppercase tracking-wider">PICK PREVENTIVO</span>
+            <div class="text-[30px] font-bold text-[#E07A00] leading-none mt-1" id="kpi-preventivos">0</div>
+            <div class="mt-1.5 flex items-center gap-1.5">
+              <span class="text-[11px] font-black text-[#E07A00] bg-[#FEF0C7] px-1.5 py-0.5 rounded" id="kpi-preventivos-pct">0.0%</span>
+              <span class="text-[11px] text-amber-700 font-medium">Próximo a quiebre</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-[#FEF0C7] flex items-center justify-center text-[#E07A00]">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-orange-400 transition" onclick="setQuickFilter('racks_deficit')">
+          <div>
+            <span class="text-[12px] font-bold text-[#E07A00] uppercase tracking-wider">DÉFICIT RACKS (4-6)</span>
+            <div class="text-[30px] font-bold text-[#1D2939] leading-none mt-1" id="kpi-racks-deficit">0</div>
+            <div class="mt-1.5 flex items-center gap-1.5">
+              <span class="text-[11px] font-black text-[#E07A00] bg-[#FEF0C7] px-1.5 py-0.5 rounded" id="kpi-racks-pct">0.0%</span>
+              <span class="text-[11px] text-[#6B7280]">Menos de 3 pallets</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-[#FEF0C7] flex items-center justify-center text-[#E07A00]">
+            <i data-lucide="archive" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-[#E5E7EB] p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-emerald-400 transition" onclick="setQuickFilter('completos')">
+          <div>
+            <span class="text-[12px] font-bold text-[#037A48] uppercase tracking-wider">ESTÁNDAR COMPLETO</span>
+            <div class="text-[30px] font-bold text-[#037A48] leading-none mt-1" id="kpi-completos">0</div>
+            <div class="mt-1.5 flex items-center gap-1.5">
+              <span class="text-[11px] font-black text-[#037A48] bg-[#ECFDF3] px-1.5 py-0.5 rounded" id="kpi-completos-pct">0.0%</span>
+              <span class="text-[11px] text-emerald-700 font-medium">6 Pallets y Pick &gt; 25%</span>
+            </div>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-[#ECFDF3] flex items-center justify-center text-[#037A48]">
+            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- VISTA 1.1: TARJETAS DE CARRIL 3 EN 1 -->
+      <div id="m1-view-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+
+      <!-- VISTA 1.2: PLANO CUADRÍCULA GENERAL DE ALMACÉN -->
+      <div id="m1-view-map" class="hidden bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+          <div>
+            <h2 class="text-sm font-bold uppercase text-[#182237] tracking-wider">MATRIZ OPERATIVA DE RACKS (ZONAS Y CARRILES)</h2>
+            <p class="text-xs text-[#6B7280]">Visualización general de carriles por rack. Haz clic sobre cualquier celda para auditar sus 6 niveles.</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Completo</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Preventivo</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Crítico Pick</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-orange-400 inline-block"></span> Déficit Racks</span>
+          </div>
+        </div>
+        <div id="grid-container" class="space-y-4 overflow-x-auto custom-scroll"></div>
+      </div>
+
+      <!-- VISTA 1.3: LISTA DE TAREAS MONTACARGAS -->
+      <div id="m1-view-table" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 bg-[#F8FAFC] border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h2 class="text-sm font-bold uppercase text-[#182237] tracking-wider">PROGRAMA PRIORITARIO DE SURTIDO (BULK & NARANJA)</h2>
+            <p class="text-xs text-[#6B7280]">Tareas de reabastecimiento excluyendo automáticamente ubicaciones de Merma, Zona QI y Daños.</p>
+          </div>
+          
+          <div class="flex items-center bg-gray-100 p-1 rounded-lg border border-gray-200 text-xs">
+            <span class="text-gray-500 font-semibold px-2">Filtrar:</span>
+            <button id="btn-filt-disp-all" onclick="setDisponibilidadFilter('all')" class="px-3 py-1 rounded font-bold bg-white text-[#182237] shadow-xs">Todos</button>
+            <button id="btn-filt-disp-with" onclick="setDisponibilidadFilter('con_stock')" class="px-3 py-1 rounded font-semibold text-gray-600 hover:text-black">Solo con Stock Surtible</button>
+            <button id="btn-filt-disp-without" onclick="setDisponibilidadFilter('sin_stock')" class="px-3 py-1 rounded font-semibold text-gray-600 hover:text-black">Sin Existencias</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#182237] text-white text-[11px] font-bold uppercase tracking-wider">
+                <th class="py-3 px-4">Ubicación Pick (N1)</th>
+                <th class="py-3 px-4">SKU / Descripción Oficial</th>
+                <th class="py-3 px-4 text-center">Nivel Pallet Pick</th>
+                <th class="py-3 px-4 text-center">Nivel 2-3 (BP...)</th>
+                <th class="py-3 px-4 text-center">Nivel 4-6 (R...)</th>
+                <th class="py-3 px-4">Sugerencia 1 (Más Cercano)</th>
+                <th class="py-3 px-4">Sugerencia 2</th>
+                <th class="py-3 px-4">Sugerencia 3</th>
+              </tr>
+            </thead>
+            <tbody id="table-tasks-body" class="divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MÓDULO 2: COMPACTACIÓN DE BODEGAS (ROJA Y NARANJA CON FONDEOS)     -->
+    <!-- =================================================================== -->
+    <div id="module-2-container" class="hidden space-y-4">
+      
+      <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-[#182237] uppercase tracking-wide">Bodega Objetivo:</span>
+          <div class="inline-flex rounded-lg border border-gray-200 p-1 bg-gray-50 text-xs font-bold">
+            <button id="btn-comp-roja" onclick="setCompactBodega('ROJA')" class="px-4 py-1.5 rounded-md transition bg-[#B71C1C] text-white shadow-xs">
+              Bodega Roja (BULK)
+            </button>
+            <button id="btn-comp-naranja" onclick="setCompactBodega('NARANJA')" class="px-4 py-1.5 rounded-md transition text-gray-600 hover:text-black">
+              Bodega Naranja
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="font-bold text-gray-700">Max Pallets a Vaciar:</span>
+            <select id="sel-max-pallets-comp" onchange="ejecutarCompactador()" class="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#182237] focus:outline-none">
+              <option value="2">Hasta 2 Pallets (Saldos Mínimos)</option>
+              <option value="4">Hasta 4 Pallets (Saldos Medios)</option>
+              <option value="6" selected>Hasta 6 Pallets (Estándar)</option>
+              <option value="8">Hasta 8 Pallets (Máxima Consolidación)</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Movimientos Generados</span>
+            <div class="text-2xl font-black text-[#182237] mt-0.5" id="kpi-comp-movs">0</div>
+            <span class="text-[11px] text-gray-500">Órdenes de vaciado total</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-blue-50 text-[#0070C0] flex items-center justify-center">
+            <i data-lucide="arrow-right-left" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Carriles 100% Liberados</span>
+            <div class="text-2xl font-black text-emerald-700 mt-0.5" id="kpi-comp-liberados">0</div>
+            <span class="text-[11px] text-emerald-600 font-semibold">Quedarán libres para recibir</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-[#E07A00] uppercase tracking-wider">Total Pallets a Reubicar</span>
+            <div class="text-2xl font-black text-[#E07A00] mt-0.5" id="kpi-comp-pallets">0</div>
+            <span class="text-[11px] text-gray-500">Tarimas consolidadas</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-amber-50 text-[#E07A00] flex items-center justify-center">
+            <i data-lucide="boxes" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+        <div class="p-3.5 bg-[#F8FAFC] border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-xs font-bold text-[#182237] uppercase tracking-wider flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-[#E07A00]"></span>
+            <span>Órdenes de Movimiento para Montacargas (Excluye Mismo Carril)</span>
+          </h3>
+          <span class="text-xs text-gray-500 font-medium">Capacidad calculada según fondeo oficial de isla</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#182237] text-white text-[11px] font-bold uppercase tracking-wider">
+                <th class="py-3 px-4">Acción</th>
+                <th class="py-3 px-4">SKU / Descripción</th>
+                <th class="py-3 px-4 text-center">Ubicación Origen (A Vaciar)</th>
+                <th class="py-3 px-4 text-center">Pallets a Mover</th>
+                <th class="py-3 px-4 text-center">Ubicación Destino</th>
+                <th class="py-3 px-4 text-center">Pallets Actuales</th>
+                <th class="py-3 px-4 text-center">Pallets Finales</th>
+                <th class="py-3 px-4 text-center">Capacidad Máx (Fondeo)</th>
+              </tr>
+            </thead>
+            <tbody id="table-compact-body" class="divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MÓDULO 3: CUMPLIMIENTO CON ACORDEÓN EXPANDIBLE (ESTILO MASTER-DETAIL) -->
+    <!-- =================================================================== -->
+    <div id="module-3-container" class="hidden space-y-4">
+      
+      <!-- SUB-BARRA DE FILTROS Y BÚSQUEDA DEL MÓDULO 3 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+        
+        <div class="flex flex-wrap items-center bg-[#F4F6F8] p-1 rounded-lg border border-gray-200 gap-1">
+          <button id="btn-m3-filter-all" onclick="setM3Filter('ALL')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs">
+            Todos los Viajes
+          </button>
+          <button id="btn-m3-filter-bajada" onclick="setM3Filter('BAJADA')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-[#E07A00] hover:bg-white hover:text-black transition">
+            🟡 Bajadas de Bulk (Roja)
+          </button>
+          <button id="btn-m3-filter-traspaso" onclick="setM3Filter('TRASPASO')" class="px-3 py-1.5 rounded-md text-xs font-bold text-purple-700 hover:bg-white hover:text-purple-800 transition">
+            🚚 Solo Traspasos Naranja ➔ Roja
+          </button>
+          <button id="btn-m3-filter-quiebre" onclick="setM3Filter('QUIEBRE')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-red-600 hover:bg-white hover:text-red-700 transition">
+            🔴 Solo Quiebres Críticos
+          </button>
+          <button id="btn-m3-filter-cubierto" onclick="setM3Filter('CUBIERTO')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-700 hover:bg-white hover:text-emerald-800 transition">
+            🟢 Cuadrados en Piso
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto">
+          <div class="relative w-full sm:w-72">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-2.5"></i>
+            <input type="text" id="txt-search-m3" oninput="renderM3()" placeholder="Buscar Shipment, SKU, Cita..." class="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-[#182237]">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KPIS DEL MÓDULO 3 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-gray-500 uppercase">Shipments / Viajes</span>
+            <div class="text-2xl font-black text-[#182237] mt-1" id="kpi-recol-viajes">0</div>
+            <span class="text-[10px] text-gray-500">En lista de recolección</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-blue-50 text-[#0070C0] flex items-center justify-center">
+            <i data-lucide="truck" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-blue-700 uppercase">Cajas Picking Reales</span>
+            <div class="text-2xl font-black text-blue-700 mt-1" id="kpi-recol-cajas">0</div>
+            <span class="text-[10px] text-blue-600 font-medium">Residuo neto &lt; 78.5%</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i data-lucide="package" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-400 transition" onclick="setM3Filter('BAJADA')">
+          <div>
+            <span class="text-[11px] font-bold text-[#E07A00] uppercase">Bajadas de Bulk (Roja)</span>
+            <div class="text-2xl font-black text-[#E07A00] mt-1" id="kpi-recol-bajadas">0</div>
+            <span class="text-[10px] text-amber-700 font-semibold">Stock en misma nave</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-amber-50 text-[#E07A00] flex items-center justify-center">
+            <i data-lucide="arrow-down-circle" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-purple-200 p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-purple-500 transition" onclick="setM3Filter('TRASPASO')">
+          <div>
+            <span class="text-[11px] font-bold text-purple-700 uppercase">Traspasos Naranja</span>
+            <div class="text-2xl font-black text-purple-700 mt-1" id="kpi-recol-traspasos">0</div>
+            <span class="text-[10px] text-purple-600 font-black">Pedir con anticipación</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center">
+            <i data-lucide="repeat" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between cursor-pointer hover:border-red-400 transition" onclick="setM3Filter('QUIEBRE')">
+          <div>
+            <span class="text-[11px] font-bold text-red-600 uppercase">Quiebres Críticos</span>
+            <div class="text-2xl font-black text-red-600 mt-1" id="kpi-recol-quiebres">0</div>
+            <span class="text-[10px] text-red-600 font-semibold">Sin stock total en almacén</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+            <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENEDOR MAESTRO DE SHIPMENTS CON DETALLE EXPANDIBLE -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="p-3.5 bg-[#F8FAFC] border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 flex-shrink-0">
+          <div>
+            <h3 class="text-xs font-bold text-[#182237] uppercase tracking-wider flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+              <span>Cuadratura y Análisis de Picking por Viaje (Shipment Master-Detail)</span>
+            </h3>
+            <p class="text-[11px] text-gray-500 mt-0.5">Haz clic sobre la flecha (▼) de cualquier viaje para desplegar el desglose y las opciones de surtido de cada SKU.</p>
+          </div>
+          <span class="text-xs text-gray-600 font-bold" id="badge-m3-count">0 Viajes mostrados</span>
+        </div>
+
+        <!-- LISTADO MAESTRO DE SHIPMENTS -->
+        <div class="max-h-[68vh] overflow-y-auto custom-scroll divide-y divide-gray-200" id="shipments-accordion-container">
+          <div class="text-center p-12 text-gray-500 text-xs">
+            Carga el archivo CSV de Recolección en el botón azul para evaluar los shipments y su disponibilidad en piso.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- MODAL DE DETALLE DE CARRIL (FICHA TÉCNICA 3 EN 1 COMPLETA) -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 transform transition-all">
+      <div class="flex justify-between items-start pb-3 border-b border-gray-200">
+        <div>
+          <span class="text-[11px] font-bold text-[#C0D838] uppercase tracking-wider bg-[#182237] px-2 py-0.5 rounded">Ficha Técnica</span>
+          <h3 id="modal-title" class="text-lg font-black text-[#182237] mt-1">UBICACION</h3>
+        </div>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-700 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="modal-content" class="py-4 space-y-4 max-h-[70vh] overflow-y-auto custom-scroll">
+      </div>
+
+      <div class="pt-3 border-t border-gray-200 flex justify-end gap-2">
+        <button onclick="closeModal()" class="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg">Cerrar</button>
+        <button onclick="simularSurtido()" class="px-4 py-2 text-xs font-bold text-[#182237] bg-[#C0D838] hover:bg-[#b5cc32] rounded-lg flex items-center gap-1.5">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Registrar Surtido Completo</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT MAESTRO DE SAM-21 -->
+  <script>
+    // 1. MATRIZ CAT_MATERIALES OFICIAL (OPCIÓN A: EMBEBIDA)
+    const CAT_MATERIALES_STD = {
+      "105042": 42, "105634": 50, "105888": 50, "105931": 30, "105982": 30, "105985": 42,
+      "105987": 28, "107376": 24, "107377": 24, "109782": 60, "114170": 72, "114172": 72,
+      "114189": 72, "139197": 108, "151085": 120, "151086": 120, "151089": 150, "151119": 156,
+      "61000474": 384, "61033268": 320, "61003046": 200, "FMX91106A": 200, "VN00875A": 240,
+      "61040908": 304, "MX04719A": 240, "FMX02982": 266, "61029183": 130, "MX05521A": 200,
+      "FUS90750": 320, "FMX05193": 45,  "61033015": 300, "61022833": 48,  "61001467": 36,
+      "61042899": 200, "FMX05351": 45,  "61024620": 48,  "FUS00447A": 360, "FMX90900A": 273,
+      "61029187": 64,  "61043072": 60,  "61000251": 210, "61041359": 56,  "FMX90901A": 273,
+      "MX05021B": 200, "61037655": 270, "FMXS00186": 240, "61060770": 60,  "61031194": 40,
+      "MX05046A": 36,  "61062355": 120, "61002363": 100
+    };
+
+    // 2. MATRIZ COMPLETA DE FONDEOS OFICIALES POR ISLA (BODEGA ROJA Y NARANJA)
+    const FONDEOS_ROJA = {
+      "CA": 6, "CB": 7, "01A": 9, "02B": 9, "03C": 18, "04D": 9, "05E": 9,
+      "06F": 9, "07G": 9, "08H": 10, "09I": 11, "10J": 10, "12L": 12, "13M": 12,
+      "16P": 11, "15O": 10, "14N": 10
+    };
+
+    const FONDEOS_NARANJA = {
+      "N01A": 15, "N02B": 9, "N03C": 9, "N04D": 9, "N05E": 9, "N06F": 9, "N07G": 9,
+      "N08H": 9, "N09I": 9, "N10J": 9, "N11K": 8, "N12L": 2, "N13M": 10, "N14N": 15,
+      "N15M": 15, "N16O": 9, "N17P": 9, "N18Q": 15, "N19R": 11, "N20S": 14
+    };
+
+    function getFondosUbicacion(ubic) {
+      if (!ubic) return 9;
+      let u = String(ubic).trim().toUpperCase();
+
+      let m11k = u.match(/^11K(\d+)/);
+      if (m11k) {
+        let num = parseInt(m11k[1]);
+        return (num <= 36) ? 9 : 19;
+      }
+
+      for (let k in FONDEOS_NARANJA) {
+        let shortK = k.replace(/^N0/, 'N');
+        if (u.startsWith(k) || u.startsWith(shortK)) return FONDEOS_NARANJA[k];
+      }
+
+      for (let k in FONDEOS_ROJA) {
+        if (u.startsWith(k)) return FONDEOS_ROJA[k];
+      }
+
+      return 9;
+    }
+
+    function obtenerCapacidadReal(ubicacion, sku) {
+      return getFondosUbicacion(ubicacion) * 2;
+    }
+
+    const ISLAS_ROJA = new Set([
+      "01A", "02B", "03C", "04D", "05E", "06F",
+      "07G", "08H", "09I", "10J", "11K", "12L", "13M", "16P", "15O", "14N", "CA", "CB"
+    ]);
+
+    const ISLAS_NARANJA = new Set([
+      "N01A", "N02B", "N03C", "N04D", "N05E", "N06F", "N07G", "N08H", "N09I", "N10J",
+      "N11K", "N12L", "N13M", "N14N", "N15M", "N16O", "N17P", "N18Q", "N19R", "N20S"
+    ]);
+
+    // VARIABLES DE ESTADO SAM-21
+    let activeMainModule = 1;
+    let activeSubViewM1 = 'cards';
+    let compactBodegaActual = 'ROJA';
+
+    let reglasPickingNivel1 = {};    
+    let reglasBulkPickingNivel2 = {}; 
+    let lanesDatabase = {};
+    let rawInventoryList = [];
+    let replenishSources = [];
+    let recoleccionShipments = []; // Array estructurado por Shipment (Master-Detail)
+    let compactPropuestas = [];
+    let dataLoaded = false;
+    let recoleccionLoaded = false;
+    let filterDisponibilidad = 'all';
+    let currentModalLane = null;
+
+    let m3FilterStatus = 'ALL';
+
+    function initializeWarehouse() {
+      lanesDatabase = {};
+      replenishSources = [];
+      rawInventoryList = [];
+      compactPropuestas = [];
+
+      const zones = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T'];
+      
+      zones.forEach(zone => {
+        let maxLanes = (['P','Q','S','T'].includes(zone)) ? 28 : (zone === 'R' ? 25 : 32);
+        for(let l = 1; l <= maxLanes; l++) {
+          let carrilStr = l.toString().padStart(2, '0');
+          let key = `${zone}${carrilStr}`;
+          lanesDatabase[key] = {
+            laneKey: key, zone: zone, carril: l, carrilStr: carrilStr,
+            header: `UBICACION ${key} RACK ${zone}`,
+            pickUbicExpected: `P${key}`, bulkUbicExpected: `BP${key}`, rackUbicExpected: `R${key}`,
+            pick: null, bulk: null, racks: []
+          };
+        }
+      });
+
+      const sel = document.getElementById('sel-zone');
+      sel.innerHTML = '<option value="ALL">Todas las Zonas (A - T)</option>';
+      zones.forEach(z => {
+        let opt = document.createElement('option');
+        opt.value = z; opt.textContent = `Rack Zona ${z}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    function switchMainModule(modNum) {
+      activeMainModule = modNum;
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById(`module-${i}-container`).classList.add('hidden');
+        document.getElementById(`btn-mod-${i}`).className = "flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-[#6B7280] hover:text-[#182237] transition";
+      }
+
+      document.getElementById(`module-${modNum}-container`).classList.remove('hidden');
+      document.getElementById(`btn-mod-${modNum}`).className = "flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition bg-[#182237] text-white shadow-sm";
+
+      const txtExport = document.getElementById('txt-action-export');
+      if (modNum === 1) txtExport.textContent = "Descargar Plan de Surtido";
+      else if (modNum === 2) txtExport.textContent = "Descargar Plan de Compactación";
+      else if (modNum === 3) txtExport.textContent = "Descargar Órdenes de Bajada";
+
+      if (modNum === 1) renderM1();
+      else if (modNum === 2) ejecutarCompactador();
+      else if (modNum === 3 && recoleccionLoaded) renderM3();
+
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // MÓDULO 3: MOTOR DE RECOLECCIÓN GIO CON ESTRUCTURA MASTER-DETAIL POR SHIPMENT
+    // =========================================================================
+    function setM3Filter(filterType) {
+      m3FilterStatus = filterType;
+      ['all', 'bajada', 'traspaso', 'quiebre', 'cubierto'].forEach(f => {
+        let btn = document.getElementById(`btn-m3-filter-${f}`);
+        if ((filterType === 'ALL' && f === 'all') ||
+            (filterType === 'BAJADA' && f === 'bajada') ||
+            (filterType === 'TRASPASO' && f === 'traspaso') ||
+            (filterType === 'QUIEBRE' && f === 'quiebre') ||
+            (filterType === 'CUBIERTO' && f === 'cubierto')) {
+          btn.className = "px-3 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-gray-500 hover:bg-white hover:text-black transition";
+        }
+      });
+      renderM3();
+    }
+
+    function procesarCSVRecoleccion(text) {
+      const lines = text.split(/\r\n|\n/);
+      if (lines.length <= 1) return;
+
+      const shipmentsMap = {}; // shipment -> { items: { sku -> { qty, std } }, fecha }
+
+      lines.forEach((line) => {
+        let trimmed = line.trim();
+        if (!trimmed) return;
+        let cols = trimmed.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 10) return;
+
+        let sku = cols[0];
+        let stdCsv = parseFloat(cols[1]) || 0;
+        let qty = parseFloat(cols[2]) || 0;
+        let fecha = cols[3] || '2026-10-03';
+        let shipment = cols[9];
+
+        if (!shipment || !sku || isNaN(qty)) return;
+
+        let stdOficial = CAT_MATERIALES_STD[sku] || stdCsv;
+        if (!shipmentsMap[shipment]) {
+          shipmentsMap[shipment] = { items: {}, fecha: fecha };
+        }
+
+        if (shipmentsMap[shipment].items[sku]) {
+          let actualStd = shipmentsMap[shipment].items[sku].std;
+          if (Math.abs(stdCsv - stdOficial) < Math.abs(actualStd - stdOficial)) {
+            shipmentsMap[shipment].items[sku] = { qty, std: stdCsv > 0 ? stdCsv : stdOficial };
+          }
+        } else {
+          shipmentsMap[shipment].items[sku] = { qty, std: stdCsv > 0 ? stdCsv : stdOficial };
+        }
+      });
+
+      recoleccionShipments = [];
+      let totalViajes = Object.keys(shipmentsMap).length;
+      let globalCajasPicking = 0;
+      let globalBajadas = 0;
+      let globalTraspasos = 0;
+      let globalQuiebres = 0;
+
+      for (let sh in shipmentsMap) {
+        let shObj = shipmentsMap[sh];
+        let itemsList = [];
+        let shTotalCajasPicking = 0;
+        let shTotalStockPick = 0;
+        let shTotalDeficit = 0;
+        let shHasQuiebre = false;
+        let shHasTraspaso = false;
+        let shHasBajada = false;
+
+        for (let sku in shObj.items) {
+          let it = shObj.items[sku];
+          let qty = it.qty;
+          let std = it.std;
+          let cajasPick = 0;
+
+          if (std > 0) {
+            let residuo = qty % std;
+            // FÓRMULA GIO OFICIAL: Si residuo/std < 0.785 se pica manual
+            if ((residuo / std) < 0.785) {
+              cajasPick = residuo;
+            }
+          } else {
+            cajasPick = qty;
+          }
+
+          if (cajasPick === 0) continue; // Si es tarima completa pura, no satura picking
+
+          globalCajasPicking += cajasPick;
+          shTotalCajasPicking += cajasPick;
+
+          // Buscar stock en Nivel 1 (Picking)
+          let stockPick = 0;
+          let ubicPick = "Sin asignar";
+          let desc = "Material en ola";
+          let laneObj = null;
+
+          Object.values(lanesDatabase).forEach(l => {
+            if (l.pick && l.pick.sku === sku) {
+              stockPick += l.pick.cant;
+              ubicPick = l.pick.u;
+              desc = l.pick.desc;
+              laneObj = l;
+            }
+          });
+
+          // Stock total en toda la bodega
+          let stockTotalBodega = 0;
+          rawInventoryList.forEach(r => {
+            if (r.sku === sku && !['DAÑOS', 'ZONAQI', 'STAGE'].includes(r.area) && !r.ubic.startsWith('MERMA')) {
+              stockTotalBodega += r.cant;
+            }
+          });
+
+          let destZone = laneObj ? laneObj.zone : 'A';
+          let destCarril = laneObj ? laneObj.carril : 1;
+          let sugs = getReplenishSuggestions(sku, destZone, destCarril);
+
+          let deficit = Math.max(0, cajasPick - stockPick);
+          shTotalStockPick += stockPick;
+          shTotalDeficit += deficit;
+
+          let skuStatus = "CUBIERTO";
+          let esTraspaso = false;
+
+          if (deficit > 0) {
+            if (stockTotalBodega >= cajasPick) {
+              let s1Naranja = sugs.s1.includes('[NARANJA]');
+              let s2Naranja = sugs.s2.includes('[NARANJA]') || sugs.s2 === '-';
+              let s3Naranja = sugs.s3.includes('[NARANJA]') || sugs.s3 === '-';
+
+              if (s1Naranja && s2Naranja && s3Naranja) {
+                skuStatus = "TRASPASO NARANJA";
+                esTraspaso = true;
+                shHasTraspaso = true;
+              } else {
+                skuStatus = "BAJADA REQUERIDA";
+                shHasBajada = true;
+              }
+            } else {
+              skuStatus = "QUIEBRE CRÍTICO";
+              shHasQuiebre = true;
+            }
+          }
+
+          itemsList.push({
+            sku, desc, cajasPick, stockPick, ubicPick, deficit,
+            sug1: sugs.s1, sug2: sugs.s2, sug3: sugs.s3,
+            hasStock: sugs.hasStock, esTraspaso, stockTotalBodega, skuStatus
+          });
+        }
+
+        if (itemsList.length === 0) continue;
+
+        let shipmentStatus = "CUBIERTO";
+        if (shHasQuiebre) {
+          shipmentStatus = "QUIEBRE CRÍTICO";
+          globalQuiebres++;
+        } else if (shHasTraspaso) {
+          shipmentStatus = "TRASPASO NARANJA";
+          globalTraspasos++;
+        } else if (shHasBajada) {
+          shipmentStatus = "BAJADA REQUERIDA";
+          globalBajadas++;
+        }
+
+        recoleccionShipments.push({
+          shipment: sh,
+          fecha: shObj.fecha,
+          totalSkus: itemsList.length,
+          totalCajasPicking: shTotalCajasPicking,
+          totalStockPick: shTotalStockPick,
+          totalDeficit: shTotalDeficit,
+          shipmentStatus: shipmentStatus,
+          items: itemsList
+        });
+      }
+
+      document.getElementById('kpi-recol-viajes').textContent = recoleccionShipments.length;
+      document.getElementById('kpi-recol-cajas').textContent = globalCajasPicking.toLocaleString();
+      document.getElementById('kpi-recol-bajadas').textContent = globalBajadas;
+      document.getElementById('kpi-recol-traspasos').textContent = globalTraspasos;
+      document.getElementById('kpi-recol-quiebres').textContent = globalQuiebres;
+
+      recoleccionLoaded = true;
+      switchMainModule(3);
+      renderM3();
+      alert(`Lista de Recolección procesada:\n• ${recoleccionShipments.length} Shipments agrupados\n• ${globalCajasPicking.toLocaleString()} Cajas Picking netas\n• ${globalBajadas} Bajadas desde BULK\n• ${globalTraspasos} Traspasos requeridos desde Bodega Naranja`);
+    }
+
+    function toggleAccordionRow(id) {
+      const detailEl = document.getElementById(`acc-detail-${id}`);
+      const arrowEl = document.getElementById(`acc-arrow-${id}`);
+      if (!detailEl || !arrowEl) return;
+
+      if (detailEl.classList.contains('hidden')) {
+        detailEl.classList.remove('hidden');
+        arrowEl.style.transform = 'rotate(180deg)';
+      } else {
+        detailEl.classList.add('hidden');
+        arrowEl.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function renderM3() {
+      const container = document.getElementById('shipments-accordion-container');
+      container.innerHTML = '';
+
+      if (recoleccionShipments.length === 0) {
+        container.innerHTML = `<div class="text-center p-12 text-gray-500 text-xs">No hay viajes cargados en la lista de recolección.</div>`;
+        return;
+      }
+
+      const query = (document.getElementById('txt-search-m3').value || '').toLowerCase().trim();
+
+      // Filtrado por Estado y Búsqueda
+      let filtrados = recoleccionShipments.filter(s => {
+        if (m3FilterStatus === 'BAJADA' && s.shipmentStatus !== 'BAJADA REQUERIDA') return false;
+        if (m3FilterStatus === 'TRASPASO' && s.shipmentStatus !== 'TRASPASO NARANJA') return false;
+        if (m3FilterStatus === 'QUIEBRE' && s.shipmentStatus !== 'QUIEBRE CRÍTICO') return false;
+        if (m3FilterStatus === 'CUBIERTO' && s.shipmentStatus !== 'CUBIERTO') return false;
+
+        if (query) {
+          let matchShip = s.shipment.toLowerCase().includes(query) || s.fecha.toLowerCase().includes(query);
+          let matchItem = s.items.some(i => i.sku.toLowerCase().includes(query) || i.desc.toLowerCase().includes(query));
+          if (!matchShip && !matchItem) return false;
+        }
+        return true;
+      });
+
+      // Ordenar: Quiebres primero, luego traspasos, luego bajadas, al final cubiertos
+      filtrados.sort((a, b) => {
+        let pA = a.shipmentStatus === 'QUIEBRE CRÍTICO' ? 1 : (a.shipmentStatus === 'TRASPASO NARANJA' ? 2 : (a.shipmentStatus === 'BAJADA REQUERIDA' ? 3 : 4));
+        let pB = b.shipmentStatus === 'QUIEBRE CRÍTICO' ? 1 : (b.shipmentStatus === 'TRASPASO NARANJA' ? 2 : (b.shipmentStatus === 'BAJADA REQUERIDA' ? 3 : 4));
+        return pA - pB || b.totalDeficit - a.totalDeficit;
+      });
+
+      document.getElementById('badge-m3-count').textContent = `${filtrados.length} Viajes mostrados`;
+
+      if (filtrados.length === 0) {
+        container.innerHTML = `<div class="text-center p-12 text-gray-500 text-xs font-semibold">No hay viajes que coincidan con los filtros seleccionados.</div>`;
+        return;
+      }
+
+      filtrados.forEach((s, index) => {
+        let badgeStatus = '';
+        if (s.shipmentStatus === 'CUBIERTO') {
+          badgeStatus = `<span class="bg-emerald-100 text-emerald-800 text-[11px] px-3 py-1 rounded-full font-black">Cuadrado</span>`;
+        } else if (s.shipmentStatus === 'TRASPASO NARANJA') {
+          badgeStatus = `<span class="bg-purple-100 text-purple-800 border border-purple-300 text-[11px] px-3 py-1 rounded-full font-black flex items-center gap-1">
+                          <span class="w-1.5 h-1.5 rounded-full bg-purple-700 animate-pulse"></span> Traspaso Naranja
+                         </span>`;
+        } else if (s.shipmentStatus === 'BAJADA REQUERIDA') {
+          badgeStatus = `<span class="bg-amber-100 text-[#E07A00] text-[11px] px-3 py-1 rounded-full font-black">Bajada Bulk</span>`;
+        } else {
+          badgeStatus = `<span class="bg-red-100 text-red-700 text-[11px] px-3 py-1 rounded-full font-black">Quiebre</span>`;
+        }
+
+        // Subtabla con los productos del viaje
+        let subRowsHTML = s.items.map(it => `
+          <tr class="hover:bg-gray-50/70 transition border-b border-gray-100 text-xs">
+            <td class="py-2.5 px-4 font-black text-[#182237]">${it.sku}</td>
+            <td class="py-2.5 px-4 text-gray-700 truncate max-w-[280px]" title="${it.desc}">${it.desc}</td>
+            <td class="py-2.5 px-4 text-center font-bold text-gray-800">${it.cajasPick}</td>
+            <td class="py-2.5 px-4 text-center font-bold text-gray-800">${it.stockPick} <span class="text-[10px] text-[#0070C0] font-bold block">${it.ubicPick}</span></td>
+            <td class="py-2.5 px-4 text-center font-black ${it.deficit > 0 ? (it.esTraspaso ? 'text-purple-700' : 'text-red-600') : 'text-emerald-700'}">${it.deficit}</td>
+            <td class="py-2.5 px-4 font-bold text-xs ${it.sug1.includes('[NARANJA]') ? 'text-purple-800 bg-purple-50/50 rounded' : (it.sug1.includes('Sin') ? 'text-red-600' : 'text-emerald-800')}">${it.sug1}</td>
+            <td class="py-2.5 px-4 text-xs ${it.sug2.includes('[NARANJA]') ? 'text-purple-800 font-semibold' : 'text-gray-600'}">${it.sug2}</td>
+            <td class="py-2.5 px-4 text-xs ${it.sug3.includes('[NARANJA]') ? 'text-purple-800 font-semibold' : 'text-gray-600'}">${it.sug3}</td>
+            <td class="py-2.5 px-4 text-center font-black text-gray-800">${it.stockTotalBodega} cjs</td>
+          </tr>
+        `).join('');
+
+        let accordionItem = document.createElement('div');
+        accordionItem.className = "bg-white hover:bg-gray-50/40 transition";
+        accordionItem.innerHTML = `
+          <!-- FILA PRINCIPAL (MASTER ROW) -->
+          <div onclick="toggleAccordionRow(${index})" class="p-3.5 flex items-center justify-between cursor-pointer select-none">
+            <div class="flex items-center gap-4 flex-1">
+              <span id="acc-arrow-${index}" class="text-gray-400 text-xs transition-transform duration-200">▼</span>
+              <span class="font-black text-[#182237] text-sm tracking-wide">${s.shipment}</span>
+              <span class="text-xs text-gray-500 font-semibold">${s.fecha}</span>
+              <span class="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded font-bold">${s.totalSkus} SKUs</span>
+            </div>
+
+            <div class="flex items-center gap-8 text-xs font-bold mr-6">
+              <div class="text-center">
+                <span class="text-[10px] text-gray-400 block font-normal uppercase">Cajas Picking</span>
+                <span class="text-sm font-black text-blue-700">${s.totalCajasPicking}</span>
+              </div>
+
+              <div class="text-center">
+                <span class="text-[10px] text-gray-400 block font-normal uppercase">Stock en Piso</span>
+                <span class="text-sm font-black text-gray-800">${s.totalStockPick}</span>
+              </div>
+
+              <div class="text-center">
+                <span class="text-[10px] text-gray-400 block font-normal uppercase">Déficit</span>
+                <span class="text-sm font-black ${s.totalDeficit > 0 ? (s.shipmentStatus === 'TRASPASO NARANJA' ? 'text-purple-700' : 'text-red-600') : 'text-emerald-700'}">${s.totalDeficit}</span>
+              </div>
+            </div>
+
+            <div>
+              ${badgeStatus}
+            </div>
+          </div>
+
+          <!-- DETALLE EXPANDIBLE (DETAIL SUBTABLE EXACTA AL DISEÑO) -->
+          <div id="acc-detail-${index}" class="hidden p-4 bg-[#F8FAFC] border-t border-gray-200">
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-[#182237] text-white text-[10px] font-bold uppercase tracking-wider">
+                    <th class="py-2.5 px-4">MATERIAL (SKU)</th>
+                    <th class="py-2.5 px-4">DESCRIPCIÓN</th>
+                    <th class="py-2.5 px-4 text-center">CAJAS REQUERIDAS</th>
+                    <th class="py-2.5 px-4 text-center">STOCK PICK (PA)</th>
+                    <th class="py-2.5 px-4 text-center">DIFERENCIA (DÉFICIT)</th>
+                    <th class="py-2.5 px-4">1ª OPCIÓN (MÁS CERCANA)</th>
+                    <th class="py-2.5 px-4">2ª OPCIÓN</th>
+                    <th class="py-2.5 px-4">3ª OPCIÓN</th>
+                    <th class="py-2.5 px-4 text-center">STOCK TOTAL BODEGA</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${subRowsHTML}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+        container.appendChild(accordionItem);
+      });
+    }
+
+    // =========================================================================
+    // MÓDULO 2: COMPACTACIÓN DE BODEGAS (ROJA Y NARANJA CON FONDEOS)
+    // =========================================================================
+    function setCompactBodega(bodega) {
+      compactBodegaActual = bodega;
+      if (bodega === 'NARANJA') {
+        document.getElementById('btn-comp-naranja').className = "px-4 py-1.5 rounded-md transition bg-[#E65100] text-white shadow-xs";
+        document.getElementById('btn-comp-roja').className = "px-4 py-1.5 rounded-md transition text-gray-600 hover:text-black";
+      } else {
+        document.getElementById('btn-comp-roja').className = "px-4 py-1.5 rounded-md transition bg-[#B71C1C] text-white shadow-xs";
+        document.getElementById('btn-comp-naranja').className = "px-4 py-1.5 rounded-md transition text-gray-600 hover:text-black";
+      }
+      ejecutarCompactador();
+    }
+
+    function ejecutarCompactador() {
+      const maxPallets = parseInt(document.getElementById('sel-max-pallets-comp').value) || 6;
+      const esRoja = (compactBodegaActual === 'ROJA');
+      const islasPermitidas = esRoja ? ISLAS_ROJA : ISLAS_NARANJA;
+
+      const ocupacionPorUbicacion = {};
+      const posicionesAgrupadasPorSku = {};
+
+      rawInventoryList.forEach(r => {
+        if (r.lpns <= 0 || !r.ubic || !r.sku) return;
+        if (['DAÑOS', 'ZONAQI', 'STAGE'].includes(r.area) || r.ubic.startsWith('DR') || r.ubic.startsWith('MERMA')) return;
+
+        let u = r.ubic.replace(/^N(\d)([A-Z])/, 'N0$1$2');
+        let m = u.match(/^([A-Z0-9]*[A-Z]+)/);
+        let isla = m ? m[1] : u.substring(0, 3);
+
+        if (!islasPermitidas.has(isla)) return;
+
+        if (!ocupacionPorUbicacion[u]) ocupacionPorUbicacion[u] = { isla, totalPallets: 0 };
+        ocupacionPorUbicacion[u].totalPallets += r.lpns;
+
+        if (!posicionesAgrupadasPorSku[r.sku]) posicionesAgrupadasPorSku[r.sku] = {};
+        if (!posicionesAgrupadasPorSku[r.sku][u]) {
+          posicionesAgrupadasPorSku[r.sku][u] = { ubicacion: u, isla, pallets: 0, desc: r.desc };
+        }
+        posicionesAgrupadasPorSku[r.sku][u].pallets += r.lpns;
+      });
+
+      compactPropuestas = [];
+      let totalPalletsMover = 0;
+      let carrilesLiberados = 0;
+
+      for (let sku in posicionesAgrupadasPorSku) {
+        let pos = Object.values(posicionesAgrupadasPorSku[sku]);
+        if (pos.length <= 1) continue;
+        pos.sort((a, b) => a.pallets - b.pallets);
+
+        for (let i = 0; i < pos.length; i++) {
+          let origen = pos[i];
+          if (origen.pallets <= 0 || origen.pallets > maxPallets) continue;
+
+          for (let j = pos.length - 1; j >= 0; j--) {
+            if (i === j) continue;
+            let destino = pos[j];
+
+            if (origen.ubicacion === destino.ubicacion || destino.pallets <= 0) continue;
+
+            let capMax = obtenerCapacidadReal(destino.ubicacion, sku);
+            let disp = capMax - ocupacionPorUbicacion[destino.ubicacion].totalPallets;
+
+            if (disp >= origen.pallets) {
+              compactPropuestas.push({
+                sku, desc: origen.desc, origen: origen.ubicacion, destino: destino.ubicacion,
+                mover: origen.pallets, actual_dest: destino.pallets, final_dest: destino.pallets + origen.pallets,
+                cap_dest: capMax, fondos: getFondosUbicacion(destino.ubicacion), bodega: compactBodegaActual
+              });
+
+              totalPalletsMover += origen.pallets;
+              carrilesLiberados++;
+              ocupacionPorUbicacion[destino.ubicacion].totalPallets += origen.pallets;
+              destino.pallets += origen.pallets;
+              ocupacionPorUbicacion[origen.ubicacion].totalPallets -= origen.pallets;
+              origen.pallets = 0;
+              break;
+            }
+          }
+        }
+      }
+
+      document.getElementById('kpi-comp-movs').textContent = compactPropuestas.length;
+      document.getElementById('kpi-comp-liberados').textContent = carrilesLiberados;
+      document.getElementById('kpi-comp-pallets').textContent = totalPalletsMover;
+
+      const tbody = document.getElementById('table-compact-body');
+      tbody.innerHTML = '';
+
+      if (compactPropuestas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-gray-500 font-medium">No se encontraron movimientos viables de hasta ${maxPallets} pallets en ${compactBodegaActual}.</td></tr>`;
+        return;
+      }
+
+      compactPropuestas.forEach(p => {
+        let row = document.createElement('tr');
+        row.className = "hover:bg-amber-50/40 transition border-b border-gray-100";
+        row.innerHTML = `
+          <td class="p-3"><span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-black">VACIAR 100%</span></td>
+          <td class="p-3"><span class="font-extrabold text-[#182237] block">${p.sku}</span><span class="text-gray-500 text-[11px] block truncate max-w-[240px]">${p.desc}</span></td>
+          <td class="p-3 text-center font-black text-red-600 bg-red-50/40">${p.origen}</td>
+          <td class="p-3 text-center font-black text-emerald-700 bg-emerald-50/40">${p.mover} pal</td>
+          <td class="p-3 text-center font-black text-[#0070C0] bg-blue-50/40">${p.destino}</td>
+          <td class="p-3 text-center font-bold text-gray-700">${p.actual_dest} pal</td>
+          <td class="p-3 text-center font-black text-gray-900">${p.final_dest} pal</td>
+          <td class="p-3 text-center font-bold text-gray-600">${p.cap_dest} pal <span class="text-[10px] text-gray-400 block font-normal">(${p.fondos} fondos)</span></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // =========================================================================
+    // MÓDULO 1: SURTIMIENTO DE RACKS
+    // =========================================================================
+    function switchSubViewM1(v) {
+      activeSubViewM1 = v;
+      ['cards', 'map', 'table'].forEach(x => {
+        document.getElementById(`m1-view-${x}`).classList.add('hidden');
+        document.getElementById(`btn-sub-${x}`).className = "px-3.5 py-1.5 rounded-md text-xs font-semibold text-gray-500 hover:text-black";
+      });
+      document.getElementById(`m1-view-${v}`).classList.remove('hidden');
+      document.getElementById(`btn-sub-${v}`).className = "px-3.5 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs";
+      renderM1();
+    }
+
+    function renderM1() {
+      if (!dataLoaded) return;
+      updateKPICounters();
+      const lanes = getFilteredLanes();
+
+      if (activeSubViewM1 === 'cards') renderCards(lanes);
+      else if (activeSubViewM1 === 'map') renderMap(lanes);
+      else if (activeSubViewM1 === 'table') renderTable(lanes);
+      lucide.createIcons();
+    }
+
+    function updateKPICounters() {
+      let total = 0, criticos = 0, preventivos = 0, racksDeficit = 0, completos = 0;
+      Object.values(lanesDatabase).forEach(item => {
+        total++;
+        let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+        let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+        let p = item.pick;
+        let pPct = p ? p.pct : 0;
+
+        if (!p || pPct <= 10) criticos++;
+        else if (pPct > 10 && pPct <= 25) preventivos++;
+        if (rLpns < 3) racksDeficit++;
+        if (p && pPct > 25 && rLpns >= 3 && bLpns >= 2) completos++;
+      });
+
+      document.getElementById('kpi-total').textContent = total;
+      document.getElementById('kpi-total-pct').textContent = '100%';
+
+      document.getElementById('kpi-criticos').textContent = criticos;
+      document.getElementById('kpi-criticos-pct').textContent = total > 0 ? `${((criticos/total)*100).toFixed(1)}%` : '0.0%';
+
+      document.getElementById('kpi-preventivos').textContent = preventivos;
+      document.getElementById('kpi-preventivos-pct').textContent = total > 0 ? `${((preventivos/total)*100).toFixed(1)}%` : '0.0%';
+
+      document.getElementById('kpi-racks-deficit').textContent = racksDeficit;
+      document.getElementById('kpi-racks-pct').textContent = total > 0 ? `${((racksDeficit/total)*100).toFixed(1)}%` : '0.0%';
+
+      document.getElementById('kpi-completos').textContent = completos;
+      document.getElementById('kpi-completos-pct').textContent = total > 0 ? `${((completos/total)*100).toFixed(1)}%` : '0.0%';
+    }
+
+    function setQuickFilter(type) {
+      if (!dataLoaded) return;
+      const sel = document.getElementById('sel-status');
+      if (type === 'criticos') sel.value = 'critico';
+      else if (type === 'preventivos') sel.value = 'preventivo';
+      else if (type === 'racks_deficit') sel.value = 'racks_faltantes';
+      else if (type === 'completos') sel.value = 'completo';
+      renderM1();
+    }
+
+    function setDisponibilidadFilter(type) {
+      filterDisponibilidad = type;
+      ['all', 'with', 'without'].forEach(f => {
+        let btn = document.getElementById(`btn-filt-disp-${f}`);
+        if ((type === 'all' && f === 'all') || (type === 'con_stock' && f === 'with') || (type === 'sin_stock' && f === 'without')) {
+          btn.className = "px-3 py-1 rounded font-bold bg-white text-[#182237] shadow-xs";
+        } else {
+          btn.className = "px-3 py-1 rounded font-semibold text-gray-600 hover:text-black";
+        }
+      });
+      renderM1();
+    }
+
+    function getFilteredLanes() {
+      const zone = document.getElementById('sel-zone').value;
+      const status = document.getElementById('sel-status').value;
+      const query = document.getElementById('txt-search').value.toLowerCase().trim();
+
+      return Object.values(lanesDatabase).filter(item => {
+        if (zone !== 'ALL' && item.zone !== zone) return false;
+        let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+        let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+        let p = item.pick;
+        let pPct = p ? p.pct : 0;
+
+        if (status === 'critico' && (p && pPct > 10)) return false;
+        if (status === 'preventivo' && (!p || pPct <= 10 || pPct > 25)) return false;
+        if (status === 'racks_faltantes' && rLpns >= 3) return false;
+        if (status === 'bulk_faltantes' && bLpns >= 2) return false;
+        if (status === 'completo' && (!p || rLpns < 3 || bLpns < 2 || pPct <= 25)) return false;
+
+        if (query) {
+          let textMatch = item.header.toLowerCase().includes(query) ||
+                          item.laneKey.toLowerCase().includes(query) ||
+                          (item.pick && (item.pick.sku.toLowerCase().includes(query) || item.pick.desc.toLowerCase().includes(query)));
+          if (!textMatch) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function getReplenishSuggestions(sku, destZone, destCarril) {
+      if (!sku || sku === 'N/A') return { s1: 'Sin existencias en Bodega', s2: '-', s3: '-', hasStock: false };
+      
+      let candidatos = replenishSources.filter(b => b.sku === sku && b.cant > 0);
+      if (candidatos.length === 0) {
+        return { s1: '⚠️ Sin existencias en Bodega', s2: '-', s3: '-', hasStock: false };
+      }
+
+      let evaluados = candidatos.map(c => {
+        let dist = 1000;
+        let u = c.ubic;
+
+        let m1 = u.match(/^(?:N)?\d{1,2}([A-Z])(\d+)/);
+        let m2 = u.match(/^C([A-Z])(\d+)/);
+        let bZone = null;
+        let bNum = null;
+
+        if (m1) {
+          bZone = m1[1];
+          bNum = parseInt(m1[2]);
+        } else if (m2) {
+          bZone = m2[1];
+          bNum = parseInt(m2[2]);
+        }
+
+        if (bZone && bNum !== null) {
+          if (bZone === destZone) {
+            dist = Math.abs(bNum - destCarril);
+          } else {
+            let diffZone = Math.abs(bZone.charCodeAt(0) - destZone.charCodeAt(0));
+            dist = 100 + (diffZone * 25) + bNum;
+          }
+        } else {
+          dist = 500;
+        }
+
+        return { ...c, dist };
+      });
+
+      evaluados.sort((a, b) => a.dist - b.dist || b.cant - a.cant);
+
+      let s1 = evaluados[0] ? `${evaluados[0].ubic} [${evaluados[0].area}] (${evaluados[0].cant} cjs)` : '⚠️ Sin existencias en Bodega';
+      let s2 = evaluados[1] ? `${evaluados[1].ubic} [${evaluados[1].area}] (${evaluados[1].cant} cjs)` : '-';
+      let s3 = evaluados[2] ? `${evaluados[2].ubic} [${evaluados[2].area}] (${evaluados[2].cant} cjs)` : '-';
+
+      return { s1, s2, s3, hasStock: true };
+    }
+
+    function renderCards(lanes) {
+      const container = document.getElementById('m1-view-cards');
+      container.innerHTML = '';
+      if (lanes.length === 0) {
+        container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500">No hay registros con los filtros seleccionados.</div>`;
+        return;
+      }
+
+      lanes.forEach(item => {
+        let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+        let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+        let p = item.pick;
+        let pPct = p ? p.pct : 0;
+
+        let reglaP = reglasPickingNivel1[item.pickUbicExpected];
+        let skuP = (reglaP && reglaP[0]) ? reglaP[0].sku : (p ? p.sku : 'Sin regla');
+        let descP = (reglaP && reglaP[0]) ? reglaP[0].desc : (p ? p.desc : 'Sin material');
+
+        let reglaBP = reglasBulkPickingNivel2[item.bulkUbicExpected];
+        let skuBP = reglaBP ? reglaBP.sku : skuP;
+        let descBP = reglaBP ? reglaBP.desc : descP;
+
+        let faltanR = Math.max(0, 3 - rLpns);
+        let faltanB = Math.max(0, 2 - bLpns);
+        let isCritico = (!p || pPct <= 10);
+        let isPreventivo = (p && pPct > 10 && pPct <= 25);
+
+        let badgeHeader = '';
+        if (isCritico) {
+          badgeHeader = `<span class="bg-[#FEE4E2] text-[#D92D20] text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span class="w-1.5 h-1.5 rounded-full bg-[#D92D20] animate-ping"></span> ${pPct === 0 ? 'VACÍO' : 'PICK CRÍTICO (≤10%)'}
+                         </span>`;
+        } else if (faltanR > 0 || faltanB > 0) {
+          badgeHeader = `<span class="bg-[#FEF0C7] text-[#E07A00] text-[10px] font-bold px-2 py-0.5 rounded-full">INCOMPLETO</span>`;
+        } else {
+          badgeHeader = `<span class="bg-[#ECFDF3] text-[#037A48] text-[10px] font-bold px-2 py-0.5 rounded-full">ESTÁNDAR COMPLETO</span>`;
+        }
+
+        let barColor = isCritico ? 'bg-[#D92D20]' : (isPreventivo ? 'bg-[#E07A00]' : 'bg-[#037A48]');
+
+        let card = document.createElement('div');
+        card.className = "bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3.5 flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-center border-b pb-2">
+              <div>
+                <span class="text-[10px] font-bold text-[#0070C0] uppercase block">Carril de Almacén</span>
+                <h4 class="font-black text-[#182237] text-sm uppercase">${item.header}</h4>
+              </div>
+              ${badgeHeader}
+            </div>
+
+            <div class="space-y-2 mt-3">
+              <div class="p-2 rounded border text-xs ${faltanR > 0 ? 'bg-orange-50/60 border-orange-200' : 'bg-gray-50 border-gray-200'}">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-gray-700">N4-6: Racks (<span class="text-[#0070C0] font-black">${item.rackUbicExpected}</span>)</span>
+                  <span class="font-extrabold ${rLpns < 3 ? 'text-[#E07A00]' : 'text-emerald-700'}">${rLpns} / 3 Pallets</span>
+                </div>
+                ${faltanR > 0 ? `<p class="text-[11px] text-[#E07A00] font-medium mt-0.5">Faltan ${faltanR} pallet(s) en reserva</p>` : `<p class="text-[11px] text-emerald-700 font-medium mt-0.5">Reserva alta completa</p>`}
+              </div>
+
+              <div class="p-2 rounded border text-xs ${faltanB > 0 ? 'bg-amber-50/60 border-amber-200' : 'bg-gray-50 border-gray-200'}">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-gray-700">N2-3: Bulk (<span class="text-[#0070C0] font-black">${item.bulkUbicExpected}</span>)</span>
+                  <span class="font-extrabold ${bLpns < 2 ? 'text-[#E07A00]' : 'text-emerald-700'}">${bLpns} / 2 Pallets</span>
+                </div>
+                <p class="text-[11px] text-gray-700 truncate mt-0.5"><b>Regla Bulk:</b> <span class="font-mono font-bold">${skuBP}</span> - ${descBP}</p>
+              </div>
+
+              <div class="p-2 rounded border text-xs ${isCritico ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'}">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-gray-700">N1: Pick (<span class="text-[#0070C0] font-black">${item.pickUbicExpected}</span>)</span>
+                  <span class="font-extrabold ${isCritico ? 'text-red-600' : 'text-gray-900'}">${p ? p.cant : 0} / ${p ? p.cap : 100} cjs</span>
+                </div>
+                <p class="text-[11px] font-bold text-gray-800 truncate mt-0.5">${skuP} - ${descP}</p>
+                <div class="mt-2">
+                  <div class="flex justify-between text-[10px] font-bold mb-1">
+                    <span class="${isCritico ? 'text-red-600' : 'text-gray-500'}">Restante Pallet N1:</span>
+                    <span class="${isCritico ? 'text-red-600 font-black' : 'text-gray-800'}">${pPct}%</span>
+                  </div>
+                  <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                    <div class="${barColor} h-full transition-all" style="width: ${pPct}%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="openModal('${item.laneKey}')" class="w-full py-2 bg-[#F4F6F8] hover:bg-[#182237] hover:text-white border border-gray-200 text-[#182237] rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+            <span>Ver Auditoría Completa</span>
+          </button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderMap(lanes) {
+      const container = document.getElementById('grid-container');
+      container.innerHTML = '';
+      const grouped = {};
+      lanes.forEach(item => {
+        if (!grouped[item.zone]) grouped[item.zone] = [];
+        grouped[item.zone].push(item);
+      });
+
+      Object.keys(grouped).sort().forEach(zone => {
+        let box = document.createElement('div');
+        box.className = "border rounded-lg p-3 bg-gray-50/50";
+        let header = `
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black uppercase text-[#182237] flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-[#182237]"></span> RACK ZONA ${zone}
+            </span>
+            <span class="text-[11px] text-[#6B7280] font-semibold">${grouped[zone].length} Carriles</span>
+          </div>
+        `;
+        let grid = `<div class="grid grid-cols-8 sm:grid-cols-12 md:grid-cols-16 lg:grid-cols-32 gap-1.5">`;
+        grouped[zone].forEach(item => {
+          let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+          let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+          let pPct = item.pick ? item.pick.pct : 0;
+
+          let color = 'bg-emerald-500 hover:bg-emerald-600 text-white';
+          if (!item.pick || pPct <= 10) color = 'bg-red-500 hover:bg-red-600 text-white animate-pulse';
+          else if (pPct <= 25) color = 'bg-amber-400 hover:bg-amber-500 text-gray-900';
+          else if (rLpns < 3 || bLpns < 2) color = 'bg-orange-400 hover:bg-orange-500 text-white';
+
+          grid += `
+            <div onclick="openModal('${item.laneKey}')" title="${item.header} | Pick: ${pPct}% | Bulk: ${bLpns}/2 | Rack: ${rLpns}/3" class="cursor-pointer ${color} rounded p-1 text-center transition flex flex-col justify-center items-center h-12 shadow-xs">
+              <span class="text-[10px] font-black">${item.carrilStr}</span>
+              <span class="text-[9px] font-bold opacity-90">${pPct}%</span>
+            </div>
+          `;
+        });
+        grid += `</div>`;
+        box.innerHTML = header + grid;
+        container.appendChild(box);
+      });
+    }
+
+    function renderTable(lanes) {
+      const tbody = document.getElementById('table-tasks-body');
+      tbody.innerHTML = '';
+      let tasks = [];
+
+      lanes.forEach(item => {
+        let p = item.pick;
+        let pPct = p ? p.pct : 0;
+        if (pPct <= 25) {
+          let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+          let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+          let reglaP = reglasPickingNivel1[item.pickUbicExpected];
+          let sku = p ? p.sku : ((reglaP && reglaP[0]) ? reglaP[0].sku : 'N/A');
+          let desc = p ? p.desc : ((reglaP && reglaP[0]) ? reglaP[0].desc : 'Sin material asignado');
+          let sugs = getReplenishSuggestions(sku, item.zone, item.carril);
+
+          if (filterDisponibilidad === 'con_stock' && !sugs.hasStock) return;
+          if (filterDisponibilidad === 'sin_stock' && sugs.hasStock) return;
+
+          tasks.push({
+            ubic: p ? p.u : item.pickUbicExpected,
+            sku, desc, pct: pPct,
+            cant: p ? p.cant : 0, cap: p ? p.cap : (CAT_MATERIALES_STD[sku] || 100),
+            bulk: `${bLpns} / 2 Pallets`,
+            racks: `${rLpns} / 3 Pallets`,
+            sug1: sugs.s1, sug2: sugs.s2, sug3: sugs.s3,
+            hasStock: sugs.hasStock
+          });
+        }
+      });
+
+      tasks.sort((a, b) => a.pct - b.pct);
+
+      if (tasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-8 text-gray-500 font-medium">No hay tareas pendientes de surtido con los filtros seleccionados.</td></tr>`;
+        return;
+      }
+
+      tasks.forEach(t => {
+        let row = document.createElement('tr');
+        row.className = "hover:bg-blue-50/40 transition border-b border-gray-100";
+        row.innerHTML = `
+          <td class="py-3 px-4 font-black text-[#0070C0] text-sm">${t.ubic}</td>
+          <td class="py-3 px-4">
+            <span class="font-extrabold text-[#182237] text-xs block leading-tight">${t.sku}</span>
+            <span class="text-[#6B7280] text-[11px] block leading-tight mt-0.5 truncate max-w-[260px]" title="${t.desc}">${t.desc}</span>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <span class="font-black text-[#D92D20] text-sm block leading-none">${t.pct}%</span>
+            <span class="text-[#6B7280] text-[10px] block mt-1 font-medium">(${t.cant}/${t.cap} cjs)</span>
+          </td>
+          <td class="py-3 px-4 text-center font-bold text-[#E07A00] text-xs">${t.bulk}</td>
+          <td class="py-3 px-4 text-center font-bold text-[#E07A00] text-xs">${t.racks}</td>
+          <td class="py-3 px-4 font-bold text-xs ${!t.hasStock ? 'text-red-600' : 'text-emerald-700'}">${t.sug1}</td>
+          <td class="py-3 px-4 text-gray-700 text-xs">${t.sug2}</td>
+          <td class="py-3 px-4 text-gray-700 text-xs">${t.sug3}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // MODAL DE DETALLE (FICHA TÉCNICA 3 EN 1 COMPLETA)
+    function openModal(laneKey) {
+      currentModalLane = laneKey;
+      const item = lanesDatabase[laneKey];
+      if (!item) return;
+
+      document.getElementById('modal-title').textContent = item.header;
+      let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+      let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+      let p = item.pick;
+      let pPct = p ? p.pct : 0;
+
+      let reglaPList = reglasPickingNivel1[item.pickUbicExpected];
+      let skuPickOficial = (reglaPList && reglaPList.length > 0) ? reglaPList[0].sku : (p ? p.sku : 'Sin regla');
+      let descPickOficial = (reglaPList && reglaPList.length > 0) ? reglaPList[0].desc : (p ? p.desc : 'Sin material asignado');
+
+      let reglaBP = reglasBulkPickingNivel2[item.bulkUbicExpected];
+      let skuBulkOficial = reglaBP ? reglaBP.sku : skuPickOficial;
+      let descBulkOficial = reglaBP ? reglaBP.desc : descPickOficial;
+
+      let faltanR = Math.max(0, 3 - rLpns);
+      let faltanB = Math.max(0, 2 - bLpns);
+      let sugs = getReplenishSuggestions(skuPickOficial, item.zone, item.carril);
+
+      let bulkHTML = '';
+      if (item.bulk && item.bulk.cant > 0) {
+        bulkHTML = `
+          <div class="p-2.5 bg-gray-50 rounded-lg border border-gray-200 mt-1">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-[#182237]">📍 Ubicación: <span class="text-[#0070C0] font-black">${item.bulk.u}</span></span>
+              <span class="font-extrabold text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">${item.bulk.cant} cjs (${item.bulk.lpns} pallet/s)</span>
+            </div>
+            <div class="mt-1 text-xs text-gray-700">
+              <p><b>SKU Físico:</b> <span class="font-mono text-gray-900 font-semibold">${item.bulk.sku || 'N/A'}</span></p>
+              <p><b>Descripción:</b> <span class="font-medium text-gray-800">${item.bulk.desc || 'Sin descripción'}</span></p>
+            </div>
+          </div>
+        `;
+      } else {
+        bulkHTML = `
+          <div class="p-2.5 bg-amber-50/60 rounded-lg border border-amber-200 mt-1 text-xs text-gray-700">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-[#182237]">📍 Ubicación: <span class="text-[#0070C0] font-black">${item.bulkUbicExpected}</span></span>
+              <span class="font-extrabold text-[#E07A00] bg-white px-2 py-0.5 rounded border border-amber-200">0 Pallets (Faltan 2)</span>
+            </div>
+            <div class="mt-1.5 space-y-0.5">
+              <p><b>SKU Oficial por Regla Bulk:</b> <span class="font-mono font-bold text-[#182237]">${skuBulkOficial}</span></p>
+              <p><b>Descripción:</b> <span class="font-semibold text-gray-800">${descBulkOficial}</span></p>
+              <p class="text-[11px] text-amber-800 font-medium italic mt-1">⚠️ Casillero vacío en WMS. Se requiere reabastecer 2 tarimas de este SKU como pulmón intermedio.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      let racksHTML = '';
+      if (item.racks && item.racks.length > 0) {
+        racksHTML = item.racks.map(r => `
+          <div class="p-2.5 bg-gray-50 rounded-lg border border-gray-200 mt-1">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-[#182237]">📍 Ubicación: <span class="text-[#0070C0] font-black">${r.u}</span></span>
+              <span class="font-extrabold text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">${r.cant} cjs (${r.lpns} pal)</span>
+            </div>
+            <div class="mt-1 text-xs text-gray-700">
+              <p><b>SKU:</b> <span class="font-mono text-gray-900 font-semibold">${r.sku || 'N/A'}</span></p>
+              <p><b>Descripción:</b> <span class="font-medium text-gray-800">${r.desc || 'Sin descripción'}</span></p>
+            </div>
+          </div>
+        `).join('');
+      } else {
+        racksHTML = `
+          <div class="p-2.5 bg-orange-50/60 rounded-lg border border-orange-200 mt-1 text-xs text-gray-700">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-[#182237]">📍 Ubicación: <span class="text-[#0070C0] font-black">${item.rackUbicExpected}</span></span>
+              <span class="font-extrabold text-[#E07A00] bg-white px-2 py-0.5 rounded border border-orange-200">0 Pallets (Faltan 3)</span>
+            </div>
+            <p class="text-[11px] text-orange-800 font-medium italic mt-1">Sin tarimas físicas registradas en ${item.rackUbicExpected}.</p>
+          </div>
+        `;
+      }
+
+      document.getElementById('modal-content').innerHTML = `
+        <div class="space-y-3.5">
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="p-2 bg-gray-50 rounded-lg border border-gray-200">
+              <span class="text-[10px] text-gray-500 font-bold uppercase block">Nivel 4-6 (${item.rackUbicExpected})</span>
+              <span class="text-sm font-black ${faltanR > 0 ? 'text-orange-600' : 'text-emerald-600'}">${rLpns} / 3 Pallets</span>
+              <span class="text-[10px] block mt-0.5 ${faltanR > 0 ? 'text-orange-600 font-bold' : 'text-gray-500'}">${faltanR > 0 ? `Faltan ${faltanR} pal.` : 'Completo'}</span>
+            </div>
+            <div class="p-2 bg-gray-50 rounded-lg border border-gray-200">
+              <span class="text-[10px] text-gray-500 font-bold uppercase block">Nivel 2-3 (${item.bulkUbicExpected})</span>
+              <span class="text-sm font-black ${faltanB > 0 ? 'text-amber-600' : 'text-emerald-600'}">${bLpns} / 2 Pallets</span>
+              <span class="text-[10px] block mt-0.5 ${faltanB > 0 ? 'text-amber-600 font-bold' : 'text-gray-500'}">${faltanB > 0 ? `Falta ${faltanB} pal.` : 'Completo'}</span>
+            </div>
+            <div class="p-2 bg-gray-50 rounded-lg border border-gray-200">
+              <span class="text-[10px] text-gray-500 font-bold uppercase block">Nivel 1 (${item.pickUbicExpected})</span>
+              <span class="text-sm font-black ${pPct <= 10 ? 'text-red-600' : 'text-emerald-600'}">${pPct}%</span>
+              <span class="text-[10px] block mt-0.5 ${pPct <= 10 ? 'text-red-600 font-bold' : 'text-gray-500'}">${p ? `${p.cant} cjs` : '0 cjs'}</span>
+            </div>
+          </div>
+
+          <div class="border border-gray-200 rounded-lg p-3">
+            <h4 class="text-xs font-bold text-[#182237] uppercase flex items-center gap-1.5 mb-2">
+              <i data-lucide="shopping-cart" class="w-4 h-4 text-[#0070C0]"></i>
+              <span>Nivel 1: Picking Activo (${item.pickUbicExpected})</span>
+            </h4>
+            <div class="text-xs space-y-1 text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+              <p><b>Ubicación:</b> <span class="font-bold text-[#0070C0]">${p ? p.u : item.pickUbicExpected}</span></p>
+              <p><b>SKU Oficial (Regla Pick):</b> <span class="font-mono text-gray-900 font-bold">${skuPickOficial}</span> <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded ml-1">Regla Nivel 1</span></p>
+              <p><b>Descripción:</b> <span class="text-gray-900 font-semibold">${descPickOficial}</span></p>
+              <p><b>Capacidad Pallet:</b> ${p ? p.cap : (CAT_MATERIALES_STD[skuPickOficial] || 100)} cjs | <b>Stock Físico Actual:</b> ${p ? p.cant : 0} cjs</p>
+              <p><b>Estado Operativo:</b> ${pPct === 0 ? '<span class="text-red-600 font-bold">🚨 Quiebre Total (Casillero Vacío en Piso).</span>' : (pPct <= 10 ? '<span class="text-red-600 font-bold">🚨 Crítico (≤10%) - Surtir urgente.</span>' : '<span class="text-emerald-700 font-semibold">Operativo normal.</span>')}</p>
+            </div>
+          </div>
+
+          <div class="border border-gray-200 rounded-lg p-3 bg-emerald-50/40 border-emerald-200">
+            <h4 class="text-xs font-bold text-[#037A48] uppercase flex items-center gap-1.5 mb-2">
+              <i data-lucide="map-pin" class="w-4 h-4 text-[#037A48]"></i>
+              <span>Orígenes Disponibles en BULK y NARANJA (Para SKU ${skuPickOficial})</span>
+            </h4>
+            <div class="text-xs space-y-1 text-gray-800">
+              <p><b>1ª Opción (Más cercana):</b> <span class="font-bold ${!sugs.hasStock ? 'text-red-600' : 'text-emerald-800'}">${sugs.s1}</span></p>
+              <p><b>2ª Opción:</b> <span>${sugs.s2}</span></p>
+              <p><b>3ª Opción:</b> <span>${sugs.s3}</span></p>
+            </div>
+          </div>
+
+          <div class="border border-gray-200 rounded-lg p-3 space-y-3">
+            <h4 class="text-xs font-bold text-[#182237] uppercase flex items-center gap-1.5">
+              <i data-lucide="layers" class="w-4 h-4 text-[#0070C0]"></i>
+              <span>Pallets en Niveles Superiores del Mismo Rack</span>
+            </h4>
+            <div>
+              <span class="text-[11px] font-bold text-gray-700 uppercase tracking-wide block">Nivel 2-3 (Bulk Picking - ${item.bulkUbicExpected}):</span>
+              ${bulkHTML}
+            </div>
+            <div>
+              <span class="text-[11px] font-bold text-gray-700 uppercase tracking-wide block">Nivel 4-6 (Racks Altos - ${item.rackUbicExpected}):</span>
+              ${racksHTML}
+            </div>
+          </div>
+        </div>
+      `;
+      document.getElementById('detail-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+    }
+
+    function simularSurtido() {
+      if (!currentModalLane) return;
+      let item = lanesDatabase[currentModalLane];
+      let reglaPList = reglasPickingNivel1[item.pickUbicExpected];
+      let sku = (reglaPList && reglaPList.length > 0) ? reglaPList[0].sku : (item.pick ? item.pick.sku : 'SKU');
+      let desc = (reglaPList && reglaPList.length > 0) ? reglaPList[0].desc : (item.pick ? item.pick.desc : 'Material');
+      let cap = item.pick ? item.pick.cap : (CAT_MATERIALES_STD[sku] || 100);
+
+      item.pick = { u: item.pickUbicExpected, sku: sku, desc: desc, cant: cap, cap: cap, pct: 100, lpns: 1, isFromRule: false };
+      item.bulk = { u: item.bulkUbicExpected, sku: sku, desc: desc, cant: cap * 2, lpns: 2 };
+      item.racks = [{ u: item.rackUbicExpected, sku: sku, desc: desc, cant: cap * 3, lpns: 3 }];
+      
+      updateKPICounters();
+      renderM1();
+      closeModal();
+    }
+
+    // EXPORTACIONES GENERALES
+    function exportModuleData() {
+      if (activeMainModule === 1) exportTasklistCSV();
+      else if (activeMainModule === 2) exportarPlanCompactacionCSV();
+      else if (activeMainModule === 3) exportarBajadasRecoleccionCSV();
+    }
+
+    function exportTasklistCSV() {
+      if (!dataLoaded) return alert("Primero debes cargar el archivo CSV con el inventario.");
+      let csv = "data:text/csv;charset=utf-8,\uFEFFUbicacion_Pick_N1,SKU,Descripcion,Nivel_Actual,Nivel_2_3_BP,Nivel_4_6_R,Sugerencia_1,Sugerencia_2,Sugerencia_3\n";
+      let count = 0;
+      Object.values(lanesDatabase).forEach(item => {
+        let p = item.pick;
+        if (p && p.pct <= 25) {
+          let rLpns = item.racks.reduce((acc, r) => acc + (r.lpns || 0), 0);
+          let bLpns = item.bulk ? (item.bulk.lpns || 0) : 0;
+          let sugs = getReplenishSuggestions(p.sku, item.zone, item.carril);
+          if (sugs.hasStock) {
+            csv += `"${p.u}","${p.sku}","${p.desc}","${p.pct}% (${p.cant}/${p.cap} cjs)","${bLpns}/2 Pallets","${rLpns}/3 Pallets","${sugs.s1}","${sugs.s2}","${sugs.s3}"\n`;
+            count++;
+          }
+        }
+      });
+      if (count === 0) return alert("No hay tareas surtibles pendientes con existencias en BULK o NARANJA.");
+      descargarCSV(csv, `SAM21_Plan_Surtido_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    function exportarPlanCompactacionCSV() {
+      if (compactPropuestas.length === 0) return alert("No hay movimientos de compactación generados.");
+      let csv = "data:text/csv;charset=utf-8,\uFEFFAccion,Bodega,SKU,Descripcion,Ubicacion_Origen_Vaciar,Pallets_A_Mover,Ubicacion_Destino,Pallets_Actuales_Destino,Pallets_Finales_Destino,Capacidad_Destino,Fondos_Destino\n";
+      compactPropuestas.forEach(p => {
+        csv += `"VACIAR_TOTAL","${p.bodega}","${p.sku}","${p.desc}","'${p.origen}",${p.mover},"'${p.destino}",${p.actual_dest},${p.final_dest},${p.cap_dest},${p.fondos}\n`;
+      });
+      descargarCSV(csv, `SAM21_Compactacion_${compactBodegaActual}_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    function exportarBajadasRecoleccionCSV() {
+      if (recoleccionShipments.length === 0) return alert("Primero debes cargar la Lista de Recolección (CSV).");
+      let csv = "data:text/csv;charset=utf-8,\uFEFFShipment,Fecha,Estado_Shipment,SKU,Descripcion,Cajas_Requeridas,Stock_Pick_PA,Deficit,Requiere_Traspaso_Naranja,Opcion_1,Opcion_2,Opcion_3,Stock_Total_Bodega\n";
+      let count = 0;
+      recoleccionShipments.forEach(s => {
+        s.items.forEach(it => {
+          let traspaso = it.esTraspaso ? "SI" : "NO";
+          csv += `"${s.shipment}","${s.fecha}","${s.shipmentStatus}","${it.sku}","${it.desc}",${it.cajasPick},${it.stockPick},${it.deficit},"${traspaso}","${it.sug1}","${it.sug2}","${it.sug3}",${it.stockTotalBodega}\n`;
+          count++;
+        });
+      });
+      descargarCSV(csv, `SAM21_Cuadratura_Recoleccion_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    function descargarCSV(content, filename) {
+      const uri = encodeURI(content);
+      const link = document.createElement("a");
+      link.setAttribute("href", uri);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // CARGA DE ARCHIVO DE INVENTARIO ADAPTADA A EXISTENCIAS WMS (DETALLE O RESUMEN)
+    function handleCSVUpload(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const text = evt.target.result;
+        const lines = text.split(/\r\n|\n/);
+        initializeWarehouse();
+
+        let count = 0;
+        let headerParsed = false;
+        let colMap = { cant: 0, lpns: -1, ubic: 5, sku: 1, desc: 2, area: 6 };
+
+        // Diccionarios temporales para consolidar ubicaciones con múltiples lotes/pallets
+        const pickTemp = {};
+        const bulkTemp = {};
+        const replenishMap = {};
+
+        lines.forEach(line => {
+          let trimmed = line.trim();
+          if (!trimmed) return;
+          let cols = trimmed.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+
+          // Detección automática y robusta de encabezados
+          if (!headerParsed && cols.some(c => c.toLowerCase().includes('ubic'))) {
+            colMap.lpns = -1; // Reset
+            cols.forEach((col, idx) => {
+              let cl = col.toLowerCase();
+              if (cl.includes('cant') && !cl.includes('pallet')) colMap.cant = idx;
+              else if (cl === 'lpns' || cl === 'pallets' || cl === 'tarimas' || cl === 'cant_pallets') colMap.lpns = idx;
+              else if (cl.includes('ubic')) colMap.ubic = idx;
+              else if (cl.includes('sku') || cl.includes('material')) colMap.sku = idx;
+              else if (cl.includes('desc')) colMap.desc = idx;
+              else if (cl.includes('area')) colMap.area = idx;
+            });
+            headerParsed = true;
+            return;
+          }
+
+          if (cols.length >= 6) {
+            let cant = parseFloat(cols[colMap.cant]) || 0;
+            let ubic = cols[colMap.ubic] || '';
+            let sku  = cols[colMap.sku] || '';
+            let desc = cols[colMap.desc] || '';
+            let area = cols[colMap.area] || '';
+
+            // Si viene una columna de conteo de pallets válida y menor a 500, se usa; de lo contrario cada fila es 1 pallet
+            let rawLpnsVal = colMap.lpns !== -1 ? parseInt(cols[colMap.lpns]) : NaN;
+            let lpns = (!isNaN(rawLpnsVal) && rawLpnsVal > 0 && rawLpnsVal <= 500) ? rawLpnsVal : 1;
+
+            if (!ubic || !sku) return;
+
+            // Registro general para cálculo de totales y compactación
+            rawInventoryList.push({ cant, lpns, ubic, sku, desc, area });
+
+            // Excluir áreas no operativas
+            if (['DAÑOS', 'ZONAQI', 'STAGE', 'MERMA'].includes(area) || ubic.startsWith('MERMA') || ubic.startsWith('DR')) return;
+
+            // Pulmones de Bodega Roja (BULK) y Bodega Naranja (NARANJA)
+            if (area === 'BULK' || area === 'NARANJA') {
+              let repKey = `${ubic}_${sku}`;
+              if (!replenishMap[repKey]) {
+                replenishMap[repKey] = { ubic, sku, desc, cant: 0, lpns: 0, area };
+              }
+              replenishMap[repKey].cant += cant;
+              replenishMap[repKey].lpns += lpns;
+              return;
+            }
+
+            if (!['BULKPK', 'PICK', 'RACKS'].includes(area)) return;
+
+            let m = ubic.match(/^(B?P|R)([A-Z])(\d+)/);
+            if (m) {
+              let prefix = m[1];
+              let lk = `${m[2]}${parseInt(m[3]).toString().padStart(2, '0')}`;
+              if (lanesDatabase[lk]) {
+                count++;
+                if (prefix === 'P' || area === 'PICK') {
+                  if (!pickTemp[lk]) {
+                    pickTemp[lk] = { u: ubic, sku, desc, cant: 0, lpns: 0 };
+                  }
+                  pickTemp[lk].cant += cant;
+                  pickTemp[lk].lpns += lpns;
+                } else if (prefix === 'BP' || area === 'BULKPK') {
+                  if (!bulkTemp[lk]) {
+                    bulkTemp[lk] = { u: ubic, sku, desc, cant: 0, lpns: 0 };
+                  }
+                  bulkTemp[lk].cant += cant;
+                  bulkTemp[lk].lpns += lpns;
+                } else if (prefix === 'R' || area === 'RACKS') {
+                  lanesDatabase[lk].racks.push({ u: ubic, sku, desc, cant, lpns });
+                }
+              }
+            }
+          }
+        });
+
+        // Consolidar orígenes de reabastecimiento acumulados
+        replenishSources = Object.values(replenishMap);
+
+        // Volcar picks acumulados calculando porcentajes reales
+        for (let lk in pickTemp) {
+          let item = pickTemp[lk];
+          let cap = CAT_MATERIALES_STD[item.sku] || 100;
+          let pct = Math.round((item.cant / cap) * 100);
+          lanesDatabase[lk].pick = {
+            u: item.u,
+            sku: item.sku,
+            desc: item.desc,
+            cant: item.cant,
+            cap: cap,
+            pct: pct,
+            lpns: item.lpns,
+            isFromRule: false
+          };
+        }
+
+        // Volcar bulk acumulado
+        for (let lk in bulkTemp) {
+          let item = bulkTemp[lk];
+          lanesDatabase[lk].bulk = {
+            u: item.u,
+            sku: item.sku,
+            desc: item.desc,
+            cant: item.cant,
+            lpns: item.lpns
+          };
+        }
+
+        applyRulesToInventory();
+
+        dataLoaded = true;
+        document.getElementById('empty-state').classList.add('hidden');
+        document.getElementById('txt-updated').innerHTML = `Inventario WMS: <b>${file.name}</b> (${count} registros en Racks, ${replenishSources.length} posiciones en BULK/NARANJA)`;
+        renderM1();
+      };
+      reader.readAsText(file, 'ISO-8859-1');
+    }
+
+        async function handleRulesUploadMultiple(files) {
+      if (!files || files.length === 0) return;
+      for (let i = 0; i < files.length; i++) {
+        await processRuleFile(files[i]);
+      }
+      let tP = Object.keys(reglasPickingNivel1).length;
+      let tBP = Object.keys(reglasBulkPickingNivel2).length;
+      document.getElementById('badge-pick-rules').className = "bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold";
+      document.getElementById('badge-pick-rules').textContent = `Regla Pick: ${tP} Ubics`;
+      document.getElementById('badge-bulk-rules').className = "bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold";
+      document.getElementById('badge-bulk-rules').textContent = `Regla Bulk: ${tBP} Ubics`;
+      if (dataLoaded) {
+        applyRulesToInventory();
+        renderM1();
+      }
+      alert(`Reglas procesadas:\n• Reglas de Picking N1: ${tP} ubicaciones\n• Reglas de Bulk Picking N2-3: ${tBP} ubicaciones`);
+    }
+
+    function processRuleFile(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const lines = e.target.result.split(/\r\n|\n/);
+          lines.forEach(line => {
+            let cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            if (cols.length >= 3) {
+              let u = cols[0], sku = cols[1], desc = cols[2];
+              if (u.startsWith('BP')) reglasBulkPickingNivel2[u] = { sku, desc, u };
+              else if (u.startsWith('P')) {
+                if (!reglasPickingNivel1[u]) reglasPickingNivel1[u] = [];
+                reglasPickingNivel1[u].push({ sku, desc, u });
+              }
+            }
+          });
+          resolve();
+        };
+        reader.readAsText(file, 'ISO-8859-1');
+      });
+    }
+
+    function applyRulesToInventory() {
+      Object.keys(lanesDatabase).forEach(lk => {
+        let item = lanesDatabase[lk];
+        let pickExpected = item.pickUbicExpected;
+
+        let reglaPList = reglasPickingNivel1[pickExpected];
+        if (reglaPList && reglaPList.length > 0) {
+          let reglaP = reglaPList[0];
+          if (!item.pick || item.pick.cant === 0) {
+            let cap = CAT_MATERIALES_STD[reglaP.sku] || 100;
+            item.pick = {
+              u: pickExpected,
+              sku: reglaP.sku,
+              desc: reglaP.desc,
+              cant: 0,
+              cap: cap,
+              pct: 0,
+              lpns: 0,
+              isFromRule: true
+            };
+          }
+        }
+      });
+    }
+
+    // LISTENERS DE ARCHIVOS
+    document.getElementById('file-rules').addEventListener('change', e => handleRulesUploadMultiple(e.target.files));
+    document.getElementById('file-rules-empty').addEventListener('change', e => handleRulesUploadMultiple(e.target.files));
+    document.getElementById('file-input').addEventListener('change', e => handleCSVUpload(e.target.files[0]));
+    document.getElementById('file-input-empty').addEventListener('change', e => handleCSVUpload(e.target.files[0]));
+    document.getElementById('file-recoleccion').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = evt => procesarCSVRecoleccion(evt.target.result);
+        reader.readAsText(file, 'UTF-8');
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initializeWarehouse();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
