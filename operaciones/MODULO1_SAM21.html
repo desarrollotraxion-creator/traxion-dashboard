@@ -1,0 +1,2398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAM-21 · Sistema Integral de Operaciones (M1, M2 y M3) Colgate MX21</title>
+  
+  <!-- Tipografía Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SheetJS para Excel (.xlsx) y CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          },
+          colors: {
+            brand: {
+              navy: '#182237',
+              navyDark: '#0e1626',
+              blue: '#2563eb',
+              blueHeader: '#2a5a9c',
+              lime: '#C0D838',
+              limeBright: '#D0E934',
+              page: '#F4F6F8',
+              card: '#FFFFFF',
+              border: '#E2E8F0',
+              yellowKpi: '#FFF200',
+              yellowHighlight: '#FFF566'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F4F6F8;
+      color: #1E293B;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    .traxion-line {
+      height: 4px;
+      background: linear-gradient(90deg, #C0D838 0%, #D0E934 100%);
+    }
+    .th-sortable {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+    .th-sortable:hover {
+      filter: brightness(0.92);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- LÍNEA SUPERIOR DECORATIVA -->
+  <div class="traxion-line w-full"></div>
+
+  <!-- ENCABEZADO PRINCIPAL INSTITUCIONAL -->
+  <header class="bg-[#182237] text-white px-6 py-3.5 shadow-md">
+    <div class="max-w-[1720px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-3">
+      
+      <!-- LOGO Y TÍTULOS -->
+      <div class="flex items-center gap-4">
+        <div class="flex flex-col border-r border-gray-600 pr-4">
+          <span class="text-2xl font-black tracking-widest text-[#C0D838] leading-none">SAM-21</span>
+          <span class="text-[9px] font-bold tracking-wider text-gray-300 mt-0.5 uppercase">Colgate MX21 Querétaro</span>
+        </div>
+        <div>
+          <h1 class="text-base md:text-lg font-extrabold uppercase tracking-wide leading-tight text-white flex items-center gap-2">
+            <span>SISTEMA INTEGRAL DE OPERACIONES</span>
+            <span class="text-[10px] bg-blue-500/30 text-blue-300 px-2 py-0.5 rounded border border-blue-400/30 font-mono">3 MÓDULOS ACTIVOS</span>
+          </h1>
+          <p class="text-xs text-gray-300 mt-0.5 flex items-center gap-2">
+            <span id="badge-master-status" class="text-amber-300 font-semibold flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              Maestros: Sin Carpeta (Usando Catálogo Base)
+            </span>
+            <span class="text-gray-500">•</span>
+            <span id="status-files-summary" class="text-gray-400 text-[11px]">Sincronización automática activa</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- BOTONES DE ENTRADA Y ACCIONES -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        
+        <!-- WIDGET CONTADOR AUTO-SYNC -->
+        <div class="bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 flex items-center gap-2 text-xs">
+          <div class="flex items-center gap-1.5 cursor-pointer" onclick="toggleAutoSync()" title="Clic para activar/pausar actualización automática">
+            <span id="dot-auto-sync" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span class="text-[11px] font-bold text-gray-200">AutoSync:</span>
+            <span id="lbl-timer-sync" class="font-mono font-bold text-[#C0D838]">15:00</span>
+          </div>
+          <button onclick="toggleAutoSync()" id="btn-toggle-timer" class="text-[10px] font-bold bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded text-white transition">PAUSAR</button>
+        </div>
+
+        <!-- BOTÓN: SINCRONIZACIÓN MANUAL -->
+        <button id="btn-sync-gas" onclick="sincronizarPlanDesdeAppsScript(false)" class="bg-[#2563eb] hover:bg-blue-700 text-white text-xs px-3.5 py-2 rounded-lg font-extrabold flex items-center gap-1.5 shadow transition" title="Forzar sincronización inmediata">
+          <i data-lucide="cloud-download" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>☁️ Sync Ahora</span>
+        </button>
+
+        <!-- BOTÓN: LECTURA DE CARPETA MAESTROS -->
+        <label class="cursor-pointer bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1.5 transition" title="Selecciona la carpeta local con CAT_MATERIALES y reglas">
+          <i data-lucide="folder-cog" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>📁 Carpeta Maestros</span>
+          <input type="file" id="input-folder-maestros" webkitdirectory directory multiple class="hidden" onchange="manejarCarpetaMaestros(this.files)">
+        </label>
+
+        <!-- BOTÓN MODAL: SUBIR ARCHIVOS OPERATIVOS -->
+        <button onclick="abrirModalOperativos()" class="bg-[#C0D838] hover:bg-[#b5cc32] text-[#182237] text-xs px-3.5 py-2 rounded-lg font-extrabold flex items-center gap-1.5 shadow transition">
+          <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+          <span>📤 Cargar Archivos Turno</span>
+        </button>
+
+        <!-- BOTÓN LIMPIAR / REINICIAR -->
+        <button onclick="reiniciarDatos()" class="bg-white/5 hover:bg-red-500/20 border border-white/10 text-gray-300 hover:text-red-300 text-xs px-3 py-2 rounded-lg font-semibold flex items-center gap-1 transition" title="Limpiar datos en pantalla">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-[1720px] w-full mx-auto p-4 md:p-6 flex-1 flex flex-col gap-4">
+
+    <!-- SELECTOR PRINCIPAL DE LOS 3 MÓDULOS -->
+    <section class="bg-white rounded-xl border border-gray-200 p-2 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <button id="btn-main-mod-1" onclick="switchMainTab(1)" class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-black transition bg-[#182237] text-white shadow-sm">
+          <i data-lucide="layout-dashboard" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>Módulo 1: Planeación & Avance</span>
+        </button>
+
+        <button id="btn-main-mod-2" onclick="switchMainTab(2)" class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-gray-600 hover:text-[#182237] hover:bg-gray-100 transition">
+          <i data-lucide="boxes" class="w-4 h-4 text-amber-500"></i>
+          <span>Módulo 2: Surtibilidad & Stock</span>
+        </button>
+
+        <button id="btn-main-mod-3" onclick="switchMainTab(3)" class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-gray-600 hover:text-[#182237] hover:bg-gray-100 transition">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+          <span>Módulo 3: Control PEPS / FEFO</span>
+        </button>
+      </div>
+
+      <!-- ACCIONES DE MÓDULO ACTIVO -->
+      <div id="module-bar-actions" class="flex items-center gap-2">
+        <span class="text-xs text-gray-500 font-semibold" id="badge-info-module">Módulo 1 Activo</span>
+      </div>
+
+    </section>
+
+    <!-- ESTADO VACÍO INICIAL (CUANDO NO HAY NADA CARGADO) -->
+    <section id="empty-state-panel" class="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center shadow-sm">
+      <div class="w-16 h-16 rounded-full bg-blue-50 text-[#2563eb] mx-auto flex items-center justify-center mb-4">
+        <i data-lucide="file-spreadsheet" class="w-8 h-8"></i>
+      </div>
+      <h3 class="text-base font-bold text-[#182237] uppercase">Tablero en Espera de Plan Operativo</h3>
+      <p class="text-xs text-gray-500 max-w-lg mx-auto mt-1 mb-5">
+        El sistema está configurado para auto-sincronizarse automáticamente. También puedes forzar la lectura presionando <b>☁️ Sync Ahora</b> o cargar manualmente tus archivos del turno[cite: 1].
+      </p>
+      <div class="flex items-center justify-center gap-3">
+        <button onclick="sincronizarPlanDesdeAppsScript(false)" class="bg-[#2563eb] hover:bg-blue-700 text-white text-xs px-5 py-2.5 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="cloud-download" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>Sincronizar desde Sheets</span>
+        </button>
+        <button onclick="abrirModalOperativos()" class="bg-[#182237] hover:bg-[#C0D838] hover:text-[#182237] text-white text-xs px-5 py-2.5 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span>Cargador Manual</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- CONTENIDO DEL MÓDULO 1: PLANEACIÓN Y AVANCE DE PICKING                     -->
+    <!-- ========================================================================= -->
+    <div id="container-mod-1" class="space-y-4 hidden">
+      
+      <!-- SUBBARRA: TABS PENDIENTE / DIARIA Y FILTROS M1 -->
+      <div class="bg-white rounded-xl border border-gray-200 p-2.5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+        
+        <div class="flex items-center gap-2 w-full md:w-auto">
+          <button id="tab-btn-diaria" onclick="cambiarVistaOperativa('DIARIA')" class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-black transition bg-[#182237] text-white shadow-sm">
+            <i data-lucide="calendar-check" class="w-4 h-4 text-[#C0D838]"></i>
+            <span id="lbl-tab-diaria">PESTAÑA DIARIA (PLAN DEL DÍA)</span>
+            <span id="badge-count-diaria" class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">0</span>
+          </button>
+
+          <button id="tab-btn-pendiente" onclick="cambiarVistaOperativa('PENDIENTE')" class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold text-gray-600 hover:text-[#182237] hover:bg-gray-100 transition">
+            <i data-lucide="clock" class="w-4 h-4 text-amber-500"></i>
+            <span>PENDIENTE</span>
+            <span id="badge-count-pendiente" class="bg-gray-200 text-gray-700 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">0</span>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+          <div class="flex items-center gap-1.5 text-xs">
+            <span class="text-gray-500 font-bold text-[11px] uppercase">Día Plan:</span>
+            <select id="sel-fecha-diaria" onchange="cambiarHojaDiaria(this.value)" class="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#182237] bg-gray-50 focus:outline-none">
+              <option value="AUTO">Automático (Más Reciente)</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-xs">
+            <span class="text-gray-500 font-bold text-[11px] uppercase">Filtro:</span>
+            <select id="sel-filtro-tipo" onchange="renderTablaM1()" class="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#182237] bg-gray-50 focus:outline-none">
+              <option value="ALL">Todos los Viajes (Sin Filtro)</option>
+              <option value="CON_DIF">Pendientes de Surtir (Dif &lt; 0)</option>
+              <option value="SOLO_PICKING">Solo Tipo PICKING</option>
+              <option value="SOLO_CLUB">Solo Tipo CLUB (Sam's / Costco)</option>
+              <option value="SOLO_SOLICITADOS">🟢 Solo Solicitados en WMS</option>
+              <option value="SOLO_NO_SOLICITADOS">🟠 Solo No Solicitados</option>
+              <option value="COMPLETOS">Completados (Dif = 0)</option>
+            </select>
+          </div>
+
+          <div class="relative w-full sm:w-60">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-2.5"></i>
+            <input type="text" id="txt-search-m1" oninput="renderTablaM1()" placeholder="Buscar Shipment, Línea..." class="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KPIS MÓDULO 1 -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border-2 border-yellow-300 p-4 shadow-sm flex items-center justify-between" style="background: linear-gradient(180deg, #FFFFFF 0%, #FEFCE8 100%);">
+          <div class="border-l-4 border-yellow-400 pl-3">
+            <span class="text-[11px] font-black text-gray-600 uppercase tracking-wider block">Tareas</span>
+            <div class="text-3xl lg:text-4xl font-black text-gray-900 font-mono mt-0.5" id="kpi-tareas">0</div>
+            <span class="text-[10px] text-gray-500 font-semibold">Órdenes / Partidas</span>
+          </div>
+          <div class="w-12 h-12 rounded-xl bg-yellow-400 flex items-center justify-center text-gray-950 font-black text-xl shadow-sm">⚡</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-blue-500 pl-3">
+          <span class="text-[11px] font-black text-gray-600 uppercase tracking-wider block">PIKING</span>
+          <div class="text-3xl lg:text-4xl font-black text-[#182237] font-mono mt-0.5" id="kpi-piking">0</div>
+          <span class="text-[10px] text-gray-500 font-semibold">Cajas requeridas</span>
+        </div>
+
+        <div class="bg-white rounded-xl border border-emerald-500 pl-3">
+          <span class="text-[11px] font-black text-gray-600 uppercase tracking-wider block">Avance</span>
+          <div class="text-3xl lg:text-4xl font-black text-emerald-700 font-mono mt-0.5" id="kpi-avance">0</div>
+          <span class="text-[10px] text-emerald-600 font-semibold" id="kpi-avance-pct">0% surtido WMS</span>
+        </div>
+
+        <div class="bg-white rounded-xl border border-red-500 pl-3">
+          <span class="text-[11px] font-black text-gray-600 uppercase tracking-wider block">Dif</span>
+          <div class="text-3xl lg:text-4xl font-black text-red-600 font-mono mt-0.5" id="kpi-dif">0</div>
+          <span class="text-[10px] text-gray-500 font-semibold">Cajas faltantes</span>
+        </div>
+      </section>
+
+      <!-- TABLA MÓDULO 1 -->
+      <div id="table-container-m1" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="bg-[#F8FAFC] px-4 py-2.5 border-b border-gray-200 flex flex-wrap justify-between items-center gap-2 text-xs">
+          <div class="flex items-center gap-3">
+            <span class="font-extrabold text-[#182237] uppercase tracking-wide flex items-center gap-1.5" id="lbl-table-title">
+              <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+              PESTAÑA DIARIA (PLAN DEL DÍA)
+            </span>
+            <span class="text-gray-400">|</span>
+            <span class="text-gray-600 font-semibold" id="lbl-table-rows-count">0 Viajes</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- BOTÓN: REGRESAR AL ORDEN ORIGINAL DE SHEETS -->
+            <button onclick="restablecerOrdenOriginal()" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-800 text-[11px] px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 transition" title="Restablecer el orden tal como viene de la hoja de Google Sheets">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-blue-600"></i>
+              <span>↺ Orden Original (Sheets)</span>
+            </button>
+
+            <!-- BOTÓN: ARCHIVAR COMPLETADOS EN BASE DE DATOS -->
+            <button onclick="archivarCompletadosEnBaseDatos()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 shadow transition" id="btn-archivar-bd" title="Mover viajes completados (Dif = 0) a la pestaña base de datos de Sheets">
+              <i data-lucide="database" class="w-3.5 h-3.5 text-[#C0D838]"></i>
+              <span id="txt-btn-archivar">Archivar Completados (Dif = 0)</span>
+            </button>
+
+            <!-- BOTÓN: COPIAR SHIPMENTS -->
+            <button onclick="copiarColumnaShipments()" class="bg-[#182237] hover:bg-[#2563eb] text-white text-[11px] px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 shadow transition">
+              <i data-lucide="copy" class="w-3.5 h-3.5 text-[#C0D838]"></i>
+              <span id="btn-copiar-txt">Copiar Shipments (|)</span>
+            </button>
+
+            <!-- BOTÓN: EXPORTAR CSV -->
+            <button onclick="exportarVistaM1CSV()" class="bg-white hover:bg-gray-100 border border-gray-300 text-[#182237] text-[11px] px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 shadow-2xs transition">
+              <i data-lucide="download" class="w-3.5 h-3.5 text-blue-600"></i>
+              <span>Exportar CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto custom-scroll">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="text-white text-[11px] font-black uppercase tracking-wider select-none">
+                <th onclick="ordenarPor('tareas')" class="th-sortable py-3 px-3 text-center bg-[#FFF200] text-gray-950 border-r border-yellow-400 w-20" title="Ordenar por Tareas">
+                  <div class="flex items-center justify-center gap-1">
+                    <span>Tareas</span>
+                    <span id="sort-icon-tareas" class="text-[9px] text-gray-600">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('piking')" class="th-sortable py-3 px-3 text-center bg-[#2a5a9c] border-r border-blue-400/40 w-28" title="Ordenar por Cajas Solicitadas (PIKING)">
+                  <div class="flex items-center justify-center gap-1">
+                    <span>PIKING (Cajas)</span>
+                    <span id="sort-icon-piking" class="text-[9px] text-[#C0D838]">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('avance')" class="th-sortable py-3 px-3 text-center bg-[#2a5a9c] border-r border-blue-400/40 w-24" title="Ordenar por Cajas Surtidas (Avance)">
+                  <div class="flex items-center justify-center gap-1">
+                    <span>Avance</span>
+                    <span id="sort-icon-avance" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('dif')" class="th-sortable py-3 px-3 text-center bg-[#2a5a9c] border-r border-blue-400/40 w-24" title="Ordenar por Diferencia">
+                  <div class="flex items-center justify-center gap-1">
+                    <span>Dif</span>
+                    <span id="sort-icon-dif" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('linea')" class="th-sortable py-3 px-4 bg-[#2a5a9c] border-r border-blue-400/40 min-w-[220px]" title="Ordenar por Línea Transportista">
+                  <div class="flex items-center gap-1">
+                    <span>LINEA</span>
+                    <span id="sort-icon-linea" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('shipment')" class="th-sortable py-3 px-4 bg-[#2a5a9c] border-r border-blue-400/40 w-44 text-center hover:bg-[#1e4273] transition" title="Ordenar por Shipment">
+                  <div class="flex items-center justify-center gap-1.5">
+                    <span>SHIPMENT (|)</span>
+                    <span id="sort-icon-shipment" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('cita')" class="th-sortable py-3 px-4 bg-[#2a5a9c] border-r border-blue-400/40 min-w-[170px]" title="Ordenar por Cita de Carga">
+                  <div class="flex items-center gap-1">
+                    <span>CITA DE CARGA</span>
+                    <span id="sort-icon-cita" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('cliente')" class="th-sortable py-3 px-4 bg-[#2a5a9c] border-r border-blue-400/40 min-w-[200px]" title="Ordenar por Cliente">
+                  <div class="flex items-center gap-1">
+                    <span>NOMBRE DEL CLIENTE</span>
+                    <span id="sort-icon-cliente" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+                <th onclick="ordenarPor('destino')" class="th-sortable py-3 px-4 bg-[#2a5a9c] min-w-[240px]" title="Ordenar por Destino">
+                  <div class="flex items-center gap-1">
+                    <span>DESTINO</span>
+                    <span id="sort-icon-destino" class="text-[9px] opacity-60">▼</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="table-body-m1" class="divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CONTENIDO DEL MÓDULO 2: SURTIBILIDAD Y DISPONIBILIDAD DE STOCK (SAM-21)     -->
+    <!-- ========================================================================= -->
+    <div id="container-mod-2" class="hidden space-y-4">
+      
+      <!-- SUBBARRA FILTROS M2 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+        <div class="flex flex-wrap items-center bg-[#F4F6F8] p-1 rounded-lg border border-gray-200 gap-1">
+          <button id="btn-m2-f-all" onclick="filtrarM2('ALL')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs">Todos los Viajes</button>
+          <button id="btn-m2-f-bajada" onclick="filtrarM2('BAJADA')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-amber-700 hover:bg-white transition">🟡 Bajada Bulk (Roja)</button>
+          <button id="btn-m2-f-traspaso" onclick="filtrarM2('TRASPASO')" class="px-3 py-1.5 rounded-md text-xs font-bold text-purple-700 hover:bg-white transition">🚚 Traspaso Naranja ➔ Roja</button>
+          <button id="btn-m2-f-quiebre" onclick="filtrarM2('QUIEBRE')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-red-600 hover:bg-white transition">🔴 Quiebres Críticos</button>
+          <button id="btn-m2-f-cubierto" onclick="filtrarM2('CUBIERTO')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-emerald-700 hover:bg-white transition">🟢 Cuadrados en Piso</button>
+        </div>
+
+        <div class="relative w-full sm:w-72">
+          <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-2.5"></i>
+          <input type="text" id="txt-search-m2" oninput="renderM2()" placeholder="Buscar Shipment, SKU..." class="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none">
+        </div>
+      </div>
+
+      <!-- KPIS MÓDULO 2 -->
+      <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-gray-500 uppercase">Viajes Evaluados</span>
+            <div class="text-2xl font-black text-[#182237] mt-1" id="kpi-m2-viajes">0</div>
+            <span class="text-[10px] text-gray-500">En lista de recolección</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-blue-50 text-[#0070C0] flex items-center justify-center font-bold">🚚</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-emerald-700 uppercase">Cuadrados Piso</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1" id="kpi-m2-cubiertos">0</div>
+            <span class="text-[10px] text-emerald-600 font-semibold">100% surtibles en N1</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">✓</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-amber-600 uppercase">Bajadas de Bulk</span>
+            <div class="text-2xl font-black text-amber-600 mt-1" id="kpi-m2-bajadas">0</div>
+            <span class="text-[10px] text-amber-700 font-semibold">Stock en nave Roja</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold">📦</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-purple-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-purple-700 uppercase">Traspaso Naranja</span>
+            <div class="text-2xl font-black text-purple-700 mt-1" id="kpi-m2-traspasos">0</div>
+            <span class="text-[10px] text-purple-600 font-bold">Mover a Bodega Roja</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center font-bold">⇄</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-red-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-red-600 uppercase">Quiebres Críticos</span>
+            <div class="text-2xl font-black text-red-600 mt-1" id="kpi-m2-quiebres">0</div>
+            <span class="text-[10px] text-red-600 font-bold">Sin stock suficiente</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold">✕</div>
+        </div>
+      </section>
+
+      <!-- ACORDEÓN MASTER-DETAIL DE SURTIBILIDAD (M2) -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="p-3.5 bg-[#F8FAFC] border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h3 class="text-xs font-bold text-[#182237] uppercase tracking-wider flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+              <span>Cuadratura y Análisis de Picking por Viaje (Master-Detail)</span>
+            </h3>
+            <p class="text-[11px] text-gray-500 mt-0.5">Haz clic sobre cualquier fila para desplegar el desglose de SKUs y las sugerencias de bajada/traspaso[cite: 1].</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportarM2ParaAppAndroid()" class="bg-[#182237] hover:bg-[#C0D838] hover:text-[#182237] text-white text-[11px] px-3 py-1.5 rounded-lg font-extrabold flex items-center gap-1.5 shadow transition" title="Exportar viajes de M2 para auditorías en la App Android">
+              <i data-lucide="smartphone" class="w-3.5 h-3.5 text-[#C0D838]"></i>
+              <span>📤 Exportar a App Auditores (JSON)</span>
+            </button>
+            <span class="text-xs text-gray-600 font-bold" id="badge-m2-count">0 Viajes</span>
+          </div>
+        </div>
+
+        <div class="max-h-[68vh] overflow-y-auto custom-scroll divide-y divide-gray-200" id="m2-accordion-container">
+          <div class="text-center p-12 text-gray-500 text-xs font-semibold">
+            Carga el archivo de <b>Lista de Recolección</b> y el archivo de <b>EXISTENCIAS (Inventario WMS)</b> para evaluar la surtibilidad de cada viaje[cite: 1].
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- CONTENIDO DEL MÓDULO 3: CONTROL PEPS / FEFO Y REGLAS DE VIGENCIA           -->
+    <!-- ========================================================================= -->
+    <div id="container-mod-3" class="hidden space-y-4">
+      
+      <!-- SUBBARRA FILTROS M3 -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+        <div class="flex flex-wrap items-center bg-[#F4F6F8] p-1 rounded-lg border border-gray-200 gap-1">
+          <button id="btn-m3-f-all" onclick="filtrarM3('ALL')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs">Todos los Viajes</button>
+          <button id="btn-m3-f-ok" onclick="filtrarM3('OK')" class="px-3 py-1.5 rounded-md text-xs font-bold text-emerald-700 hover:bg-white transition">🟢 Válidos PEPS</button>
+          <button id="btn-m3-f-riesgo" onclick="filtrarM3('RIESGO')" class="px-3 py-1.5 rounded-md text-xs font-bold text-red-600 hover:bg-white transition">🔴 Riesgo Vigencia</button>
+          <button id="btn-m3-f-sinstock" onclick="filtrarM3('SIN_STOCK')" class="px-3 py-1.5 rounded-md text-xs font-bold text-amber-700 hover:bg-white transition">📦 Sin Stock</button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="toggleAllAccordionM3(true)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-2.5 py-1.5 rounded font-bold">➕ Expandir</button>
+          <button onclick="toggleAllAccordionM3(false)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-2.5 py-1.5 rounded font-bold">➖ Colapsar</button>
+          <div class="relative w-full sm:w-64">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-2.5"></i>
+            <input type="text" id="txt-search-m3" oninput="renderM3()" placeholder="Buscar LPN, SKU, Destino..." class="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- BANNER DE REGLAS DE VIGENCIA -->
+      <div class="bg-white border-l-4 border-[#C0D838] border border-gray-200 rounded-xl p-3 shadow-sm text-xs flex flex-wrap justify-between items-center gap-2">
+        <div>
+          <strong class="text-[#182237] uppercase">Reglas Institucionales de Caducidad (Norma Colgate):</strong>
+          <span class="text-gray-600 ml-2">
+            • <b>Expo (90000):</b> &ge; 12 Meses (&ge; 365 días) |
+            • <b>Clientes (700... / 24000...):</b> &ge; 6 Meses (&ge; 180 días) |
+            • <b>Intras (8000...):</b> &ge; 6 Meses (&ge; 180 días).
+          </span>
+        </div>
+        <span class="text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">PEPS Automático Activo</span>
+      </div>
+
+      <!-- KPIS MÓDULO 3 -->
+      <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-gray-500 uppercase">Tarimas Solicitadas</span>
+            <div class="text-2xl font-black text-[#182237] mt-1" id="kpi-m3-solicitadas">0</div>
+            <span class="text-[10px] text-gray-500">Demanda de tarimas</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold">📋</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-emerald-700 uppercase">Válidas PEPS</span>
+            <div class="text-2xl font-black text-emerald-700 mt-1" id="kpi-m3-validas">0</div>
+            <span class="text-[10px] text-emerald-600 font-semibold">Cumplen vigencia mínima</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">✓</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-red-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-red-600 uppercase">Riesgo / Rechazo</span>
+            <div class="text-2xl font-black text-red-600 mt-1" id="kpi-m3-riesgo">0</div>
+            <span class="text-[10px] text-red-600 font-bold">&lt; 12M Expo o &lt; 6M Cliente</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold">⚠️</div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-amber-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-[11px] font-bold text-amber-700 uppercase">Tarimas Faltantes</span>
+            <div class="text-2xl font-black text-amber-700 mt-1" id="kpi-m3-sinstock">0</div>
+            <span class="text-[10px] text-amber-700 font-semibold">Sin existencia física</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center font-bold">✕</div>
+        </div>
+      </section>
+
+      <!-- ACORDEÓN PICKING LIST PEPS POR SHIPMENT (M3) -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+        <div class="p-3.5 bg-[#F8FAFC] border-b border-gray-200 flex justify-between items-center">
+          <h3 class="text-xs font-bold text-[#182237] uppercase tracking-wider flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+            <span>Picking List PEPS Asignado por Shipment (LPN y Ubicaciones en Rack)</span>
+          </h3>
+          <span class="text-xs text-gray-600 font-bold" id="badge-m3-count">0 Viajes</span>
+        </div>
+
+        <div class="max-h-[68vh] overflow-y-auto custom-scroll divide-y divide-gray-200" id="m3-accordion-container">
+          <div class="text-center p-12 text-gray-500 text-xs font-semibold">
+            Carga el archivo de <b>EXISTENCIAS (Inventario WMS)</b> y la <b>Lista de Recolección</b> para generar la asignación de tarimas PEPS[cite: 1].
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL DE CARGA MANUAL OPERATIVA (4 ARCHIVOS DEL TURNO)                    -->
+  <!-- ========================================================================= -->
+  <div id="modal-operativos" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden backdrop-blur-xs">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-gray-200 transform transition-all">
+      
+      <!-- CABECERA DEL MODAL -->
+      <div class="flex justify-between items-center pb-3 border-b border-gray-200">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-black">
+            📦
+          </div>
+          <div>
+            <h3 class="text-sm font-extrabold text-[#182237] uppercase">Carga de Archivos de Turno</h3>
+            <p class="text-[11px] text-gray-500">Sube los archivos para procesar Módulo 1, Módulo 2 y Módulo 3[cite: 1]</p>
+          </div>
+        </div>
+        <button onclick="cerrarModalOperativos()" class="text-gray-400 hover:text-gray-700 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- FORMULARIO DE 4 ARCHIVOS -->
+      <div class="py-4 space-y-3">
+        
+        <!-- DROPZONE 1: PLAN DE CARGA EXCEL -->
+        <div class="border border-gray-300 rounded-xl p-2.5 bg-gray-50 hover:bg-gray-100 transition relative">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">1</span>
+              <div>
+                <span class="text-xs font-bold text-gray-900 block">Plan de Carga (.xlsx / .csv)</span>
+                <span id="lbl-file-plan" class="text-[11px] text-gray-500 font-medium">Alimenta Citas y Backlog (M1)</span>
+              </div>
+            </div>
+            <span id="status-chip-plan" class="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-bold">Pendiente</span>
+          </div>
+          <input type="file" id="file-plan-carga" accept=".xlsx,.xls,.csv" class="absolute inset-0 opacity-0 cursor-pointer" onchange="seleccionarArchivoOperativo(this, 'plan')">
+        </div>
+
+        <!-- DROPZONE 2: LISTA DE RECOLECCIÓN CSV -->
+        <div class="border border-gray-300 rounded-xl p-2.5 bg-gray-50 hover:bg-gray-100 transition relative">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-bold">2</span>
+              <div>
+                <span class="text-xs font-bold text-gray-900 block">Lista de Recolección (.csv)</span>
+                <span id="lbl-file-recol" class="text-[11px] text-gray-500 font-medium">Demanda de Viajes (M1, M2 y M3)[cite: 1]</span>
+              </div>
+            </div>
+            <span id="status-chip-recol" class="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-bold">Pendiente</span>
+          </div>
+          <input type="file" id="file-recoleccion" accept=".csv" class="absolute inset-0 opacity-0 cursor-pointer" onchange="seleccionarArchivoOperativo(this, 'recol')">
+        </div>
+
+        <!-- DROPZONE 3: H.CARGA CSV -->
+        <div class="border border-gray-300 rounded-xl p-2.5 bg-gray-50 hover:bg-gray-100 transition relative">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold">3</span>
+              <div>
+                <span class="text-xs font-bold text-gray-900 block">Archivo H.CARGA (.csv)</span>
+                <span id="lbl-file-hcarga" class="text-[11px] text-gray-500 font-medium">Identifica viajes solicitados y avance WMS (M1)</span>
+              </div>
+            </div>
+            <span id="status-chip-hcarga" class="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-bold">Pendiente</span>
+          </div>
+          <input type="file" id="file-hcarga" accept=".csv" class="absolute inset-0 opacity-0 cursor-pointer" onchange="seleccionarArchivoOperativo(this, 'hcarga')">
+        </div>
+
+        <!-- DROPZONE 4: EXISTENCIAS WMS CSV -->
+        <div class="border-2 border-emerald-300 rounded-xl p-2.5 bg-emerald-50/50 hover:bg-emerald-100/50 transition relative">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">4</span>
+              <div>
+                <span class="text-xs font-bold text-gray-900 block">EXISTENCIAS / Inventario WMS (.csv)</span>
+                <span id="lbl-file-existencias" class="text-[11px] text-emerald-800 font-semibold">Stock Físico, Ubicaciones y Caducidades (M2 y M3)[cite: 1]</span>
+              </div>
+            </div>
+            <span id="status-chip-existencias" class="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-bold">Pendiente</span>
+          </div>
+          <input type="file" id="file-existencias" accept=".csv,.xlsx,.xls" class="absolute inset-0 opacity-0 cursor-pointer" onchange="seleccionarArchivoOperativo(this, 'existencias')">
+        </div>
+
+      </div>
+
+      <!-- BOTÓN PROCESAR -->
+      <div class="pt-3 border-t border-gray-200 flex items-center justify-between">
+        <span class="text-[11px] text-gray-500 font-medium" id="txt-modal-progress">Selecciona los archivos para procesar</span>
+        <button id="btn-procesar-todo" onclick="procesarArchivosTurno()" class="px-5 py-2.5 text-xs font-black text-white bg-[#182237] hover:bg-[#C0D838] hover:text-[#182237] rounded-lg transition shadow flex items-center gap-2">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span>Calcular y Sincronizar Todo</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SCRIPT MAESTRO DE LOS 3 MÓDULOS -->
+  <script>
+    // =========================================================================
+    // 1. ESTADO GLOBAL Y CONFIGURACIÓN (CONEXIÓN DOGET / DOPOST)
+    // =========================================================================
+    const URL_WEBAPP_PLAN = "https://script.google.com/macros/s/AKfycbw3T1q9POdByFuw9Gx8u7-tk6Azmx73QqBPq3g6-jEo0WTAFoyvmDwq9UPEx7lWXHHlGA/exec";
+
+    let activeModule = 1;
+
+    // Configuración de Ordenamiento por Columna en Módulo 1 ('ORIGINAL' = orden de Sheets)
+    let sortColumnM1 = "ORIGINAL";
+    let sortDirectionM1 = "ASC";
+
+    let catalogoMaterialesMap = {
+      "105042": 42, "105634": 50, "105888": 50, "105931": 30, "105982": 30, "105985": 42,
+      "105987": 28, "107376": 24, "107377": 24, "109782": 60, "114170": 72, "114172": 72,
+      "114189": 72, "139197": 108, "151085": 120, "151086": 120, "151089": 150, "151119": 156,
+      "61000474": 384, "61033268": 320, "61003046": 200, "FMX91106A": 200, "VN00875A": 240,
+      "61040908": 304, "MX04719A": 240, "FMX02982": 266, "61029183": 130, "MX05521A": 200,
+      "FUS90750": 320, "FMX05193": 45,  "61033015": 300, "61022833": 48,  "61001467": 36,
+      "61042899": 200, "FMX05351": 45,  "61024620": 48,  "FUS00447A": 360, "FMX90900A": 273,
+      "61029187": 64,  "61043072": 60,  "61000251": 210, "61041359": 56,  "FMX90901A": 273,
+      "MX05021B": 200, "61037655": 270, "FMXS00186": 240, "61060770": 60,  "61031194": 40,
+      "MX05046A": 36,  "61062355": 120, "61002363": 100
+    };
+
+    let planDataPendiente = [];
+    let planDataDiaria = [];
+    let recoleccionResumen = {};
+    let recoleccionFullItems = [];
+    let avanceWmsMap = {};
+    let rawWorkbookPlan = null;
+    let pestañasDiariasDetectadas = [];
+    let hojaDiariaSeleccionada = "";
+    let vistaActivaM1 = "DIARIA";
+
+    let rawInventarioWMS = [];
+    let stockPorSkuMapa = {};
+    let m2ShipmentsEvaluados = [];
+    let m3PepsShipments = [];
+
+    let m2FiltroActual = 'ALL';
+    let m3FiltroActual = 'ALL';
+
+    let fileObjPlan = null;
+    let fileObjRecol = null;
+    let fileObjHCarga = null;
+    let fileObjExistencias = null;
+
+    let estaArchivandoAutomatico = false;
+
+    // =========================================================================
+    // 2. ORDENAMIENTO POR ENCABEZADOS Y RESTABLECER A ORDEN ORIGINAL
+    // =========================================================================
+    function ordenarPor(columna) {
+      if (sortColumnM1 === columna) {
+        sortDirectionM1 = (sortDirectionM1 === "DESC") ? "ASC" : "DESC";
+      } else {
+        sortColumnM1 = columna;
+        if (["piking", "tareas", "avance", "dif"].includes(columna)) {
+          sortDirectionM1 = "DESC";
+        } else {
+          sortDirectionM1 = "ASC";
+        }
+      }
+      renderTablaM1();
+    }
+
+    function restablecerOrdenOriginal() {
+      sortColumnM1 = "ORIGINAL";
+      sortDirectionM1 = "ASC";
+      actualizarIconosOrdenamiento();
+      renderTablaM1();
+    }
+
+    function actualizarIconosOrdenamiento() {
+      const columnas = ["tareas", "piking", "avance", "dif", "linea", "shipment", "cita", "cliente", "destino"];
+      columnas.forEach(col => {
+        const icon = document.getElementById(`sort-icon-${col}`);
+        if (!icon) return;
+        if (sortColumnM1 === col) {
+          icon.textContent = (sortDirectionM1 === "DESC") ? "▼" : "▲";
+          icon.style.opacity = "1";
+          icon.style.fontWeight = "bold";
+        } else {
+          icon.textContent = "▼";
+          icon.style.opacity = "0.3";
+          icon.style.fontWeight = "normal";
+        }
+      });
+    }
+
+    // =========================================================================
+    // 3. TEMPORIZADOR Y AUTO-SINCRONIZACIÓN AUTOMÁTICA
+    // =========================================================================
+    const INTERVALO_SYNC_SEGUNDOS = 15 * 60;
+    const RETRASO_DESFASE_SEGUNDOS = 3 * 60;
+    let tiempoRestante = RETRASO_DESFASE_SEGUNDOS;
+    let autoSyncHabilitado = true;
+    let timerInterval = null;
+
+    function iniciarContadorAutoSync() {
+      if (timerInterval) clearInterval(timerInterval);
+      
+      timerInterval = setInterval(() => {
+        if (!autoSyncHabilitado) return;
+
+        tiempoRestante--;
+        actualizarTextoTemporizador();
+
+        if (tiempoRestante <= 0) {
+          tiempoRestante = INTERVALO_SYNC_SEGUNDOS;
+          sincronizarPlanDesdeAppsScript(true);
+        }
+      }, 1000);
+    }
+
+    function actualizarTextoTemporizador() {
+      const lbl = document.getElementById('lbl-timer-sync');
+      if (!lbl) return;
+      const m = Math.floor(tiempoRestante / 60).toString().padStart(2, '0');
+      const s = (tiempoRestante % 60).toString().padStart(2, '0');
+      lbl.textContent = `${m}:${s}`;
+    }
+
+    function toggleAutoSync() {
+      autoSyncHabilitado = !autoSyncHabilitado;
+      const dot = document.getElementById('dot-auto-sync');
+      const btn = document.getElementById('btn-toggle-timer');
+
+      if (autoSyncHabilitado) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+        btn.textContent = "PAUSAR";
+        btn.className = "text-[10px] font-bold bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded text-white transition";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-red-400";
+        btn.textContent = "REANUDAR";
+        btn.className = "text-[10px] font-bold bg-red-500/80 hover:bg-red-500 px-1.5 py-0.5 rounded text-white transition";
+      }
+    }
+
+    // =========================================================================
+    // 4. SINCRONIZACIÓN DESDE APPS SCRIPT (DOGET)
+    // =========================================================================
+    async function sincronizarPlanDesdeAppsScript(esSilencioso = false) {
+      const btn = document.getElementById('btn-sync-gas');
+      const originalHTML = btn ? btn.innerHTML : '';
+      if (btn && !esSilencioso) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin text-base">⏳</span> <span>Sincronizando...</span>`;
+      }
+
+      try {
+        const response = await fetch(URL_WEBAPP_PLAN);
+        const data = await response.json();
+
+        if (data.status !== "success") {
+          throw new Error(data.message || "Error al leer datos desde Google Apps Script");
+        }
+
+        // Agregar índice original a cada fila para poder restaurar el orden exacto de Sheets
+        planDataPendiente = (data.planPendiente || []).map((r, i) => ({ ...r, _ordenOriginal: i }));
+        planDataDiaria = (data.planDiario || []).map((r, i) => ({ ...r, _ordenOriginal: i }));
+        hojaDiariaSeleccionada = data.nombreHojaDiaria || "PLAN DEL DÍA";
+
+        document.getElementById('lbl-tab-diaria').textContent = `PLAN DIA (${hojaDiariaSeleccionada})`;
+        const sel = document.getElementById('sel-fecha-diaria');
+        sel.innerHTML = `<option value="${hojaDiariaSeleccionada}">${hojaDiariaSeleccionada} (Sincronizado)</option>`;
+
+        document.getElementById('badge-count-diaria').textContent = planDataDiaria.length;
+        document.getElementById('badge-count-pendiente').textContent = planDataPendiente.length;
+
+        document.getElementById('empty-state-panel').classList.add('hidden');
+        document.getElementById('container-mod-1').classList.remove('hidden');
+        document.getElementById('table-container-m1').classList.remove('hidden');
+
+        const chipPlan = document.getElementById('status-chip-plan');
+        if (chipPlan) {
+          chipPlan.className = "text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black";
+          chipPlan.textContent = "Sheets Sync ✅";
+          document.getElementById('lbl-file-plan').textContent = `Conectado vía doGet (${hojaDiariaSeleccionada})`;
+        }
+
+        actualizarResumenArchivos();
+        autoArchivarCompletadosSilencioso();
+        renderTablaM1();
+
+        if (!esSilencioso) {
+          alert(`✅ Sincronización exitosa:\n• ${planDataDiaria.length} viajes en ${hojaDiariaSeleccionada}\n• ${planDataPendiente.length} viajes en Pendiente`);
+        }
+
+      } catch (err) {
+        console.error("Error al sincronizar con Apps Script:", err);
+        if (!esSilencioso) {
+          alert("⚠️ No se pudo sincronizar con Google Sheets: " + err.message);
+        }
+      } finally {
+        if (btn && !esSilencioso) {
+          btn.disabled = false;
+          btn.innerHTML = originalHTML;
+        }
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+
+    // =========================================================================
+    // 5. ARCHIVADO DE VIAJES COMPLETADOS (DIF = 0) EN 'BASE DE DATOS'
+    // =========================================================================
+    async function autoArchivarCompletadosSilencioso() {
+      if (estaArchivandoAutomatico) return;
+      const completados = [];
+      const shipmentsCompletados = new Set();
+
+      const evaluarLista = (lista) => {
+        lista.forEach(r => {
+          let rec = recoleccionResumen[r.shipment] || { cajasPicking: 0, tareas: 0 };
+          let wms = avanceWmsMap[r.shipment] || { picadas: 0 };
+          let piking = rec.cajasPicking;
+          let avance = wms.picadas;
+          let dif = avance - piking;
+
+          if (dif === 0 && (piking > 0 || avance > 0)) {
+            completados.push({
+              shipment: r.shipment,
+              linea: r.linea,
+              cita: r.cita,
+              cliente: r.cliente,
+              destino: r.destino,
+              tipoCarga: r.tipoCarga || "PICKING",
+              tareas: rec.tareas,
+              piking: piking,
+              avance: avance,
+              dif: dif
+            });
+            shipmentsCompletados.add(r.shipment);
+          }
+        });
+      };
+
+      evaluarLista(planDataDiaria);
+      evaluarLista(planDataPendiente);
+
+      if (completados.length === 0) return;
+
+      estaArchivandoAutomatico = true;
+      try {
+        const response = await fetch(URL_WEBAPP_PLAN, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ viajes: completados })
+        });
+        const res = await response.json();
+        if (res.status === "success") {
+          planDataDiaria = planDataDiaria.filter(item => !shipmentsCompletados.has(item.shipment));
+          planDataPendiente = planDataPendiente.filter(item => !shipmentsCompletados.has(item.shipment));
+          console.log(`[Auto-Limpieza] ${res.insertados} viajes completados archivados en 'base de datos'.`);
+          renderTablaM1();
+        }
+      } catch (err) {
+        console.warn("[Auto-Limpieza] Error al archivar completados:", err);
+      } finally {
+        estaArchivandoAutomatico = false;
+      }
+    }
+
+    async function archivarCompletadosEnBaseDatos() {
+      const baseList = (vistaActivaM1 === 'DIARIA') ? planDataDiaria : planDataPendiente;
+      const completados = [];
+      const shipmentsCompletados = new Set();
+
+      baseList.forEach(r => {
+        const rec = recoleccionResumen[r.shipment] || { cajasPicking: 0, tareas: 0 };
+        const wms = avanceWmsMap[r.shipment] || { picadas: 0 };
+        const piking = rec.cajasPicking;
+        const avance = wms.picadas;
+        let dif = avance - piking;
+
+        if (dif === 0 && (piking > 0 || avance > 0)) {
+          completados.push({
+            shipment: r.shipment,
+            linea: r.linea,
+            cita: r.cita,
+            cliente: r.cliente,
+            destino: r.destino,
+            tipoCarga: r.tipoCarga || "PICKING",
+            tareas: rec.tareas,
+            piking: piking,
+            avance: avance,
+            dif: dif
+          });
+          shipmentsCompletados.add(r.shipment);
+        }
+      });
+
+      if (completados.length === 0) {
+        alert("No se encontraron viajes completados (Dif = 0) con datos de recolección/avance en la pestaña actual.");
+        return;
+      }
+
+      if (!confirm(`Se encontraron ${completados.length} viajes completados al 100% (Dif = 0).\n¿Deseas moverlos y archivarlos en la pestaña 'base de datos'?`)) {
+        return;
+      }
+
+      const btn = document.getElementById('btn-archivar-bd');
+      const txtSpan = document.getElementById('txt-btn-archivar');
+      if (btn) btn.disabled = true;
+      if (txtSpan) txtSpan.textContent = "Archivando en BD...";
+
+      try {
+        const response = await fetch(URL_WEBAPP_PLAN, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ viajes: completados })
+        });
+
+        const res = await response.json();
+
+        if (res.status === "success") {
+          if (vistaActivaM1 === 'DIARIA') {
+            planDataDiaria = planDataDiaria.filter(item => !shipmentsCompletados.has(item.shipment));
+          } else {
+            planDataPendiente = planDataPendiente.filter(item => !shipmentsCompletados.has(item.shipment));
+          }
+
+          alert(`✅ Operación exitosa:\n• ${res.insertados} viajes nuevos volcados en 'base de datos'.\n• ${res.omitidos} ya estaban registrados previamente.`);
+          renderTablaM1();
+        } else {
+          throw new Error(res.message || "Error al procesar archivo en servidor");
+        }
+      } catch (err) {
+        console.error("Error al archivar en base de datos:", err);
+        alert("⚠️ Error al guardar en base de datos: " + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+        if (txtSpan) txtSpan.textContent = "Archivar Completados (Dif = 0)";
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+
+    // =========================================================================
+    // 6. NAVEGACIÓN ENTRE LOS 3 MÓDULOS
+    // =========================================================================
+    function switchMainTab(modNum) {
+      activeModule = modNum;
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById(`container-mod-${i}`).classList.add('hidden');
+        document.getElementById(`btn-main-mod-${i}`).className = "flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold text-gray-600 hover:text-[#182237] hover:bg-gray-100 transition";
+      }
+
+      document.getElementById(`container-mod-${modNum}`).classList.remove('hidden');
+      document.getElementById(`btn-main-mod-${modNum}`).className = "flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-black transition bg-[#182237] text-white shadow-sm";
+
+      const badge = document.getElementById('badge-info-module');
+      if (modNum === 1) {
+        badge.textContent = "Módulo 1: Planeación & Avance";
+        renderTablaM1();
+      } else if (modNum === 2) {
+        badge.textContent = "Módulo 2: Surtibilidad & Stock";
+        renderM2();
+      } else if (modNum === 3) {
+        badge.textContent = "Módulo 3: Control PEPS / FEFO";
+        renderM3();
+      }
+
+      lucide.createIcons();
+    }
+
+    // =========================================================================
+    // 7. CARPETA DE MAESTROS
+    // =========================================================================
+    async function manejarCarpetaMaestros(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      let cargados = 0;
+
+      for (let i = 0; i < fileList.length; i++) {
+        let f = fileList[i];
+        let nameNorm = f.name.toUpperCase();
+        if (nameNorm.includes("CAT_MATERIALES") || nameNorm.includes("CATALOGO") || nameNorm.includes("SISTEMA GIO")) {
+          await leerCatalogoDesdeArchivo(f);
+          cargados++;
+        }
+      }
+
+      const badge = document.getElementById("badge-master-status");
+      badge.className = "text-emerald-400 font-bold flex items-center gap-1";
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Maestros Cargados (${Object.keys(catalogoMaterialesMap).length} SKUs activos)`;
+      alert(`Carpeta analizada:\n• Catálogo Maestro cargado con éxito (${Object.keys(catalogoMaterialesMap).length} SKUs en memoria).`);
+    }
+
+    function leerCatalogoDesdeArchivo(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            let sheetName = wb.SheetNames.find(s => s.toUpperCase().includes("CAT_MATERIALES")) || wb.SheetNames[0];
+            let rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: "" });
+            for (let i = 1; i < rows.length; i++) {
+              let sku = String(rows[i][0] || "").trim();
+              let std = parseFloat(rows[i][4]) || parseFloat(rows[i][1]) || 0;
+              if (sku && std > 0) catalogoMaterialesMap[sku] = std;
+            }
+          } catch (err) {
+            console.error("Error al leer catálogo:", err);
+          }
+          resolve();
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // =========================================================================
+    // 8. CONTROL DEL MODAL DE ENTRADA
+    // =========================================================================
+    function abrirModalOperativos() {
+      document.getElementById('modal-operativos').classList.remove('hidden');
+    }
+
+    function cerrarModalOperativos() {
+      document.getElementById('modal-operativos').classList.add('hidden');
+    }
+
+    function seleccionarArchivoOperativo(input, tipo) {
+      const file = input.files[0];
+      if (!file) return;
+
+      if (tipo === 'plan') {
+        fileObjPlan = file;
+        document.getElementById('lbl-file-plan').textContent = file.name;
+        document.getElementById('status-chip-plan').className = "text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black";
+        document.getElementById('status-chip-plan').textContent = "Listo";
+      } else if (tipo === 'recol') {
+        fileObjRecol = file;
+        document.getElementById('lbl-file-recol').textContent = file.name;
+        document.getElementById('status-chip-recol').className = "text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black";
+        document.getElementById('status-chip-recol').textContent = "Listo";
+      } else if (tipo === 'hcarga') {
+        fileObjHCarga = file;
+        document.getElementById('lbl-file-hcarga').textContent = file.name;
+        document.getElementById('status-chip-hcarga').className = "text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black";
+        document.getElementById('status-chip-hcarga').textContent = "Listo";
+      } else if (tipo === 'existencias') {
+        fileObjExistencias = file;
+        document.getElementById('lbl-file-existencias').textContent = file.name;
+        document.getElementById('status-chip-existencias').className = "text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black";
+        document.getElementById('status-chip-existencias').textContent = "Listo";
+      }
+
+      document.getElementById('txt-modal-progress').textContent = "Archivos listos para sincronizar";
+    }
+
+    // =========================================================================
+    // 9. PROCESAMIENTO GLOBAL DE LOS ARCHIVOS DEL TURNO
+    // =========================================================================
+    async function procesarArchivosTurno() {
+      if (!fileObjPlan && !fileObjRecol && !fileObjHCarga && !fileObjExistencias && planDataDiaria.length === 0 && planDataPendiente.length === 0) {
+        alert("Por favor selecciona los archivos operativos del día o haz clic en Sync Ahora.");
+        return;
+      }
+
+      const btn = document.getElementById('btn-procesar-todo');
+      btn.disabled = true;
+      btn.innerText = "Procesando...";
+
+      try {
+        if (fileObjRecol) {
+          const txtRecol = await leerArchivoTexto(fileObjRecol);
+          procesarListaRecoleccionCSV(txtRecol);
+        }
+
+        if (fileObjHCarga) {
+          const txtHCarga = await leerArchivoTexto(fileObjHCarga);
+          procesarHCargaCSV(txtHCarga);
+        }
+
+        if (fileObjPlan) {
+          const bufferPlan = await leerArchivoBuffer(fileObjPlan);
+          procesarPlanCargaWorkbook(bufferPlan);
+        }
+
+        if (fileObjExistencias) {
+          const txtEx = await leerArchivoTexto(fileObjExistencias);
+          procesarExistenciasCSV(txtEx);
+        }
+
+        if (rawInventarioWMS.length > 0 && recoleccionFullItems.length > 0) {
+          ejecutarDiagnosticoM2();
+          ejecutarAsignacionPEPSM3();
+        }
+
+        autoArchivarCompletadosSilencioso();
+
+        cerrarModalOperativos();
+        document.getElementById('empty-state-panel').classList.add('hidden');
+        document.getElementById('container-mod-1').classList.remove('hidden');
+        document.getElementById('table-container-m1').classList.remove('hidden');
+
+        actualizarResumenArchivos();
+        switchMainTab(activeModule);
+
+      } catch (err) {
+        alert("Error al procesar archivos: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i><span>Calcular y Sincronizar Todo</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    function leerArchivoTexto(file) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = e => rej(e);
+        r.readAsText(file, 'ISO-8859-1');
+      });
+    }
+
+    function leerArchivoBuffer(file) {
+      return new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = e => rej(e);
+        r.readAsArrayBuffer(file);
+      });
+    }
+
+    // =========================================================================
+    // 10. MOTOR RECOLECCIÓN CSV
+    // =========================================================================
+    function procesarListaRecoleccionCSV(csvText) {
+      const lines = csvText.split(/\r\n|\n/);
+      if (lines.length <= 1) return;
+
+      const viajesMap = {};
+      recoleccionFullItems = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
+        let cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 10) continue;
+
+        let sku = cols[0];
+        let stdCsv = parseFloat(cols[1].replace(/,/g, '')) || 0;
+        let qty = parseFloat(cols[2].replace(/,/g, '')) || 0;
+        let desc = cols[3] || "";
+        let shipment = cols[9];
+        let cliente = cols[10] || "";
+
+        if (!shipment || !sku || isNaN(qty)) continue;
+
+        let stdOficial = catalogoMaterialesMap[sku] || stdCsv;
+
+        if (!viajesMap[shipment]) viajesMap[shipment] = {};
+
+        if (viajesMap[shipment][sku]) {
+          let actualStd = viajesMap[shipment][sku].std;
+          if (Math.abs(stdCsv - stdOficial) < Math.abs(actualStd - stdOficial)) {
+            viajesMap[shipment][sku] = { qty, std: stdCsv > 0 ? stdCsv : stdOficial, desc, cliente };
+          }
+        } else {
+          viajesMap[shipment][sku] = { qty, std: stdCsv > 0 ? stdCsv : stdOficial, desc, cliente };
+        }
+      }
+
+      recoleccionResumen = {};
+
+      for (let sh in viajesMap) {
+        let totCajas = 0;
+        let partidasConPicking = 0;
+
+        for (let sku in viajesMap[sh]) {
+          let item = viajesMap[sh][sku];
+          let qty = item.qty;
+          let std = item.std;
+          let cajasPick = 0;
+          let palletsCompletos = 0;
+
+          if (std > 0) {
+            palletsCompletos = Math.floor(qty / std);
+            let residuo = qty % std;
+            if ((residuo / std) < 0.785) {
+              cajasPick = residuo;
+            } else {
+              palletsCompletos += 1;
+            }
+          } else {
+            cajasPick = qty;
+          }
+
+          if (cajasPick > 0) {
+            totCajas += cajasPick;
+            partidasConPicking++;
+          }
+
+          recoleccionFullItems.push({
+            shipment: sh,
+            sku: sku,
+            desc: item.desc,
+            cliente: item.cliente,
+            qtyTotal: qty,
+            std: std,
+            cajasPick: cajasPick,
+            palletsDemanda: palletsCompletos + (cajasPick > 0 ? 1 : 0)
+          });
+        }
+
+        recoleccionResumen[sh] = {
+          cajasPicking: Math.round(totCajas),
+          tareas: partidasConPicking
+        };
+      }
+    }
+
+    // =========================================================================
+    // 11. MOTOR H.CARGA CSV
+    // =========================================================================
+    function procesarHCargaCSV(csvText) {
+      const lines = csvText.split(/\r\n|\n/);
+      if (lines.length <= 1) return;
+
+      avanceWmsMap = {};
+
+      for (let i = 1; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
+        let cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 11) continue;
+
+        let shipment = cols[10];
+        if (!shipment || isNaN(Number(shipment))) continue;
+
+        let statusHCarga = (cols[6] || "").toUpperCase();
+        let picadas = parseFloat((cols[39] || "0").replace(/,/g, '')) || 0;
+        let totalRestos = parseFloat((cols[38] || "0").replace(/,/g, '')) || 0;
+        let bahia = cols[46] || "";
+
+        let pct = 0;
+        if (totalRestos > 0) pct = Math.round((picadas / totalRestos) * 100);
+
+        if (!avanceWmsMap[shipment] || picadas > avanceWmsMap[shipment].picadas) {
+          avanceWmsMap[shipment] = {
+            picadas: Math.round(picadas),
+            total: Math.round(totalRestos),
+            pct: pct,
+            bahia: bahia,
+            status: statusHCarga,
+            solicitado: true
+          };
+        }
+      }
+    }
+
+    // =========================================================================
+    // 12. MOTOR PLAN DE CARGA EXCEL (CARGA MANUAL)
+    // =========================================================================
+    function procesarPlanCargaWorkbook(buffer) {
+      rawWorkbookPlan = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
+      let sheets = rawWorkbookPlan.SheetNames;
+
+      pestañasDiariasDetectadas = [];
+      const sel = document.getElementById('sel-fecha-diaria');
+      sel.innerHTML = '<option value="AUTO">Automático (Más Reciente)</option>';
+
+      sheets.forEach(s => {
+        let sUpper = s.toUpperCase();
+        if (sUpper !== 'PENDIENTE' && sUpper !== 'EXPO' && !sUpper.includes('RESPUESTA') && !sUpper.includes('INTRAS') && !sUpper.includes('BASE DE DATOS') && !sUpper.includes('HOJA 1')) {
+          pestañasDiariasDetectadas.push(s);
+          let opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          sel.appendChild(opt);
+        }
+      });
+
+      if (sheets.includes("PENDIENTE")) {
+        planDataPendiente = extraerFilasDePlan(rawWorkbookPlan.Sheets["PENDIENTE"]).map((r, i) => ({ ...r, _ordenOriginal: i }));
+      } else {
+        planDataPendiente = [];
+      }
+
+      if (pestañasDiariasDetectadas.length > 0) {
+        hojaDiariaSeleccionada = pestañasDiariasDetectadas[0];
+        planDataDiaria = extraerFilasDePlan(rawWorkbookPlan.Sheets[hojaDiariaSeleccionada]).map((r, i) => ({ ...r, _ordenOriginal: i }));
+        document.getElementById('lbl-tab-diaria').textContent = `PESTAÑA DIARIA (${hojaDiariaSeleccionada})`;
+      } else {
+        planDataDiaria = [];
+      }
+    }
+
+    function extraerFilasDePlan(sheet) {
+      if (!sheet) return [];
+      let rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      if (rows.length <= 1) return [];
+
+      let headerIdx = -1;
+      let colMap = { linea: 0, shipment: 1, cita: 2, cajas: 5, cliente: 6, destino: 7, carga: 11 };
+
+      for (let i = 0; i < Math.min(rows.length, 12); i++) {
+        let r = rows[i].map(c => String(c).toUpperCase().trim());
+        if (r.some(c => c.includes("SHIPMENT") || c.includes("TRANSPORTISTA"))) {
+          headerIdx = i;
+          r.forEach((c, idx) => {
+            if (c.includes("TRANSPORTISTA") || c.includes("LINEA")) colMap.linea = idx;
+            else if (c.includes("SHIPMENT")) colMap.shipment = idx;
+            else if (c.includes("CITA")) colMap.cita = idx;
+            else if (c.includes("CAJAS")) colMap.cajas = idx;
+            else if (c.includes("CLIENTE")) colMap.cliente = idx;
+            else if (c.includes("DESTINO")) colMap.destino = idx;
+            else if (c.includes("CARGA")) colMap.carga = idx;
+          });
+          break;
+        }
+      }
+
+      let inicio = headerIdx !== -1 ? headerIdx + 1 : 1;
+      let lista = [];
+
+      for (let i = inicio; i < rows.length; i++) {
+        let r = rows[i];
+        if (!r || r.length === 0) continue;
+
+        let shipment = String(r[colMap.shipment] || "").replace(/\|/g, '').trim();
+        let linea = String(r[colMap.linea] || "").trim();
+        if (!shipment && !linea) continue;
+
+        let citaRaw = r[colMap.cita];
+        let citaStr = formatFechaCita(citaRaw);
+        let cliente = String(r[colMap.cliente] || "").trim();
+        let destino = String(r[colMap.destino] || "").trim();
+        let tipoCarga = String(r[colMap.carga] || "PICKING").trim().toUpperCase();
+
+        lista.push({
+          linea: linea,
+          shipment: shipment,
+          cita: citaStr,
+          citaRaw: citaRaw,
+          cliente: cliente,
+          destino: destino,
+          tipoCarga: tipoCarga
+        });
+      }
+
+      return lista;
+    }
+
+    function formatFechaCita(val) {
+      if (!val) return "";
+      if (val instanceof Date) {
+        let d = val.getDate().toString().padStart(2, '0');
+        let m = (val.getMonth() + 1).toString().padStart(2, '0');
+        let y = val.getFullYear();
+        let h = val.getHours().toString().padStart(2, '0');
+        let min = val.getMinutes().toString().padStart(2, '0');
+        return `${d}/${m}/${y} ${h}:${min}:00`;
+      }
+      return String(val).trim();
+    }
+
+    function cambiarHojaDiaria(nombreHoja) {
+      if (!rawWorkbookPlan) return;
+      hojaDiariaSeleccionada = (nombreHoja === "AUTO") ? pestañasDiariasDetectadas[0] : nombreHoja;
+      planDataDiaria = extraerFilasDePlan(rawWorkbookPlan.Sheets[hojaDiariaSeleccionada]).map((r, i) => ({ ...r, _ordenOriginal: i }));
+      document.getElementById('lbl-tab-diaria').textContent = `PESTAÑA DIARIA (${hojaDiariaSeleccionada})`;
+      renderTablaM1();
+    }
+
+    // =========================================================================
+    // 13. MOTOR EXISTENCIAS CSV
+    // =========================================================================
+    function procesarExistenciasCSV(csvText) {
+      const lines = csvText.split(/\r\n|\n/);
+      if (lines.length <= 1) return;
+
+      rawInventarioWMS = [];
+      stockPorSkuMapa = {};
+
+      const excludedAreas = ["DAÑOS", "DANOS", "CORTINAS", "STAGE", "ZONAQI"];
+
+      for (let i = 1; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line) continue;
+        let cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 12) continue;
+
+        let cant = parseFloat(cols[0].replace(/,/g, '')) || 0;
+        let sku = cols[1];
+        let desc = cols[2];
+        let ubic = cols[5];
+        let area = (cols[6] || "").toUpperCase();
+        let fCad = cols[8];
+        let diasVida = parseFloat(cols[9]) || 0;
+        let batch = cols[11];
+        let lpn = cols[15] || cols[7] || "SIN LPN";
+
+        if (!sku || cant <= 0) continue;
+        if (excludedAreas.includes(area) || area.includes("DAÑ") || area.includes("QI")) continue;
+
+        let record = { cant, sku, desc, ubic, area, fCad, diasVida, batch, lpn };
+        rawInventarioWMS.push(record);
+
+        if (!stockPorSkuMapa[sku]) {
+          stockPorSkuMapa[sku] = {
+            pickN1: [],
+            bulkRoja: [],
+            naranja: [],
+            racksAltos: [],
+            totalQty: 0,
+            tarimas: []
+          };
+        }
+
+        stockPorSkuMapa[sku].totalQty += cant;
+        stockPorSkuMapa[sku].tarimas.push(record);
+
+        if (area === 'PICK' || (ubic.startsWith('P') && !ubic.startsWith('BP'))) {
+          stockPorSkuMapa[sku].pickN1.push(record);
+        } else if (area === 'BULKPK' || area === 'RACKS' || ubic.startsWith('BP') || ubic.startsWith('R')) {
+          stockPorSkuMapa[sku].racksAltos.push(record);
+        } else if (area === 'BULK') {
+          stockPorSkuMapa[sku].bulkRoja.push(record);
+        } else if (area === 'NARANJA') {
+          stockPorSkuMapa[sku].naranja.push(record);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 14. CRUCE Y CÁLCULOS DEL MÓDULO 2 (SURTIBILIDAD)
+    // =========================================================================
+    function ejecutarDiagnosticoM2() {
+      const shipmentsGroup = {};
+
+      recoleccionFullItems.forEach(it => {
+        if (!shipmentsGroup[it.shipment]) {
+          shipmentsGroup[it.shipment] = {
+            shipment: it.shipment,
+            cliente: it.cliente,
+            items: []
+          };
+        }
+        shipmentsGroup[it.shipment].items.push(it);
+      });
+
+      m2ShipmentsEvaluados = [];
+      let cntCubiertos = 0, cntBajadas = 0, cntTraspasos = 0, cntQuiebres = 0;
+
+      for (let sh in shipmentsGroup) {
+        let shObj = shipmentsGroup[sh];
+        let itemsEvaluados = [];
+        let totalCajasPick = 0;
+        let totalStockPiso = 0;
+        let totalDeficit = 0;
+        let shHasQuiebre = false;
+        let shHasTraspaso = false;
+        let shHasBajada = false;
+
+        shObj.items.forEach(it => {
+          let req = it.cajasPick;
+          if (req === 0) return;
+
+          totalCajasPick += req;
+          let stockInfo = stockPorSkuMapa[it.sku] || { pickN1: [], bulkRoja: [], naranja: [], racksAltos: [], totalQty: 0 };
+          
+          let stockN1 = stockInfo.pickN1.reduce((sum, r) => sum + r.cant, 0);
+          let ubicPickStr = stockInfo.pickN1.length > 0 ? stockInfo.pickN1.map(p => p.ubic).join(', ') : "Sin Nivel 1";
+          totalStockPiso += stockN1;
+
+          let deficit = Math.max(0, req - stockN1);
+          totalDeficit += deficit;
+
+          let s1 = "-", s2 = "-", s3 = "-";
+          let esTraspaso = false;
+          let skuStatus = "CUBIERTO";
+
+          if (deficit > 0) {
+            let opciones = [];
+            stockInfo.racksAltos.forEach(r => opciones.push({ ubic: r.ubic, cant: r.cant, tipo: 'RACK' }));
+            stockInfo.bulkRoja.forEach(r => opciones.push({ ubic: r.ubic, cant: r.cant, tipo: 'BULK_ROJA' }));
+            stockInfo.naranja.forEach(r => opciones.push({ ubic: r.ubic, cant: r.cant, tipo: 'NARANJA' }));
+
+            if (opciones.length > 0) {
+              s1 = `${opciones[0].ubic} [${opciones[0].tipo}] (${opciones[0].cant} cjs)`;
+              if (opciones[1]) s2 = `${opciones[1].ubic} [${opciones[1].tipo}] (${opciones[1].cant} cjs)`;
+              if (opciones[2]) s3 = `${opciones[2].ubic} [${opciones[2].tipo}] (${opciones[2].cant} cjs)`;
+
+              let soloEnNaranja = stockInfo.racksAltos.length === 0 && stockInfo.bulkRoja.length === 0 && stockInfo.naranja.length > 0;
+              if (soloEnNaranja) {
+                skuStatus = "TRASPASO NARANJA";
+                esTraspaso = true;
+                shHasTraspaso = true;
+              } else {
+                skuStatus = "BAJADA REQUERIDA";
+                shHasBajada = true;
+              }
+            } else {
+              s1 = "⚠️ Sin existencias en Bodega";
+              skuStatus = "QUIEBRE CRÍTICO";
+              shHasQuiebre = true;
+            }
+          }
+
+          itemsEvaluados.push({
+            sku: it.sku,
+            desc: it.desc,
+            cajasReq: req,
+            stockN1: stockN1,
+            ubicPick: ubicPickStr,
+            deficit: deficit,
+            s1: s1,
+            s2: s2,
+            s3: s3,
+            esTraspaso: esTraspaso,
+            stockTotal: stockInfo.totalQty,
+            skuStatus: skuStatus
+          });
+        });
+
+        if (itemsEvaluados.length === 0) continue;
+
+        let statusFinal = "CUBIERTO";
+        if (shHasQuiebre) {
+          statusFinal = "QUIEBRE CRÍTICO";
+          cntQuiebres++;
+        } else if (shHasTraspaso) {
+          statusFinal = "TRASPASO NARANJA";
+          cntTraspasos++;
+        } else if (shHasBajada) {
+          statusFinal = "BAJADA REQUERIDA";
+          cntBajadas++;
+        } else {
+          cntCubiertos++;
+        }
+
+        m2ShipmentsEvaluados.push({
+          shipment: sh,
+          shipmentFinal: sh.endsWith('|') ? sh : `${sh}|`,
+          cliente: shObj.cliente,
+          totalSkus: itemsEvaluados.length,
+          totalCajasPick: totalCajasPick,
+          totalStockPiso: totalStockPiso,
+          totalDeficit: totalDeficit,
+          status: statusFinal,
+          items: itemsEvaluados
+        });
+      }
+
+      document.getElementById('kpi-m2-viajes').textContent = m2ShipmentsEvaluados.length;
+      document.getElementById('kpi-m2-cubiertos').textContent = cntCubiertos;
+      document.getElementById('kpi-m2-bajadas').textContent = cntBajadas;
+      document.getElementById('kpi-m2-traspasos').textContent = cntTraspasos;
+      document.getElementById('kpi-m2-quiebres').textContent = cntQuiebres;
+    }
+
+    function exportarM2ParaAppAndroid() {
+      if (!m2ShipmentsEvaluados || m2ShipmentsEvaluados.length === 0) {
+        alert("No hay viajes evaluados en Módulo 2 para exportar. Carga primero la Lista de Recolección y EXISTENCIAS.");
+        return;
+      }
+
+      const payload = {
+        version: "SAM21_M2_AUDIT_V1",
+        timestamp: new Date().toISOString(),
+        totalViajes: m2ShipmentsEvaluados.length,
+        shipments: m2ShipmentsEvaluados.map(s => ({
+          shipment: s.shipment,
+          shipmentFinal: s.shipmentFinal,
+          cliente: s.cliente,
+          totalSkus: s.totalSkus,
+          totalCajasPick: s.totalCajasPick,
+          totalStockPiso: s.totalStockPiso,
+          totalDeficit: s.totalDeficit,
+          status: s.status,
+          items: s.items.map(it => ({
+            sku: it.sku,
+            desc: it.desc,
+            cajasReq: it.cajasReq,
+            stockN1: it.stockN1,
+            ubicPick: it.ubicPick,
+            deficit: it.deficit,
+            skuStatus: it.skuStatus
+          }))
+        }))
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `sam21_modulo2_audit_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // =========================================================================
+    // 15. CRUCE Y CÁLCULOS DEL MÓDULO 3 (CONTROL PEPS / VIGENCIAS)
+    // =========================================================================
+    function clasificarDestinoViaje(shipment) {
+      let s = String(shipment || "").trim();
+      if (s.startsWith('90000')) {
+        return { codigo: 'EXPO', minDias: 365, minMeses: '12 Meses', badge: '<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-black">EXPO (12M)</span>' };
+      } else if (s.startsWith('700') || s.startsWith('24000')) {
+        return { codigo: 'CLIENTE', minDias: 180, minMeses: '6 Meses', badge: '<span class="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded font-black">CLIENTE (6M)</span>' };
+      } else if (s.startsWith('8000')) {
+        return { codigo: 'INTRA', minDias: 180, minMeses: '≥ 6 Meses', badge: '<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-black">INTRA (6M)</span>' };
+      }
+      return { codigo: 'GENERAL', minDias: 180, minMeses: '6 Meses', badge: '<span class="bg-gray-100 text-gray-800 text-[10px] px-2 py-0.5 rounded font-black">GENERAL (6M)</span>' };
+    }
+
+    function ejecutarAsignacionPEPSM3() {
+      const tarimasDisponiblesPorSku = {};
+      for (let sku in stockPorSkuMapa) {
+        tarimasDisponiblesPorSku[sku] = stockPorSkuMapa[sku].tarimas.map(t => ({ ...t, asignado: false }));
+      }
+
+      const shipmentsGroup = {};
+      recoleccionFullItems.forEach(it => {
+        if (!shipmentsGroup[it.shipment]) shipmentsGroup[it.shipment] = [];
+        shipmentsGroup[it.shipment].push(it);
+      });
+
+      m3PepsShipments = [];
+      let totTarimasSol = 0, totValidas = 0, totRiesgo = 0, totSinStock = 0;
+
+      for (let sh in shipmentsGroup) {
+        let dest = clasificarDestinoViaje(sh);
+        let itemsDemanda = shipmentsGroup[sh];
+        let tarimasAsignadasViaje = [];
+        let shRiesgoCount = 0;
+        let shSinStockCount = 0;
+
+        itemsDemanda.forEach(dem => {
+          let cantTarimasPedidas = dem.palletsDemanda;
+          totTarimasSol += cantTarimasPedidas;
+
+          let stockTarimas = (tarimasDisponiblesPorSku[dem.sku] || []);
+
+          let validas = stockTarimas.filter(t => !t.asignado && t.diasVida >= dest.minDias).sort((a,b) => a.diasVida - b.diasVida);
+          let riesgo = stockTarimas.filter(t => !t.asignado && t.diasVida < dest.minDias).sort((a,b) => a.diasVida - b.diasVida);
+
+          let asignadas = 0;
+
+          for (let t of validas) {
+            if (asignadas >= cantTarimasPedidas) break;
+            t.asignado = true;
+            asignadas++;
+            totValidas++;
+            tarimasAsignadasViaje.push({
+              orden: `#${tarimasAsignadasViaje.length + 1}`,
+              sku: dem.sku,
+              desc: dem.desc,
+              lpn: t.lpn,
+              ubic: t.ubic,
+              cant: t.cant,
+              diasVida: t.diasVida,
+              fCad: t.fCad,
+              status: 'OK',
+              statusBadge: '<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-black">✅ VÁLIDO PEPS</span>'
+            });
+          }
+
+          if (asignadas < cantTarimasPedidas) {
+            for (let t of riesgo) {
+              if (asignadas >= cantTarimasPedidas) break;
+              t.asignado = true;
+              asignadas++;
+              totRiesgo++;
+              shRiesgoCount++;
+              tarimasAsignadasViaje.push({
+                orden: `#${tarimasAsignadasViaje.length + 1}`,
+                sku: dem.sku,
+                desc: dem.desc,
+                lpn: t.lpn,
+                ubic: t.ubic,
+                cant: t.cant,
+                diasVida: t.diasVida,
+                fCad: t.fCad,
+                status: 'RIESGO',
+                statusBadge: `<span class="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded font-black border border-red-300">⚠️ RIESGO (&lt;${dest.minMeses})</span>`
+              });
+            }
+          }
+
+          let faltantes = cantTarimasPedidas - asignadas;
+          for (let f = 1; f <= faltantes; f++) {
+            totSinStock++;
+            shSinStockCount++;
+            tarimasAsignadasViaje.push({
+              orden: `#${tarimasAsignadasViaje.length + 1}`,
+              sku: dem.sku,
+              desc: dem.desc,
+              lpn: 'SIN LPN',
+              ubic: 'SIN EXISTENCIA',
+              cant: 0,
+              diasVida: '-',
+              fCad: '-',
+              status: 'SIN_STOCK',
+              statusBadge: '<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-black">❌ SIN STOCK</span>'
+            });
+          }
+        });
+
+        let statusViaje = "SURTIBLE 100%";
+        if (shRiesgoCount > 0) statusViaje = `CON OBSERVACIONES (${shRiesgoCount} RIESGO)`;
+        else if (shSinStockCount > 0) statusViaje = `FALTANTE (${shSinStockCount} S/STOCK)`;
+
+        m3PepsShipments.push({
+          shipment: sh,
+          shipmentFinal: sh.endsWith('|') ? sh : `${sh}|`,
+          destCodigo: dest.codigo,
+          destBadge: dest.badge,
+          reglaMin: dest.minMeses,
+          statusViaje: statusViaje,
+          tarimas: tarimasAsignadasViaje
+        });
+      }
+
+      document.getElementById('kpi-m3-solicitadas').textContent = totTarimasSol;
+      document.getElementById('kpi-m3-validas').textContent = totValidas;
+      document.getElementById('kpi-m3-riesgo').textContent = totRiesgo;
+      document.getElementById('kpi-m3-sinstock').textContent = totSinStock;
+    }
+
+    // =========================================================================
+    // 16. RENDERIZADO VISUAL DEL MÓDULO 1
+    // =========================================================================
+    function cambiarVistaOperativa(vista) {
+      vistaActivaM1 = vista;
+      const btnDiaria = document.getElementById('tab-btn-diaria');
+      const btnPend = document.getElementById('tab-btn-pendiente');
+
+      if (vista === 'DIARIA') {
+        btnDiaria.className = "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-black transition bg-[#182237] text-white shadow-sm";
+        btnPend.className = "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold text-gray-600 hover:text-[#182237] hover:bg-gray-100 transition";
+        document.getElementById('lbl-table-title').innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-600"></span> PESTAÑA DIARIA (${hojaDiariaSeleccionada || 'PLAN DEL DÍA'})`;
+      } else {
+        btnPend.className = "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-black transition bg-[#182237] text-white shadow-sm";
+        btnDiaria.className = "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold text-gray-600 hover:text-[#182237] hover:bg-gray-100 transition";
+        document.getElementById('lbl-table-title').innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> PENDIENTE DE PLANEACIÓN (BACKLOG / SIN CITA)`;
+      }
+
+      renderTablaM1();
+    }
+
+    let shipmentsVisiblesActualesM1 = [];
+
+    function renderTablaM1() {
+      const baseList = (vistaActivaM1 === 'DIARIA') ? planDataDiaria : planDataPendiente;
+      const tbody = document.getElementById('table-body-m1');
+      tbody.innerHTML = '';
+
+      let listaCombinada = [];
+
+      if (baseList.length > 0) {
+        listaCombinada = baseList.map(item => {
+          let rec = recoleccionResumen[item.shipment] || { cajasPicking: 0, tareas: 0 };
+          let wms = avanceWmsMap[item.shipment] || null;
+          
+          let pikingVal = rec.cajasPicking;
+          let avanceVal = wms ? wms.picadas : 0;
+          let difVal = avanceVal - pikingVal;
+          let tareasVal = rec.tareas;
+
+          let estaSolicitado = !!wms;
+
+          let shipFormateado = item.shipment ? (item.shipment.endsWith('|') ? item.shipment : `${item.shipment}|`) : '';
+          return {
+            ...item,
+            shipment: item.shipment.replace(/\|/g, ''),
+            shipmentFinal: shipFormateado,
+            tareas: tareasVal,
+            piking: pikingVal,
+            avance: avanceVal,
+            dif: difVal,
+            estaSolicitado: estaSolicitado,
+            statusWms: wms ? wms.status : "SIN SOLICITUD"
+          };
+        });
+      }
+
+      const filtroTipo = document.getElementById('sel-filtro-tipo').value;
+      const query = (document.getElementById('txt-search-m1').value || "").toLowerCase().trim();
+
+      let filtrados = listaCombinada.filter(r => {
+        const esCompletado = (r.dif === 0 && (r.piking > 0 || r.avance > 0));
+
+        if (filtroTipo === 'ALL') {
+          // Muestra absolutamente todos los viajes sin omitir nada
+        } else if (filtroTipo === 'COMPLETOS') {
+          if (!esCompletado) return false;
+        } else {
+          if (filtroTipo === 'CON_DIF' && !esCompletado && r.dif >= 0 && (r.piking > 0 || r.avance > 0)) return false;
+          if (filtroTipo === 'SOLO_SOLICITADOS' && !r.estaSolicitado) return false;
+          if (filtroTipo === 'SOLO_NO_SOLICITADOS' && r.estaSolicitado) return false;
+
+          const cargaNorm = String(r.tipoCarga || "").toUpperCase().trim();
+          if (filtroTipo === 'SOLO_PICKING' && !cargaNorm.includes('PICK')) return false;
+          if (filtroTipo === 'SOLO_CLUB' && !cargaNorm.includes('CLUB')) return false;
+        }
+
+        if (query) {
+          let match = r.shipment.toLowerCase().includes(query) ||
+                      r.linea.toLowerCase().includes(query) ||
+                      r.cliente.toLowerCase().includes(query) ||
+                      r.destino.toLowerCase().includes(query) ||
+                      r.cita.toLowerCase().includes(query);
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      // Ordenamiento por columna o por orden original de Sheets
+      filtrados.sort((a, b) => {
+        if (sortColumnM1 === "ORIGINAL") {
+          return (a._ordenOriginal || 0) - (b._ordenOriginal || 0);
+        }
+
+        let valA = a[sortColumnM1];
+        let valB = b[sortColumnM1];
+
+        if (["piking", "tareas", "avance", "dif"].includes(sortColumnM1)) {
+          let numA = parseFloat(valA) || 0;
+          let numB = parseFloat(valB) || 0;
+          return (sortDirectionM1 === "DESC") ? numB - numA : numA - numB;
+        }
+
+        let strA = String(valA || "").toLowerCase();
+        let strB = String(valB || "").toLowerCase();
+        if (strA < strB) return (sortDirectionM1 === "DESC") ? 1 : -1;
+        if (strA > strB) return (sortDirectionM1 === "DESC") ? -1 : 1;
+        return 0;
+      });
+
+      actualizarIconosOrdenamiento();
+
+      shipmentsVisiblesActualesM1 = filtrados.map(r => r.shipmentFinal || `${r.shipment}|`);
+
+      document.getElementById('badge-count-diaria').textContent = planDataDiaria.length;
+      document.getElementById('badge-count-pendiente').textContent = planDataPendiente.length;
+      document.getElementById('lbl-table-rows-count').textContent = `${filtrados.length} Viajes mostrados`;
+
+      let totTareas = 0, totPiking = 0, totAvance = 0;
+      filtrados.forEach(r => {
+        totTareas += r.tareas || 0;
+        totPiking += r.piking || 0;
+        totAvance += r.avance || 0;
+      });
+      let totDif = totAvance - totPiking;
+
+      document.getElementById('kpi-tareas').textContent = totTareas.toLocaleString('es-MX');
+      document.getElementById('kpi-piking').textContent = totPiking.toLocaleString('es-MX');
+      document.getElementById('kpi-avance').textContent = totAvance.toLocaleString('es-MX');
+      document.getElementById('kpi-dif').textContent = totDif.toLocaleString('es-MX');
+
+      let pctAvanceGlobal = totPiking > 0 ? Math.round((totAvance / totPiking) * 100) : 0;
+      document.getElementById('kpi-avance-pct').textContent = `${pctAvanceGlobal}% surtido WMS`;
+
+      if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-gray-500 font-semibold text-xs">No hay embarques con los filtros seleccionados.</td></tr>`;
+        return;
+      }
+
+      filtrados.forEach(r => {
+        let chipSemaforoClass = r.estaSolicitado
+          ? "bg-[#DCFCE7] text-[#166534] border border-[#86EFAC]"
+          : "bg-[#FFEDD5] text-[#9A3412] border border-[#FDBA74]";
+
+        let badgeDotColor = r.estaSolicitado ? "bg-emerald-600" : "bg-amber-600";
+        let tooltipTexto = r.estaSolicitado ? "Viaje SOLICITADO en H.CARGA" : "Viaje NO SOLICITADO aún";
+
+        let row = document.createElement('tr');
+        row.className = "hover:bg-blue-50/30 transition border-b border-gray-200 text-xs";
+        row.innerHTML = `
+          <td class="py-2.5 px-3 text-center font-black font-mono text-gray-900 bg-yellow-100/50 border-r border-yellow-200">${r.tareas || ''}</td>
+          <td class="py-2.5 px-3 text-center font-black font-mono text-blue-900 bg-blue-50/30 border-r border-gray-200">${r.piking ? r.piking.toLocaleString('es-MX') : 0}</td>
+          <td class="py-2.5 px-3 text-center font-bold font-mono text-emerald-700 border-r border-gray-200">${r.avance ? r.avance.toLocaleString('es-MX') : 0}</td>
+          <td class="py-2.5 px-3 text-center font-black font-mono ${r.dif < 0 ? 'text-red-600' : 'text-emerald-700'} border-r border-gray-200">${r.dif ? r.dif.toLocaleString('es-MX') : 0}</td>
+          <td class="py-2.5 px-4 font-semibold text-gray-800 border-r border-gray-200 truncate max-w-[260px]" title="${r.linea}">${r.linea}</td>
+          <td class="py-2.5 px-4 text-center border-r border-gray-200" title="${tooltipTexto}">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono font-black text-xs shadow-2xs ${chipSemaforoClass}">
+              <span class="w-2 h-2 rounded-full ${badgeDotColor}"></span>
+              <span>${r.shipmentFinal}</span>
+            </span>
+          </td>
+          <td class="py-2.5 px-4 font-mono font-medium text-gray-700 border-r border-gray-200">${r.cita}</td>
+          <td class="py-2.5 px-4 font-bold text-gray-900 border-r border-gray-200 truncate max-w-[220px]" title="${r.cliente}">${r.cliente}</td>
+          <td class="py-2.5 px-4 font-medium text-gray-700 truncate max-w-[260px]" title="${r.destino}">${r.destino}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // =========================================================================
+    // 17. COPIAR SHIPMENTS VISIBLES DE AMBAS PESTAÑAS RESPETANDO FILTROS
+    // =========================================================================
+    function copiarColumnaShipments() {
+      const filtroTipo = document.getElementById('sel-filtro-tipo').value;
+      const query = (document.getElementById('txt-search-m1').value || "").toLowerCase().trim();
+
+      function cumpleFiltros(r) {
+        const esCompletado = (r.dif === 0 && (r.piking > 0 || r.avance > 0));
+
+        if (filtroTipo === 'ALL') {
+          // Copia todos los que cumplan con la búsqueda de texto
+        } else if (filtroTipo === 'COMPLETOS') {
+          if (!esCompletado) return false;
+        } else {
+          if (filtroTipo === 'CON_DIF' && !esCompletado && r.dif >= 0 && (r.piking > 0 || r.avance > 0)) return false;
+          if (filtroTipo === 'SOLO_SOLICITADOS' && !r.estaSolicitado) return false;
+          if (filtroTipo === 'SOLO_NO_SOLICITADOS' && r.estaSolicitado) return false;
+
+          const cargaNorm = String(r.tipoCarga || "").toUpperCase().trim();
+          if (filtroTipo === 'SOLO_PICKING' && !cargaNorm.includes('PICK')) return false;
+          if (filtroTipo === 'SOLO_CLUB' && !cargaNorm.includes('CLUB')) return false;
+        }
+
+        if (query) {
+          let match = r.shipment.toLowerCase().includes(query) ||
+                      r.linea.toLowerCase().includes(query) ||
+                      r.cliente.toLowerCase().includes(query) ||
+                      r.destino.toLowerCase().includes(query) ||
+                      r.cita.toLowerCase().includes(query);
+          if (!match) return false;
+        }
+        return true;
+      }
+
+      const shipmentsAplanados = [];
+      const shipmentsUnicos = new Set();
+
+      function procesarLista(baseList) {
+        baseList.forEach(item => {
+          let rec = recoleccionResumen[item.shipment] || { cajasPicking: 0, tareas: 0 };
+          let wms = avanceWmsMap[item.shipment] || null;
+          let pikingVal = rec.cajasPicking;
+          let avanceVal = wms ? wms.picadas : 0;
+          let difVal = avanceVal - pikingVal;
+
+          let shipLimpio = item.shipment.replace(/\|/g, '').trim();
+          let shipFormateado = shipLimpio ? `${shipLimpio}|` : '';
+
+          let registroEvaluado = {
+            ...item,
+            shipment: shipLimpio,
+            shipmentFinal: shipFormateado,
+            piking: pikingVal,
+            avance: avanceVal,
+            dif: difVal,
+            estaSolicitado: !!wms
+          };
+
+          if (cumpleFiltros(registroEvaluado) && !shipmentsUnicos.has(shipFormateado)) {
+            shipmentsUnicos.add(shipFormateado);
+            shipmentsAplanados.push(shipFormateado);
+          }
+        });
+      }
+
+      procesarLista(planDataDiaria);
+      procesarLista(planDataPendiente);
+
+      if (shipmentsAplanados.length === 0) {
+        alert("No se encontraron shipments que cumplan con los filtros en ninguna de las pestañas.");
+        return;
+      }
+
+      const texto = shipmentsAplanados.join('\n');
+      navigator.clipboard.writeText(texto).then(() => {
+        const btnTxt = document.getElementById('btn-copiar-txt');
+        if (btnTxt) {
+          let orig = btnTxt.textContent;
+          btnTxt.textContent = `¡${shipmentsAplanados.length} Copiados (Ambas Hojas)! ✅`;
+          setTimeout(() => btnTxt.textContent = orig, 2500);
+        }
+      }).catch(() => {
+        alert(`Copiados ${shipmentsAplanados.length} shipments filtrados.`);
+      });
+    }
+
+    function exportarVistaM1CSV() {
+      const baseList = (vistaActivaM1 === 'DIARIA') ? planDataDiaria : planDataPendiente;
+      if (baseList.length === 0) return alert("No hay datos para exportar.");
+      let csv = "data:text/csv;charset=utf-8,\uFEFFTareas,PIKING,Avance,Dif,LINEA,SHIPMENT,CITA DE CARGA,NOMBRE DEL CLIENTE,DESTINO,ESTATUS_WMS\n";
+      baseList.forEach(r => {
+        let rec = recoleccionResumen[r.shipment] || { cajasPicking: 0, tareas: 0 };
+        let wms = avanceWmsMap[r.shipment] || null;
+        let piking = rec.cajasPicking;
+        let avance = wms ? wms.picadas : 0;
+        let dif = avance - piking;
+        let estatusSolicitado = wms ? "SOLICITADO" : "NO_SOLICITADO";
+        csv += `"${rec.tareas}","${piking}","${avance}","${dif}","${r.linea}","${r.shipment}|","${r.cita}","${r.cliente}","${r.destino}","${estatusSolicitado}"\n`;
+      });
+      const uri = encodeURI(csv);
+      const link = document.createElement("a");
+      link.setAttribute("href", uri);
+      link.setAttribute("download", `SAM21_${vistaActivaM1}_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // =========================================================================
+    // 18. RENDERIZADO VISUAL DEL MÓDULO 2 (SURTIBILIDAD)
+    // =========================================================================
+    function filtrarM2(filtro) {
+      m2FiltroActual = filtro;
+      ['all', 'bajada', 'traspaso', 'quiebre', 'cubierto'].forEach(f => {
+        let btn = document.getElementById(`btn-m2-f-${f}`);
+        if ((filtro === 'ALL' && f === 'all') ||
+            (filtro === 'BAJADA' && f === 'bajada') ||
+            (filtro === 'TRASPASO' && f === 'traspaso') ||
+            (filtro === 'QUIEBRE' && f === 'quiebre') ||
+            (filtro === 'CUBIERTO' && f === 'cubierto')) {
+          btn.className = "px-3 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-gray-500 hover:bg-white transition";
+        }
+      });
+      renderM2();
+    }
+
+    function toggleAccordionM2(id) {
+      const el = document.getElementById(`m2-detail-${id}`);
+      const arrow = document.getElementById(`m2-arrow-${id}`);
+      if (!el || !arrow) return;
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+      } else {
+        el.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function renderM2() {
+      const container = document.getElementById('m2-accordion-container');
+      container.innerHTML = '';
+
+      if (m2ShipmentsEvaluados.length === 0) {
+        container.innerHTML = `<div class="text-center p-12 text-gray-500 text-xs font-semibold">No hay viajes evaluados. Sube la Lista de Recolección y EXISTENCIAS.</div>`;
+        return;
+      }
+
+      const q = (document.getElementById('txt-search-m2').value || "").toLowerCase().trim();
+
+      let filtrados = m2ShipmentsEvaluados.filter(s => {
+        if (m2FiltroActual === 'BAJADA' && s.status !== 'BAJADA REQUERIDA') return false;
+        if (m2FiltroActual === 'TRASPASO' && s.status !== 'TRASPASO NARANJA') return false;
+        if (m2FiltroActual === 'QUIEBRE' && s.status !== 'QUIEBRE CRÍTICO') return false;
+        if (m2FiltroActual === 'CUBIERTO' && s.status !== 'CUBIERTO') return false;
+
+        if (q) {
+          let matchShip = s.shipmentFinal.toLowerCase().includes(q) || s.cliente.toLowerCase().includes(q);
+          let matchItem = s.items.some(i => i.sku.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q));
+          if (!matchShip && !matchItem) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('badge-m2-count').textContent = `${filtrados.length} Viajes mostrados`;
+
+      filtrados.forEach((s, idx) => {
+        let badgeStatus = '';
+        if (s.status === 'CUBIERTO') {
+          badgeStatus = `<span class="bg-emerald-100 text-emerald-800 text-[11px] px-3 py-1 rounded-full font-black">Cuadrado en Piso</span>`;
+        } else if (s.status === 'TRASPASO NARANJA') {
+          badgeStatus = `<span class="bg-purple-100 text-purple-800 border border-purple-300 text-[11px] px-3 py-1 rounded-full font-black flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-purple-700 animate-pulse"></span> Traspaso Naranja</span>`;
+        } else if (s.status === 'BAJADA REQUERIDA') {
+          badgeStatus = `<span class="bg-amber-100 text-amber-800 text-[11px] px-3 py-1 rounded-full font-black">Bajada Bulk (Roja)</span>`;
+        } else {
+          badgeStatus = `<span class="bg-red-100 text-red-700 text-[11px] px-3 py-1 rounded-full font-black">Quiebre Crítico</span>`;
+        }
+
+        let subRowsHTML = s.items.map(it => `
+          <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-xs">
+            <td class="py-2.5 px-3 font-mono font-black text-[#182237]">${it.sku}</td>
+            <td class="py-2.5 px-3 text-gray-700 truncate max-w-[260px]" title="${it.desc}">${it.desc}</td>
+            <td class="py-2.5 px-3 text-center font-bold text-gray-900">${it.cajasReq}</td>
+            <td class="py-2.5 px-3 text-center font-bold text-gray-900">${it.stockN1} <span class="text-[10px] text-blue-600 font-bold block">${it.ubicPick}</span></td>
+            <td class="py-2.5 px-3 text-center font-black ${it.deficit > 0 ? (it.esTraspaso ? 'text-purple-700' : 'text-red-600') : 'text-emerald-700'}">${it.deficit}</td>
+            <td class="py-2.5 px-3 font-bold text-xs ${it.s1.includes('[NARANJA]') ? 'text-purple-800 bg-purple-50 rounded' : (it.s1.includes('Sin') ? 'text-red-600' : 'text-emerald-800')}">${it.s1}</td>
+            <td class="py-2.5 px-3 text-xs text-gray-600">${it.s2}</td>
+            <td class="py-2.5 px-3 text-xs text-gray-600">${it.s3}</td>
+            <td class="py-2.5 px-3 text-center font-black text-gray-800">${it.stockTotal} cjs</td>
+          </tr>
+        `).join('');
+
+        let card = document.createElement('div');
+        card.className = "bg-white hover:bg-gray-50/50 transition";
+        card.innerHTML = `
+          <div onclick="toggleAccordionM2(${idx})" class="p-3.5 flex items-center justify-between cursor-pointer select-none">
+            <div class="flex items-center gap-3">
+              <span id="m2-arrow-${idx}" class="text-gray-400 text-xs transition-transform duration-200">▼</span>
+              <span class="font-black font-mono text-[#182237] text-sm tracking-wide bg-gray-100 px-2 py-0.5 rounded border border-gray-200">${s.shipmentFinal}</span>
+              <span class="text-xs text-gray-700 font-bold truncate max-w-[200px]">${s.cliente}</span>
+              <span class="text-[11px] text-gray-600 bg-gray-100 px-2 py-0.5 rounded font-bold">${s.totalSkus} SKUs</span>
+            </div>
+
+            <div class="flex items-center gap-8 text-xs font-bold mr-4">
+              <div class="text-center">
+                <span class="text-[10px] text-gray-400 block font-normal uppercase">Cajas Picking</span>
+                <span class="text-sm font-black text-blue-700">${s.totalCajasPick}</span>
+              </div>
+              <div class="text-center">
+                <span class="text-[10px] text-gray-400 block font-normal uppercase">Stock N1</span>
+                <span class="text-sm font-black text-gray-800">${s.totalStockPiso}</span>
+              </div>
+              <div class="text-center">
+                <span class="text-[10px] text-gray-400 block font-normal uppercase">Déficit</span>
+                <span class="text-sm font-black ${s.totalDeficit > 0 ? (s.status === 'TRASPASO NARANJA' ? 'text-purple-700' : 'text-red-600') : 'text-emerald-700'}">${s.totalDeficit}</span>
+              </div>
+              <div>${badgeStatus}</div>
+            </div>
+          </div>
+
+          <div id="m2-detail-${idx}" class="hidden p-3 bg-gray-50 border-t border-gray-200">
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-[#182237] text-white text-[10px] font-bold uppercase tracking-wider">
+                    <th class="py-2.5 px-3">SKU</th>
+                    <th class="py-2.5 px-3">DESCRIPCIÓN</th>
+                    <th class="py-2.5 px-3 text-center">CAJAS REQ</th>
+                    <th class="py-2.5 px-3 text-center">STOCK N1</th>
+                    <th class="py-2.5 px-3 text-center">DÉFICIT</th>
+                    <th class="py-2.5 px-3">1ª OPCIÓN (MÁS CERCANA)</th>
+                    <th class="py-2.5 px-3">2ª OPCIÓN</th>
+                    <th class="py-2.5 px-3">3ª OPCIÓN</th>
+                    <th class="py-2.5 px-3 text-center">TOTAL BODEGA</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${subRowsHTML}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // =========================================================================
+    // 19. RENDERIZADO VISUAL DEL MÓDULO 3 (CONTROL PEPS)
+    // =========================================================================
+    function filtrarM3(filtro) {
+      m3FiltroActual = filtro;
+      ['all', 'ok', 'riesgo', 'sinstock'].forEach(f => {
+        let btn = document.getElementById(`btn-m3-f-${f}`);
+        if ((filtro === 'ALL' && f === 'all') ||
+            (filtro === 'OK' && f === 'ok') ||
+            (filtro === 'RIESGO' && f === 'riesgo') ||
+            (filtro === 'SIN_STOCK' && f === 'sinstock')) {
+          btn.className = "px-3 py-1.5 rounded-md text-xs font-bold bg-white text-[#182237] shadow-xs";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-md text-xs font-semibold text-gray-500 hover:bg-white transition";
+        }
+      });
+      renderM3();
+    }
+
+    function toggleAccordionM3(id) {
+      const el = document.getElementById(`m3-detail-${id}`);
+      const arrow = document.getElementById(`m3-arrow-${id}`);
+      if (!el || !arrow) return;
+      if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+      } else {
+        el.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+      }
+    }
+
+    function toggleAllAccordionM3(abrir) {
+      m3PepsShipments.forEach((_, idx) => {
+        const el = document.getElementById(`m3-detail-${idx}`);
+        const arrow = document.getElementById(`m3-arrow-${idx}`);
+        if (el && arrow) {
+          if (abrir) {
+            el.classList.remove('hidden');
+            arrow.style.transform = 'rotate(180deg)';
+          } else {
+            el.classList.add('hidden');
+            arrow.style.transform = 'rotate(0deg)';
+          }
+        }
+      });
+    }
+
+    function renderM3() {
+      const container = document.getElementById('m3-accordion-container');
+      container.innerHTML = '';
+
+      if (m3PepsShipments.length === 0) {
+        container.innerHTML = `<div class="text-center p-12 text-gray-500 text-xs font-semibold">No hay asignaciones PEPS. Sube EXISTENCIAS y Lista de Recolección[cite: 1].</div>`;
+        return;
+      }
+
+      const q = (document.getElementById('txt-search-m3').value || "").toLowerCase().trim();
+
+      let filtrados = m3PepsShipments.filter(s => {
+        if (m3FiltroActual === 'OK' && !s.statusViaje.includes('100%')) return false;
+        if (m3FiltroActual === 'RIESGO' && !s.statusViaje.includes('RIESGO')) return false;
+        if (m3FiltroActual === 'SIN_STOCK' && !s.statusViaje.includes('S/STOCK')) return false;
+
+        if (q) {
+          let matchShip = s.shipmentFinal.toLowerCase().includes(q) || s.destCodigo.toLowerCase().includes(q);
+          let matchLpn = s.tarimas.some(t => t.lpn.toLowerCase().includes(q) || t.sku.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q));
+          if (!matchShip && !matchLpn) return false;
+        }
+        return true;
+      });
+
+      document.getElementById('badge-m3-count').textContent = `${filtrados.length} Viajes mostrados`;
+
+      filtrados.forEach((s, idx) => {
+        let badgeViaje = '';
+        if (s.statusViaje.includes('100%')) {
+          badgeViaje = `<span class="bg-emerald-100 text-emerald-800 text-[11px] px-3 py-1 rounded-full font-black">100% Válido PEPS</span>`;
+        } else if (s.statusViaje.includes('RIESGO')) {
+          badgeViaje = `<span class="bg-red-100 text-red-700 text-[11px] px-3 py-1 rounded-full font-black border border-red-300">${s.statusViaje}</span>`;
+        } else {
+          badgeViaje = `<span class="bg-amber-100 text-amber-800 text-[11px] px-3 py-1 rounded-full font-black">${s.statusViaje}</span>`;
+        }
+
+        let filasTarimasHTML = s.tarimas.map(t => `
+          <tr class="hover:bg-gray-50 transition border-b border-gray-100 text-xs">
+            <td class="py-2.5 px-3 text-center font-bold text-blue-700 font-mono">${t.orden}</td>
+            <td class="py-2.5 px-3 font-mono font-black text-gray-900">${t.sku}</td>
+            <td class="py-2.5 px-3 text-gray-700 truncate max-w-[240px]" title="${t.desc}">${t.desc}</td>
+            <td class="py-2.5 px-3 font-mono font-bold ${t.lpn.includes('SIN') ? 'text-amber-700 italic' : (t.status === 'RIESGO' ? 'text-red-600 font-black' : 'text-gray-900')}">${t.lpn}</td>
+            <td class="py-2.5 px-3 font-mono font-bold ${t.ubic.includes('SIN') ? 'text-red-600' : 'text-blue-700'}">${t.ubic}</td>
+            <td class="py-2.5 px-3 text-center font-mono">${t.cant > 0 ? t.cant.toLocaleString('es-MX') : '-'}</td>
+            <td class="py-2.5 px-3 text-center font-mono font-bold text-gray-900">${t.diasVida} d</td>
+            <td class="py-2.5 px-3 text-center font-mono text-gray-600">${t.fCad}</td>
+            <td class="py-2.5 px-3 text-center">${t.statusBadge}</td>
+          </tr>
+        `).join('');
+
+        let card = document.createElement('div');
+        card.className = "bg-white hover:bg-gray-50/50 transition";
+        card.innerHTML = `
+          <div onclick="toggleAccordionM3(${idx})" class="p-3.5 flex items-center justify-between cursor-pointer select-none">
+            <div class="flex items-center gap-3">
+              <span id="m3-arrow-${idx}" class="text-gray-400 text-xs transition-transform duration-200">▼</span>
+              <span class="font-black font-mono text-[#182237] text-sm tracking-wide bg-gray-100 px-2 py-0.5 rounded border border-gray-200">${s.shipmentFinal}</span>
+              ${s.destBadge}
+              <span class="text-xs text-gray-500 font-semibold">Regla: <b>${s.reglaMin}</b></span>
+              <span class="text-[11px] text-gray-600 bg-gray-100 px-2 py-0.5 rounded font-bold">${s.tarimas.length} Tarimas</span>
+            </div>
+            <div>${badgeViaje}</div>
+          </div>
+
+          <div id="m3-detail-${idx}" class="hidden p-3 bg-gray-50 border-t border-gray-200">
+            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-[#182237] text-white text-[10px] font-bold uppercase tracking-wider">
+                    <th class="py-2.5 px-3 text-center w-16">ORDEN</th>
+                    <th class="py-2.5 px-3 w-28">SKU</th>
+                    <th class="py-2.5 px-3">DESCRIPCIÓN</th>
+                    <th class="py-2.5 px-3">LPN ASIGNADO</th>
+                    <th class="py-2.5 px-3">UBICACIÓN</th>
+                    <th class="py-2.5 px-3 text-center">PIEZAS</th>
+                    <th class="py-2.5 px-3 text-center">DÍAS VIDA</th>
+                    <th class="py-2.5 px-3 text-center">F. CADUCIDAD</th>
+                    <th class="py-2.5 px-3 text-center">CUMPLIMIENTO PEPS</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${filasTarimasHTML}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function actualizarResumenArchivos() {
+      let p = (planDataDiaria.length > 0 || planDataPendiente.length > 0)
+        ? `Plan: <b>Sheets Sync (${hojaDiariaSeleccionada || 'Activo'})</b>`
+        : (fileObjPlan ? `Plan: <b>${fileObjPlan.name}</b>` : "Sin Plan");
+      let r = fileObjRecol ? `Recol: <b>${fileObjRecol.name}</b>` : "Sin Recol";
+      let h = fileObjHCarga ? `H.CARGA: <b>${fileObjHCarga.name}</b>` : "Sin WMS";
+      let e = fileObjExistencias ? `Existencias: <b>${fileObjExistencias.name}</b>` : "Sin Stock";
+      document.getElementById('status-files-summary').innerHTML = `${p} • ${r} • ${h} • ${e}`;
+    }
+
+    function reiniciarDatos() {
+      if (!confirm("¿Deseas reiniciar todos los módulos?")) return;
+      planDataPendiente = [];
+      planDataDiaria = [];
+      recoleccionResumen = {};
+      recoleccionFullItems = [];
+      avanceWmsMap = {};
+      rawInventarioWMS = [];
+      stockPorSkuMapa = {};
+      m2ShipmentsEvaluados = [];
+      m3PepsShipments = [];
+
+      document.getElementById('container-mod-1').classList.add('hidden');
+      document.getElementById('table-container-m1').classList.add('hidden');
+      document.getElementById('empty-state-panel').classList.remove('hidden');
+      document.getElementById('status-files-summary').textContent = "Esperando sincronización o carga de archivos";
+      renderTablaM1();
+      renderM2();
+      renderM3();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      sincronizarPlanDesdeAppsScript(true);
+      iniciarContadorAutoSync();
+    });
+  </script>
+</body>
+</html>
