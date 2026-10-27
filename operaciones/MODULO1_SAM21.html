@@ -207,7 +207,7 @@
         <div class="flex items-center gap-2 w-full md:w-auto">
           <button id="tab-btn-diaria" onclick="cambiarVistaOperativa('DIARIA')" class="flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-black transition bg-[#182237] text-white shadow-sm">
             <i data-lucide="calendar-check" class="w-4 h-4 text-[#C0D838]"></i>
-            <span id="lbl-tab-diaria">PESTAÑA DIARIA (PLAN DEL DÍA)</span>
+            <span id="lbl-tab-diaria">PLAN DÍA</span>
             <span id="badge-count-diaria" class="bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full font-mono font-bold">0</span>
           </button>
 
@@ -222,7 +222,7 @@
           <div class="flex items-center gap-1.5 text-xs">
             <span class="text-gray-500 font-bold text-[11px] uppercase">Día Plan:</span>
             <select id="sel-fecha-diaria" onchange="cambiarHojaDiaria(this.value)" class="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-[#182237] bg-gray-50 focus:outline-none">
-              <option value="AUTO">Automático (Más Reciente)</option>
+              <option value="">Esperando datos...</option>
             </select>
           </div>
 
@@ -703,13 +703,15 @@
 
     let planDataPendiente = [];
     let planDataDiaria = [];
+    let planDiarioPorPestana = {}; // Mapa dinámico de pestañas { "28-oct": [...], "27-oct": [...] }
+    let pestañasDiariasDetectadas = [];
+    let hojaDiariaSeleccionada = "";
+    let vistaActivaM1 = "DIARIA";
+
     let recoleccionResumen = {};
     let recoleccionFullItems = [];
     let avanceWmsMap = {};
     let rawWorkbookPlan = null;
-    let pestañasDiariasDetectadas = [];
-    let hojaDiariaSeleccionada = "";
-    let vistaActivaM1 = "DIARIA";
 
     let rawInventarioWMS = [];
     let stockPorSkuMapa = {};
@@ -835,15 +837,39 @@
           throw new Error(data.message || "Error al leer datos desde Google Apps Script");
         }
 
-        // Agregar índice original a cada fila para poder restaurar el orden exacto de Sheets
+        // 1. Guardar diccionario completo y datos pendientes
+        planDiarioPorPestana = data.planDiarioPorPestana || {};
+        pestañasDiariasDetectadas = data.nombresHojasDiarias || Object.keys(planDiarioPorPestana);
         planDataPendiente = (data.planPendiente || []).map((r, i) => ({ ...r, _ordenOriginal: i }));
-        planDataDiaria = (data.planDiario || []).map((r, i) => ({ ...r, _ordenOriginal: i }));
-        hojaDiariaSeleccionada = data.nombreHojaDiaria || "PLAN DEL DÍA";
 
-        document.getElementById('lbl-tab-diaria').textContent = `PLAN DIA (${hojaDiariaSeleccionada})`;
+        // 2. Establecer la hoja predeterminada
+        if (!hojaDiariaSeleccionada || !planDiarioPorPestana[hojaDiariaSeleccionada]) {
+          hojaDiariaSeleccionada = data.nombreHojaDiaria || pestañasDiariasDetectadas[0] || "PLAN DEL DÍA";
+        }
+
+        // Si existen datos para la hoja seleccionada, asignarlos
+        if (planDiarioPorPestana[hojaDiariaSeleccionada]) {
+          planDataDiaria = planDiarioPorPestana[hojaDiariaSeleccionada].map((r, i) => ({ ...r, _ordenOriginal: i }));
+        } else if (data.planDiario) {
+          planDataDiaria = (data.planDiario || []).map((r, i) => ({ ...r, _ordenOriginal: i }));
+        }
+
+        // 3. Poblar el select del DOM con las pestañas de fecha encontradas
         const sel = document.getElementById('sel-fecha-diaria');
-        sel.innerHTML = `<option value="${hojaDiariaSeleccionada}">${hojaDiariaSeleccionada} (Sincronizado)</option>`;
+        sel.innerHTML = '';
+        if (pestañasDiariasDetectadas.length > 0) {
+          pestañasDiariasDetectadas.forEach(nombre => {
+            const opt = document.createElement('option');
+            opt.value = nombre;
+            opt.textContent = nombre;
+            if (nombre === hojaDiariaSeleccionada) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        } else {
+          sel.innerHTML = `<option value="${hojaDiariaSeleccionada}">${hojaDiariaSeleccionada}</option>`;
+        }
 
+        document.getElementById('lbl-tab-diaria').textContent = `PLAN DÍA (${hojaDiariaSeleccionada})`;
         document.getElementById('badge-count-diaria').textContent = planDataDiaria.length;
         document.getElementById('badge-count-pendiente').textContent = planDataPendiente.length;
 
@@ -863,7 +889,7 @@
         renderTablaM1();
 
         if (!esSilencioso) {
-          alert(`✅ Sincronización exitosa:\n• ${planDataDiaria.length} viajes en ${hojaDiariaSeleccionada}\n• ${planDataPendiente.length} viajes en Pendiente`);
+          alert(`✅ Sincronización exitosa:\n• Pestañas disponibles: ${pestañasDiariasDetectadas.join(', ')}\n• Hoja activa: ${hojaDiariaSeleccionada} (${planDataDiaria.length} viajes)\n• Pendiente: ${planDataPendiente.length} viajes`);
         }
 
       } catch (err) {
@@ -930,6 +956,9 @@
         if (res.status === "success") {
           planDataDiaria = planDataDiaria.filter(item => !shipmentsCompletados.has(item.shipment));
           planDataPendiente = planDataPendiente.filter(item => !shipmentsCompletados.has(item.shipment));
+          if (planDiarioPorPestana[hojaDiariaSeleccionada]) {
+            planDiarioPorPestana[hojaDiariaSeleccionada] = planDiarioPorPestana[hojaDiariaSeleccionada].filter(item => !shipmentsCompletados.has(item.shipment));
+          }
           console.log(`[Auto-Limpieza] ${res.insertados} viajes completados archivados en 'base de datos'.`);
           renderTablaM1();
         }
@@ -995,6 +1024,9 @@
         if (res.status === "success") {
           if (vistaActivaM1 === 'DIARIA') {
             planDataDiaria = planDataDiaria.filter(item => !shipmentsCompletados.has(item.shipment));
+            if (planDiarioPorPestana[hojaDiariaSeleccionada]) {
+              planDiarioPorPestana[hojaDiariaSeleccionada] = planDiarioPorPestana[hojaDiariaSeleccionada].filter(item => !shipmentsCompletados.has(item.shipment));
+            }
           } else {
             planDataPendiente = planDataPendiente.filter(item => !shipmentsCompletados.has(item.shipment));
           }
@@ -1338,7 +1370,7 @@
 
       pestañasDiariasDetectadas = [];
       const sel = document.getElementById('sel-fecha-diaria');
-      sel.innerHTML = '<option value="AUTO">Automático (Más Reciente)</option>';
+      sel.innerHTML = '';
 
       sheets.forEach(s => {
         let sUpper = s.toUpperCase();
@@ -1359,8 +1391,9 @@
 
       if (pestañasDiariasDetectadas.length > 0) {
         hojaDiariaSeleccionada = pestañasDiariasDetectadas[0];
+        sel.value = hojaDiariaSeleccionada;
         planDataDiaria = extraerFilasDePlan(rawWorkbookPlan.Sheets[hojaDiariaSeleccionada]).map((r, i) => ({ ...r, _ordenOriginal: i }));
-        document.getElementById('lbl-tab-diaria').textContent = `PESTAÑA DIARIA (${hojaDiariaSeleccionada})`;
+        document.getElementById('lbl-tab-diaria').textContent = `PLAN DÍA (${hojaDiariaSeleccionada})`;
       } else {
         planDataDiaria = [];
       }
@@ -1435,11 +1468,30 @@
       return String(val).trim();
     }
 
+    // =========================================================================
+    // CAMBIAR PESTAÑA DIARIA DINÁMICA (DÍA PLAN)
+    // =========================================================================
     function cambiarHojaDiaria(nombreHoja) {
-      if (!rawWorkbookPlan) return;
-      hojaDiariaSeleccionada = (nombreHoja === "AUTO") ? pestañasDiariasDetectadas[0] : nombreHoja;
-      planDataDiaria = extraerFilasDePlan(rawWorkbookPlan.Sheets[hojaDiariaSeleccionada]).map((r, i) => ({ ...r, _ordenOriginal: i }));
-      document.getElementById('lbl-tab-diaria').textContent = `PESTAÑA DIARIA (${hojaDiariaSeleccionada})`;
+      if (!nombreHoja) return;
+
+      hojaDiariaSeleccionada = nombreHoja;
+
+      // 1. Si los datos provienen del doGet de Apps Script
+      if (planDiarioPorPestana && planDiarioPorPestana[nombreHoja]) {
+        planDataDiaria = planDiarioPorPestana[nombreHoja].map((r, i) => ({ ...r, _ordenOriginal: i }));
+      } 
+      // 2. Si se procesó un archivo Excel manual
+      else if (rawWorkbookPlan && rawWorkbookPlan.Sheets[nombreHoja]) {
+        planDataDiaria = extraerFilasDePlan(rawWorkbookPlan.Sheets[nombreHoja]).map((r, i) => ({ ...r, _ordenOriginal: i }));
+      }
+
+      // Actualizar textos y contadores
+      document.getElementById('lbl-tab-diaria').textContent = `PLAN DÍA (${hojaDiariaSeleccionada})`;
+      if (vistaActivaM1 === 'DIARIA') {
+        document.getElementById('lbl-table-title').innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-600"></span> PESTAÑA DIARIA (${hojaDiariaSeleccionada})`;
+      }
+      document.getElementById('badge-count-diaria').textContent = planDataDiaria.length;
+
       renderTablaM1();
     }
 
@@ -1863,7 +1915,7 @@
         const esCompletado = (r.dif === 0 && (r.piking > 0 || r.avance > 0));
 
         if (filtroTipo === 'ALL') {
-          // Muestra absolutamente todos los viajes sin omitir nada
+          // Muestra todos
         } else if (filtroTipo === 'COMPLETOS') {
           if (!esCompletado) return false;
         } else {
@@ -1979,7 +2031,7 @@
         const esCompletado = (r.dif === 0 && (r.piking > 0 || r.avance > 0));
 
         if (filtroTipo === 'ALL') {
-          // Copia todos los que cumplan con la búsqueda de texto
+          // Copia todos
         } else if (filtroTipo === 'COMPLETOS') {
           if (!esCompletado) return false;
         } else {
@@ -2371,6 +2423,9 @@
       if (!confirm("¿Deseas reiniciar todos los módulos?")) return;
       planDataPendiente = [];
       planDataDiaria = [];
+      planDiarioPorPestana = {};
+      pestañasDiariasDetectadas = [];
+      hojaDiariaSeleccionada = "";
       recoleccionResumen = {};
       recoleccionFullItems = [];
       avanceWmsMap = {};
@@ -2378,6 +2433,9 @@
       stockPorSkuMapa = {};
       m2ShipmentsEvaluados = [];
       m3PepsShipments = [];
+
+      const sel = document.getElementById('sel-fecha-diaria');
+      sel.innerHTML = '<option value="">Esperando datos...</option>';
 
       document.getElementById('container-mod-1').classList.add('hidden');
       document.getElementById('table-container-m1').classList.add('hidden');
