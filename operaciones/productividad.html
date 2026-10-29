@@ -453,6 +453,7 @@
     .badge-descarga { background: #FEE4E2; color: #B42318; }
     .badge-carga { background: #DCFCE7; color: #15803D; }
     .badge-intra { background: #FEF08A; color: #854D0E; }
+    .badge-expo { background: #E0E7FF; color: #3730A3; }
 
     .badge-meta-ok { background: #DCFCE7; color: #15803D; font-weight: 800; }
     .badge-meta-bad { background: #FEE4E2; color: #B42318; }
@@ -509,12 +510,13 @@
       <div class="upload-zone" id="drop-zone-trafico">
         <input type="file" id="file-input-trafico" multiple accept=".csv" style="display:none;" />
         <div class="upload-title">Carga de Reportes de Transporte y OPERACIONES MX12</div>
-        <div class="upload-sub">Arrastra o selecciona simultáneamente <strong>DESCARGAS.csv</strong>, <strong>cargas.csv</strong> e <strong>intras.csv</strong></div>
+        <div class="upload-sub">Arrastra o selecciona simultáneamente <strong>DESCARGAS.csv</strong>, <strong>cargas.csv</strong>, <strong>intras.csv</strong> y <strong>EXPOS.csv</strong></div>
         <label for="file-input-trafico" class="file-input-btn">Examinar archivos locales</label>
         <div class="file-status-pills">
           <span class="pill pending" id="pill-descargas">● DESCARGAS.csv (0 reg)</span>
           <span class="pill pending" id="pill-cargas">● CARGAS.csv (0 reg)</span>
           <span class="pill pending" id="pill-intras">● INTRAS.csv (0 reg)</span>
+          <span class="pill pending" id="pill-expos">● EXPOS.csv (0 reg)</span>
         </div>
       </div>
     </section>
@@ -547,6 +549,7 @@
           <option value="Descargas">Descargas</option>
           <option value="Cargas">Cargas</option>
           <option value="Intras">Intras</option>
+          <option value="Exportaciones">Exportaciones</option>
         </select>
       </div>
       <div class="filter-item">
@@ -615,13 +618,14 @@
               <th>Descargas</th>
               <th>Cargas</th>
               <th>Intras</th>
+              <th>Exportaciones</th>
               <th>Total Viajes</th>
               <th>% Participación</th>
               <th>T. Promedio Maniobra</th>
             </tr>
           </thead>
           <tbody id="trafico-tbody-summary">
-            <tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin datos cargados.</td></tr>
+            <tr><td colspan="11" style="text-align:center; color: var(--text-muted);">Sin datos cargados.</td></tr>
           </tbody>
         </table>
       </div>
@@ -653,9 +657,7 @@
     </section>
   </div>
 
-  <!-- ========================================== -->
-  <!-- PESTAÑA 2: PRODUCTIVIDAD GLOBAL DE PICKING -->
-  <!-- ========================================== -->
+  <!-- PESTAÑAS RESTANTES INTACTAS -->
   <div id="tab-picking-global" class="tab-content">
     <section class="card">
       <div class="upload-zone" id="drop-zone-picking">
@@ -799,9 +801,6 @@
     </section>
   </div>
 
-  <!-- ======================================================== -->
-  <!-- PESTAÑA 3: EVALUACIÓN DIARIA (TABLA OPERATIVA) -->
-  <!-- ======================================================== -->
   <div id="tab-picking-diario" class="tab-content">
     <section class="filters-bar">
       <div class="filter-item">
@@ -916,9 +915,6 @@
     </section>
   </div>
 
-  <!-- ======================================================== -->
-  <!-- PESTAÑA 4: GRÁFICOS ANALÍTICOS (EVALUACIÓN META 900) -->
-  <!-- ======================================================== -->
   <div id="tab-meta-900" class="tab-content">
     <section class="filters-bar">
       <div class="filter-item">
@@ -957,7 +953,6 @@
       <button class="btn-reset" id="meta900-btn-reset">Restablecer Filtros</button>
     </section>
 
-    <!-- Resumen Meta 900 -->
     <section class="kpi-grid">
       <div class="kpi-card accent">
         <div class="kpi-header"><span>Meta Diaria Estándar</span><span>🎯</span></div>
@@ -976,7 +971,6 @@
       </div>
     </section>
 
-    <!-- Panel de Gráficas Meta 900 -->
     <section class="charts-grid" style="grid-template-columns: 1.25fr 1fr; margin-bottom: 25px;">
       <div class="card">
         <div class="card-title">
@@ -1003,13 +997,10 @@
   </footer>
 
   <script>
-    // ==========================================
-    // PLUGIN UNIVERSAL DE ETIQUETAS A PRUEBA DE ERRORES
-    // ==========================================
     const barDataLabelsPlugin = {
       id: 'barDataLabels',
       afterDatasetsDraw(chart) {
-        if (!chart || chart.config.type === 'doughnut') return; // Se evita en dona para no colisionar con geometrías
+        if (!chart || chart.config.type === 'doughnut') return;
         const { ctx } = chart;
         chart.data.datasets.forEach((dataset, datasetIndex) => {
           const meta = chart.getDatasetMeta(datasetIndex);
@@ -1050,22 +1041,17 @@
                 } else {
                   ctx.textBaseline = 'bottom';
                   ctx.fillStyle = '#1D2939';
-                  ctx.fillText(val.toLocaleString(), element.x, element.y - 4);
+                  ctx.fillText(val.toLocaleString(), element.x - 4, element.y);
                 }
               }
               ctx.restore();
-            } catch (err) {
-              // Si falla una coordenada no detiene el renderizado
-            }
+            } catch (err) {}
           });
         });
       }
     };
     Chart.register(barDataLabelsPlugin);
 
-    // ==========================================
-    // LÓGICA DE ROTACIÓN Y TURNOS
-    // ==========================================
     const CYCLE_LENGTH = 24;
     const CYCLE_T1 = ['C','C','C','C','C','C', 'A','A','A','A','A','A', 'B','B','B','B','B','B', 'D','D','D','D','D','D'];
     const CYCLE_T2 = ['A','A','A','A', 'B','B','B','B','B','B', 'D','D','D','D','D','D', 'C','C','C','C','C','C', 'A','A'];
@@ -1089,7 +1075,6 @@
       return 'N/A';
     }
 
-    // Parser robusto para fechas
     function parseFlexibleDate(dateStr, timeStr) {
       if (!dateStr) return null;
       dateStr = String(dateStr).trim();
@@ -1225,7 +1210,8 @@
       arr.forEach(file => {
         const u = file.name.toUpperCase();
         let tipo = 'Descargas';
-        if (u.includes('CARGAS') && !u.includes('DESCARGAS')) tipo = 'Cargas';
+        if (u.includes('EXPO') || u.includes('EXPORTACION')) tipo = 'Exportaciones';
+        else if (u.includes('CARGAS') && !u.includes('DESCARGAS')) tipo = 'Cargas';
         else if (u.includes('INTRA')) tipo = 'Intras';
         else if (u.includes('DESCARGA')) tipo = 'Descargas';
 
@@ -1282,6 +1268,9 @@
       } else if (tipo === 'Intras') {
         const p = document.getElementById('pill-intras');
         p.className = 'pill loaded'; p.textContent = `✓ INTRAS (${c} reg)`;
+      } else if (tipo === 'Exportaciones') {
+        const p = document.getElementById('pill-expos');
+        p.className = 'pill loaded'; p.textContent = `✓ EXPOS (${c} reg)`;
       }
     }
 
@@ -1337,6 +1326,7 @@
       const descData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Descargas').length);
       const cargData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Cargas').length);
       const intrData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Intras').length);
+      const expoData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Exportaciones').length);
 
       // 1. Gráfica de Barras
       if (traficoBarChart) traficoBarChart.destroy();
@@ -1349,7 +1339,8 @@
             datasets: [
               { label: 'Descargas', data: descData, backgroundColor: '#D92D20', borderRadius: 4 },
               { label: 'Cargas', data: cargData, backgroundColor: '#037A48', borderRadius: 4 },
-              { label: 'Intras', data: intrData, backgroundColor: '#D97706', borderRadius: 4 }
+              { label: 'Intras', data: intrData, backgroundColor: '#D97706', borderRadius: 4 },
+              { label: 'Exportaciones', data: expoData, backgroundColor: '#4338CA', borderRadius: 4 }
             ]
           },
           options: {
@@ -1360,7 +1351,7 @@
         });
       }
 
-      // 2. Gráfica de Dona (Totalmente blindada contra fallos de renderizado)
+      // 2. Gráfica de Dona
       if (traficoDonutChart) traficoDonutChart.destroy();
       const ctxDonut = document.getElementById('chart-trafico-donut');
       if (ctxDonut) {
@@ -1386,7 +1377,7 @@
       // 3. Matriz Resumen Cuadrillas
       const tbodySummary = document.getElementById('trafico-tbody-summary');
       if (!total) {
-        tbodySummary.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro actual.</td></tr>';
+        tbodySummary.innerHTML = '<tr><td colspan="11" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro actual.</td></tr>';
       } else {
         const cConfig = [
           { k: 'A', n: 'Tripulación A (Amarillo)', b: 'badge-crew-a' },
@@ -1403,6 +1394,7 @@
           const des = sub.filter(r => r.tipo === 'Descargas').length;
           const car = sub.filter(r => r.tipo === 'Cargas').length;
           const int = sub.filter(r => r.tipo === 'Intras').length;
+          const exp = sub.filter(r => r.tipo === 'Exportaciones').length;
           const subTot = sub.length;
           const pct = total > 0 ? ((subTot/total)*100).toFixed(1) : 0;
           const validDurs = sub.map(r => r.durationMinutes).filter(m => m > 0);
@@ -1412,7 +1404,7 @@
             <tr>
               <td><span class="badge ${cfg.b}">${cfg.n}</span></td>
               <td>${t1}</td><td>${t2}</td><td>${t3}</td>
-              <td><strong>${des}</strong></td><td><strong>${car}</strong></td><td><strong>${int}</strong></td>
+              <td><strong>${des}</strong></td><td><strong>${car}</strong></td><td><strong>${int}</strong></td><td><strong>${exp}</strong></td>
               <td><strong>${subTot}</strong></td><td><strong>${pct}%</strong></td>
               <td>${formatMinutes(avgD)}</td>
             </tr>
@@ -1432,6 +1424,7 @@
           let bType = 'badge-descarga';
           if (r.tipo === 'Cargas') bType = 'badge-carga';
           if (r.tipo === 'Intras') bType = 'badge-intra';
+          if (r.tipo === 'Exportaciones') bType = 'badge-expo';
           let bCrew = `badge-crew-${(r.crew || 'a').toLowerCase()}`;
 
           hd += `
@@ -1469,7 +1462,7 @@
     });
 
     // ==========================================
-    // PESTAÑAS 2, 3 Y 4: LÓGICA DE PICKING
+    // PESTAÑAS 2, 3 Y 4: LÓGICA DE PICKING (COMPACTADA)
     // ==========================================
     let pickingTasks = [];
     let employeeCatalog = {};
@@ -1675,7 +1668,6 @@
       });
     }
 
-    // Helper unificado para construir jornadas
     function buildJourneys(taskList) {
       const dailyMap = {};
       taskList.forEach(t => {
@@ -1712,9 +1704,6 @@
       });
     }
 
-    // ==========================================
-    // RENDER PESTAÑA 2: PICKING GLOBAL
-    // ==========================================
     function getFilteredPickingGlobal() {
       const crewF = document.getElementById('picking-filter-crew').value;
       const shiftF = document.getElementById('picking-filter-shift').value;
@@ -1899,9 +1888,6 @@
       }
     }
 
-    // ========================================================
-    // RENDER PESTAÑA 3: EVALUACIÓN DIARIA
-    // ========================================================
     function getFilteredDiario() {
       const userF = document.getElementById('diario-filter-user').value;
       const crewF = document.getElementById('diario-filter-crew').value;
@@ -2073,9 +2059,6 @@
       }
     }
 
-    // ========================================================
-    // RENDER PESTAÑA 4: EVALUACIÓN META 900
-    // ========================================================
     function updateMeta900DateSelector(dates) {
       const sel = document.getElementById('meta900-filter-date-mode');
       if (!sel) return;
@@ -2265,7 +2248,6 @@
       }
     }
 
-    // Handlers filtros Diarios
     ['diario-filter-user', 'diario-filter-crew', 'diario-filter-shift', 'diario-filter-meta', 'diario-date-from', 'diario-date-to'].forEach(id => {
       document.getElementById(id).addEventListener('change', renderDiario);
     });
@@ -2282,7 +2264,6 @@
       renderDiario();
     });
 
-    // Handlers filtros Meta 900
     ['meta900-filter-shift', 'meta900-filter-crew', 'meta900-filter-date-mode', 'meta900-date-from', 'meta900-date-to'].forEach(id => {
       document.getElementById(id).addEventListener('change', renderMeta900View);
     });
