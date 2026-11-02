@@ -811,7 +811,7 @@
     <!-- Gráficas Montacarguistas -->
     <section class="charts-grid">
       <div class="card">
-        <div class="card-title"><span>Movimientos por Turno: Cargas vs. Precargas</span></div>
+        <div class="card-title"><span>Movimientos por Tripulación: Cargas vs. Precargas</span></div>
         <div class="chart-container" style="height: 290px;"><canvas id="chart-mc-bars"></canvas></div>
       </div>
       <div class="card">
@@ -1956,11 +1956,11 @@
       document.getElementById('mc-kpi-cargas-pct').textContent = `${pctCargas}% del total`;
       document.getElementById('mc-kpi-precargas-pct').textContent = `${pctPrecargas}% del total`;
 
-      // 1. Gráfica de Barras por Turno (Cargas vs Precargas)
-      const shifts = ['T1', 'T2', 'T3'];
-      const shiftLabels = ['Turno 1 (06:00 - 14:00)', 'Turno 2 (14:00 - 22:00)', 'Turno 3 (22:00 - 06:00)'];
-      const seriesCargasShift = shifts.map(s => records.filter(r => r.shiftKey === s && r.categoria === 'CARGA').length);
-      const seriesPrecargasShift = shifts.map(s => records.filter(r => r.shiftKey === s && r.categoria === 'PRECARGA').length);
+      // 1. Gráfica de Barras por Tripulación (Cargas vs Precargas)
+      const crews = ['A', 'B', 'C', 'D'];
+      const crewLabels = ['Tripulación A (Amarillo)', 'Tripulación B (Verde)', 'Tripulación C (Azul)', 'Tripulación D (Rojo)'];
+      const seriesCargasCrew = crews.map(k => records.filter(r => r.crew === k && r.categoria === 'CARGA').length);
+      const seriesPrecargasCrew = crews.map(k => records.filter(r => r.crew === k && r.categoria === 'PRECARGA').length);
 
       if (montacargasBarChart) montacargasBarChart.destroy();
       const ctxBar = document.getElementById('chart-mc-bars');
@@ -1968,10 +1968,10 @@
         montacargasBarChart = new Chart(ctxBar.getContext('2d'), {
           type: 'bar',
           data: {
-            labels: shiftLabels,
+            labels: crewLabels,
             datasets: [
-              { label: 'Cargas (Surtido Dirigido)', data: seriesCargasShift, backgroundColor: '#10B981', borderRadius: 4 },
-              { label: 'Precargas (Verifica Pallet)', data: seriesPrecargasShift, backgroundColor: '#F59E0B', borderRadius: 4 }
+              { label: 'Cargas (Surtido Dirigido)', data: seriesCargasCrew, backgroundColor: '#10B981', borderRadius: 4 },
+              { label: 'Precargas (Verifica Pallet)', data: seriesPrecargasCrew, backgroundColor: '#F59E0B', borderRadius: 4 }
             ]
           },
           options: {
@@ -1982,7 +1982,7 @@
         });
       }
 
-      // 2. Gráfica de Dona: Proporción Cargas vs Precargas
+      // 2. Gráfica de Dona: Proporción Cargas vs. Precargas
       if (montacargasDonutChart) montacargasDonutChart.destroy();
       const ctxDonut = document.getElementById('chart-mc-donut');
       if (ctxDonut) {
