@@ -356,6 +356,7 @@
     .kpi-card.crew-d { border-left-color: var(--crew-d); }
     .kpi-card.accent { border-left-color: var(--accent-lime); }
     .kpi-card.alert { border-left-color: var(--status-red); }
+    .kpi-card.orange { border-left-color: var(--status-orange); }
 
     .kpi-header {
       font-size: 11px;
@@ -422,6 +423,25 @@
       white-space: nowrap;
     }
 
+    /* ENCABEZADOS CLICKEABLES CON SORT */
+    th.sortable-th {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+    th.sortable-th:hover {
+      background-color: #243552;
+    }
+    .sort-icon {
+      font-size: 10px;
+      margin-left: 4px;
+      opacity: 0.6;
+    }
+    th.sort-active .sort-icon {
+      opacity: 1;
+      color: var(--accent-lime);
+    }
+
     tbody td {
       padding: 8px 12px;
       border-bottom: 1px solid var(--border-soft);
@@ -452,8 +472,12 @@
 
     .badge-descarga { background: #FEE4E2; color: #B42318; }
     .badge-carga { background: #DCFCE7; color: #15803D; }
+    .badge-cargatotal { background: #E0F2FE; color: #0369A1; }
     .badge-intra { background: #FEF08A; color: #854D0E; }
     .badge-expo { background: #E0E7FF; color: #3730A3; }
+
+    .badge-precarga { background: #FEF3C7; color: #B45309; }
+    .badge-cargamov { background: #DCFCE7; color: #15803D; }
 
     .badge-meta-ok { background: #DCFCE7; color: #15803D; font-weight: 800; }
     .badge-meta-bad { background: #FEE4E2; color: #B42318; }
@@ -479,8 +503,8 @@
         <span class="logo-sub">Vida en Movimiento</span>
       </div>
       <div class="header-title-block">
-        <h1>Tablero de Control: Operaciones MX12 y Productividad de Almacén</h1>
-        <p>Monitoreo Integrado de Patios (OPERACIONES MX12) y Productividad en Almacén (Picking) | Norma TSE-09-SIGEO-PR</p>
+        <h1>Tablero de Control: Operaciones MX12, Montacarguistas y Productividad</h1>
+        <p>Monitoreo Integrado de Patios (OPERACIONES MX12), Movimientos de Montacarguistas y Picking | Norma TSE-09-SIGEO-PR</p>
       </div>
     </div>
     <div class="header-actions">
@@ -497,6 +521,7 @@
   <!-- PESTAÑAS DE NAVEGACIÓN PRINCIPAL -->
   <nav class="tabs-nav">
     <button class="tab-btn active" onclick="switchTab('tab-trafico')">🚚 OPERACIONES MX12</button>
+    <button class="tab-btn" onclick="switchTab('tab-montacargas')">🚜 Movimientos por Montacarguista</button>
     <button class="tab-btn" onclick="switchTab('tab-picking-global')">📦 Productividad Global de Picking</button>
     <button class="tab-btn" onclick="switchTab('tab-picking-diario')">📋 Tabla Operativa (Evaluación Diaria)</button>
     <button class="tab-btn" onclick="switchTab('tab-meta-900')">📊 Gráficos Analíticos (Meta 900 Cajas)</button>
@@ -547,9 +572,10 @@
         <select id="trafico-filter-type">
           <option value="ALL">Todas las operaciones</option>
           <option value="Descargas">Descargas</option>
-          <option value="Cargas">Cargas</option>
+          <option value="Cargas">Cargas Nacionales</option>
           <option value="Intras">Intras</option>
           <option value="Exportaciones">Exportaciones</option>
+          <option value="TOTAL_CARGAS">★ Cargas Totales (Nac + Int + Exp)</option>
         </select>
       </div>
       <div class="filter-item">
@@ -568,7 +594,22 @@
       <div class="kpi-card accent">
         <div class="kpi-header"><span>Total Viajes</span><span>🚚</span></div>
         <div class="kpi-value" id="trafico-kpi-total">0</div>
-        <div class="kpi-subtitle">Unidades terminadas</div>
+        <div class="kpi-subtitle">Unidades terminadas en patio</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Cargas Nacionales</span><span>🚛</span></div>
+        <div class="kpi-value" id="trafico-kpi-cargas-nac">0</div>
+        <div class="kpi-subtitle" id="trafico-kpi-cargas-nac-sub">Flujo de cargas.csv</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-header"><span>Cargas Totales</span><span>📦</span></div>
+        <div class="kpi-value" id="trafico-kpi-cargas-tot">0</div>
+        <div class="kpi-subtitle">Suma: Nac + Intras + Expos</div>
+      </div>
+      <div class="kpi-card alert">
+        <div class="kpi-header"><span>Descargas</span><span>📥</span></div>
+        <div class="kpi-value" id="trafico-kpi-descargas">0</div>
+        <div class="kpi-subtitle">Unidades descargadas</div>
       </div>
       <div class="kpi-card crew-a">
         <div class="kpi-header"><span>Tripulación A</span><span>Amarillo</span></div>
@@ -595,12 +636,12 @@
     <!-- Gráficas Operaciones MX12 -->
     <section class="charts-grid">
       <div class="card">
-        <div class="card-title"><span>Volumen por Tripulación y Tipo de Operación</span></div>
-        <div class="chart-container" style="height: 280px;"><canvas id="chart-trafico-bars"></canvas></div>
+        <div class="card-title"><span>Volumen por Tripulación (Desglose + Cargas Totales)</span></div>
+        <div class="chart-container" style="height: 290px;"><canvas id="chart-trafico-bars"></canvas></div>
       </div>
       <div class="card">
         <div class="card-title"><span>Participación de Viajes por Tripulación</span></div>
-        <div class="chart-container" style="height: 280px;"><canvas id="chart-trafico-donut"></canvas></div>
+        <div class="chart-container" style="height: 290px;"><canvas id="chart-trafico-donut"></canvas></div>
       </div>
     </section>
 
@@ -616,16 +657,17 @@
               <th>T2 (14-22)</th>
               <th>T3 (22-06)</th>
               <th>Descargas</th>
-              <th>Cargas</th>
+              <th>Cargas Nac.</th>
               <th>Intras</th>
               <th>Exportaciones</th>
+              <th style="background-color: #243552;">Cargas Totales</th>
               <th>Total Viajes</th>
               <th>% Participación</th>
               <th>T. Promedio Maniobra</th>
             </tr>
           </thead>
           <tbody id="trafico-tbody-summary">
-            <tr><td colspan="11" style="text-align:center; color: var(--text-muted);">Sin datos cargados.</td></tr>
+            <tr><td colspan="12" style="text-align:center; color: var(--text-muted);">Sin datos cargados.</td></tr>
           </tbody>
         </table>
       </div>
@@ -639,7 +681,7 @@
           <thead>
             <tr>
               <th>Shipment #</th>
-              <th>Tipo</th>
+              <th>Tipo Operación</th>
               <th>Fin Maniobra</th>
               <th>Fecha Operativa</th>
               <th>Turno</th>
@@ -657,7 +699,158 @@
     </section>
   </div>
 
-  <!-- PESTAÑAS RESTANTES INTACTAS -->
+  <!-- ========================================== -->
+  <!-- NUEVA PESTAÑA: MOVIMIENTOS POR MONTACARGUISTA -->
+  <!-- ========================================== -->
+  <div id="tab-montacargas" class="tab-content">
+    <section class="card">
+      <div class="upload-zone" id="drop-zone-montacargas">
+        <input type="file" id="file-input-montacargas" accept=".csv" style="display:none;" />
+        <div class="upload-title">Carga de Reporte WMS de Movimientos por Montacarguista</div>
+        <div class="upload-sub">Arrastra o selecciona el archivo CSV de movimientos WMS (ej. <strong>izelcetus_*.csv</strong>). Funciona de forma 100% independiente.</div>
+        <label for="file-input-montacargas" class="file-input-btn">Examinar reporte WMS (CSV)</label>
+        <div class="file-status-pills">
+          <span class="pill pending" id="pill-montacargas-csv">● Reporte WMS (0 movimientos)</span>
+          <span class="pill pending" id="pill-montacargas-operadores">● Montacarguistas identificados (0)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filtros Montacarguistas -->
+    <section class="filters-bar">
+      <div class="filter-item">
+        <label for="mc-filter-crew">Tripulación</label>
+        <select id="mc-filter-crew">
+          <option value="ALL">Todas las tripulaciones</option>
+          <option value="A">Tripulación A (Amarillo)</option>
+          <option value="B">Tripulación B (Verde)</option>
+          <option value="C">Tripulación C (Azul)</option>
+          <option value="D">Tripulación D (Rojo)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="mc-filter-shift">Turno</label>
+        <select id="mc-filter-shift">
+          <option value="ALL">Todos los turnos</option>
+          <option value="T1">Turno 1 (06:00 - 14:00)</option>
+          <option value="T2">Turno 2 (14:00 - 22:00)</option>
+          <option value="T3">Turno 3 (22:00 - 06:00)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="mc-filter-user">Montacarguista (ID Origen)</label>
+        <select id="mc-filter-user">
+          <option value="ALL">Todos los montacarguistas</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="mc-filter-type">Tipo de Movimiento</label>
+        <select id="mc-filter-type">
+          <option value="ALL">Todos los movimientos (Cargas y Precargas)</option>
+          <option value="CARGA">Solo Cargas (SURTIDO DIRIGIDO)</option>
+          <option value="PRECARGA">Solo Precargas (VERIFICA PALLET)</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="mc-date-from">Fecha Desde</label>
+        <input type="date" id="mc-date-from" />
+      </div>
+      <div class="filter-item">
+        <label for="mc-date-to">Fecha Hasta</label>
+        <input type="date" id="mc-date-to" />
+      </div>
+      <div class="filter-item">
+        <label for="mc-sort-by">Ordenar Por</label>
+        <select id="mc-sort-by">
+          <option value="totalMovimientos" selected>Total Movimientos</option>
+          <option value="cargas">Movimientos de Cargas</option>
+          <option value="precargas">Movimientos de Precargas</option>
+          <option value="user">Montacarguista (ID)</option>
+          <option value="opDate">Fecha Operativa</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="mc-sort-order">Dirección</label>
+        <select id="mc-sort-order">
+          <option value="DESC" selected>Mayor a Menor (↓)</option>
+          <option value="ASC">Menor a Mayor (↑)</option>
+        </select>
+      </div>
+      <button class="btn-reset" id="mc-btn-reset">Limpiar Filtros</button>
+    </section>
+
+    <!-- KPIs Montacarguistas -->
+    <section class="kpi-grid">
+      <div class="kpi-card accent">
+        <div class="kpi-header"><span>Total Movimientos</span><span>🚜</span></div>
+        <div class="kpi-value" id="mc-kpi-total">0</div>
+        <div class="kpi-subtitle">Cargas + Precargas (IN)</div>
+      </div>
+      <div class="kpi-card" style="border-left-color: #10B981;">
+        <div class="kpi-header"><span>Cargas (Surtido Dirigido)</span><span>📦</span></div>
+        <div class="kpi-value" id="mc-kpi-cargas">0</div>
+        <div class="kpi-subtitle" id="mc-kpi-cargas-pct">0% del total</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-header"><span>Precargas (Verifica Pallet)</span><span>📑</span></div>
+        <div class="kpi-value" id="mc-kpi-precargas">0</div>
+        <div class="kpi-subtitle" id="mc-kpi-precargas-pct">0% del total</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-header"><span>Montacarguistas Evaluados</span><span>👥</span></div>
+        <div class="kpi-value" id="mc-kpi-operadores">0</div>
+        <div class="kpi-subtitle">Operadores activos identificados</div>
+      </div>
+      <div class="kpi-card alert">
+        <div class="kpi-header"><span>Promedio Mov / Operador</span><span>⚡</span></div>
+        <div class="kpi-value" id="mc-kpi-promedio">0</div>
+        <div class="kpi-subtitle">Movimientos promedio por operador</div>
+      </div>
+    </section>
+
+    <!-- Gráficas Montacarguistas -->
+    <section class="charts-grid">
+      <div class="card">
+        <div class="card-title"><span>Movimientos por Turno: Cargas vs. Precargas</span></div>
+        <div class="chart-container" style="height: 290px;"><canvas id="chart-mc-bars"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>Proporción Cargas vs. Precargas</span></div>
+        <div class="chart-container" style="height: 290px;"><canvas id="chart-mc-donut"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Tabla Rendimiento por Montacarguista -->
+    <section class="card">
+      <div class="card-title">
+        <span>Matriz de Desempeño por Montacarguista (<span id="mc-row-count">0</span> registros)</span>
+      </div>
+      <div class="table-container" style="max-height: 440px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable-th" onclick="setMcTableSort('user')">ID Origen <span class="sort-icon" id="mc-th-user">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('name')">Colaborador <span class="sort-icon" id="mc-th-name">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('shiftKey')">Turno <span class="sort-icon" id="mc-th-shiftKey">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('crew')">Tripulación <span class="sort-icon" id="mc-th-crew">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('opDate')">Fecha Operativa <span class="sort-icon" id="mc-th-opDate">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('cargas')">Movimientos Carga <span class="sort-icon" id="mc-th-cargas">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('precargas')">Movimientos Precarga <span class="sort-icon" id="mc-th-precargas">⇅</span></th>
+              <th class="sortable-th" onclick="setMcTableSort('totalMovimientos')">Total Movimientos <span class="sort-icon" id="mc-th-totalMovimientos">⇅</span></th>
+              <th>% del Volumen Filtrado</th>
+            </tr>
+          </thead>
+          <tbody id="mc-tbody-table">
+            <tr><td colspan="9" style="text-align:center; color: var(--text-muted);">Sin datos de montacarguistas cargados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- PESTAÑA 3: PRODUCTIVIDAD GLOBAL DE PICKING -->
+  <!-- ========================================== -->
   <div id="tab-picking-global" class="tab-content">
     <section class="card">
       <div class="upload-zone" id="drop-zone-picking">
@@ -801,6 +994,9 @@
     </section>
   </div>
 
+  <!-- ========================================== -->
+  <!-- PESTAÑA 4: TABLA OPERATIVA (DIARIA PICKING) -->
+  <!-- ========================================== -->
   <div id="tab-picking-diario" class="tab-content">
     <section class="filters-bar">
       <div class="filter-item">
@@ -915,6 +1111,9 @@
     </section>
   </div>
 
+  <!-- ========================================== -->
+  <!-- PESTAÑA 5: META 900 CAJAS -->
+  <!-- ========================================== -->
   <div id="tab-meta-900" class="tab-content">
     <section class="filters-bar">
       <div class="filter-item">
@@ -997,6 +1196,7 @@
   </footer>
 
   <script>
+    // PLUGIN CHART.JS PARA ETIQUETAS EN BARRAS
     const barDataLabelsPlugin = {
       id: 'barDataLabels',
       afterDatasetsDraw(chart) {
@@ -1052,11 +1252,12 @@
     };
     Chart.register(barDataLabelsPlugin);
 
+    // ROL DE TURNOS DE 24 DÍAS INSTITUCIONAL
     const CYCLE_LENGTH = 24;
     const CYCLE_T1 = ['C','C','C','C','C','C', 'A','A','A','A','A','A', 'B','B','B','B','B','B', 'D','D','D','D','D','D'];
     const CYCLE_T2 = ['A','A','A','A', 'B','B','B','B','B','B', 'D','D','D','D','D','D', 'C','C','C','C','C','C', 'A','A'];
     const CYCLE_T3 = ['B','B', 'D','D','D','D','D','D', 'C','C','C','C','C','C', 'A','A','A','A','A','A', 'B','B','B','B'];
-    const BASE_DATE_UTC = Date.UTC(2026, 8, 1);
+    const BASE_DATE_UTC = Date.UTC(2026, 8, 1); // 1 de Septiembre 2026
 
     function getCrewForDateAndShift(opDateStr, shiftKey) {
       if (!opDateStr || !shiftKey) return 'N/A';
@@ -1168,19 +1369,22 @@
       const target = document.getElementById(tabId);
       if (target) target.classList.add('active');
 
-      if (tabId === 'tab-trafico') {
-        btns[0].classList.add('active');
-        renderTrafico();
-      } else if (tabId === 'tab-picking-global') {
-        btns[1].classList.add('active');
-        renderPickingGlobal();
-      } else if (tabId === 'tab-picking-diario') {
-        btns[2].classList.add('active');
-        renderDiario();
-      } else if (tabId === 'tab-meta-900') {
-        btns[3].classList.add('active');
-        renderMeta900View();
-      }
+      const tabIndexMap = {
+        'tab-trafico': 0,
+        'tab-montacargas': 1,
+        'tab-picking-global': 2,
+        'tab-picking-diario': 3,
+        'tab-meta-900': 4
+      };
+
+      const idx = tabIndexMap[tabId];
+      if (idx !== undefined && btns[idx]) btns[idx].classList.add('active');
+
+      if (tabId === 'tab-trafico') renderTrafico();
+      else if (tabId === 'tab-montacargas') renderMontacargas();
+      else if (tabId === 'tab-picking-global') renderPickingGlobal();
+      else if (tabId === 'tab-picking-diario') renderDiario();
+      else if (tabId === 'tab-meta-900') renderMeta900View();
     }
 
     // ==========================================
@@ -1250,8 +1454,11 @@
           durationMinutes = Math.round((dtEnd - dtStart) / (1000 * 60));
         }
 
+        const isCargaTotal = (tipo === 'Cargas' || tipo === 'Intras' || tipo === 'Exportaciones');
+
         traficoRecords.push({
           shipment, tipo, carrier,
+          isCargaTotal,
           checkInStr: `${checkInDate} ${checkInTime}`.trim(),
           endStr: `${endLoadDate} ${endLoadTime}`.trim(),
           shiftName, shiftKey, crew, opDate, durationMinutes
@@ -1294,7 +1501,11 @@
       return traficoRecords.filter(r => {
         if (crewF !== 'ALL' && r.crew !== crewF) return false;
         if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
-        if (typeF !== 'ALL' && r.tipo !== typeF) return false;
+        if (typeF === 'TOTAL_CARGAS') {
+          if (!r.isCargaTotal) return false;
+        } else if (typeF !== 'ALL' && r.tipo !== typeF) {
+          return false;
+        }
         if (from && r.opDate && r.opDate < from) return false;
         if (to && r.opDate && r.opDate > to) return false;
         return true;
@@ -1306,6 +1517,17 @@
       const total = data.length;
 
       document.getElementById('trafico-kpi-total').textContent = total.toLocaleString();
+
+      const totalCargasNac = data.filter(r => r.tipo === 'Cargas').length;
+      const totalIntras = data.filter(r => r.tipo === 'Intras').length;
+      const totalExpos = data.filter(r => r.tipo === 'Exportaciones').length;
+      const totalDescargas = data.filter(r => r.tipo === 'Descargas').length;
+      const totalCargasAgrupadas = totalCargasNac + totalIntras + totalExpos;
+
+      document.getElementById('trafico-kpi-cargas-nac').textContent = totalCargasNac.toLocaleString();
+      document.getElementById('trafico-kpi-cargas-tot').textContent = totalCargasAgrupadas.toLocaleString();
+      document.getElementById('trafico-kpi-descargas').textContent = totalDescargas.toLocaleString();
+
       const a = data.filter(r => r.crew === 'A').length;
       const b = data.filter(r => r.crew === 'B').length;
       const c = data.filter(r => r.crew === 'C').length;
@@ -1324,11 +1546,10 @@
       const crews = ['A', 'B', 'C', 'D'];
       const crewLabels = ['Tripulación A', 'Tripulación B', 'Tripulación C', 'Tripulación D'];
       const descData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Descargas').length);
-      const cargData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Cargas').length);
-      const intrData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Intras').length);
-      const expoData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Exportaciones').length);
+      const cargNacData = crews.map(k => data.filter(r => r.crew === k && r.tipo === 'Cargas').length);
+      const cargTotData = crews.map(k => data.filter(r => r.crew === k && r.isCargaTotal).length);
 
-      // 1. Gráfica de Barras
+      // Gráfica de Barras
       if (traficoBarChart) traficoBarChart.destroy();
       const ctxBar = document.getElementById('chart-trafico-bars');
       if (ctxBar) {
@@ -1338,9 +1559,8 @@
             labels: crewLabels,
             datasets: [
               { label: 'Descargas', data: descData, backgroundColor: '#D92D20', borderRadius: 4 },
-              { label: 'Cargas', data: cargData, backgroundColor: '#037A48', borderRadius: 4 },
-              { label: 'Intras', data: intrData, backgroundColor: '#D97706', borderRadius: 4 },
-              { label: 'Exportaciones', data: expoData, backgroundColor: '#4338CA', borderRadius: 4 }
+              { label: 'Cargas Nacionales', data: cargNacData, backgroundColor: '#037A48', borderRadius: 4 },
+              { label: '★ Cargas Totales (Nac+Int+Exp)', data: cargTotData, backgroundColor: '#D97706', borderRadius: 4 }
             ]
           },
           options: {
@@ -1351,7 +1571,7 @@
         });
       }
 
-      // 2. Gráfica de Dona
+      // Gráfica de Dona
       if (traficoDonutChart) traficoDonutChart.destroy();
       const ctxDonut = document.getElementById('chart-trafico-donut');
       if (ctxDonut) {
@@ -1374,10 +1594,10 @@
         });
       }
 
-      // 3. Matriz Resumen Cuadrillas
+      // Matriz Resumen Cuadrillas
       const tbodySummary = document.getElementById('trafico-tbody-summary');
       if (!total) {
-        tbodySummary.innerHTML = '<tr><td colspan="11" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro actual.</td></tr>';
+        tbodySummary.innerHTML = '<tr><td colspan="12" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro actual.</td></tr>';
       } else {
         const cConfig = [
           { k: 'A', n: 'Tripulación A (Amarillo)', b: 'badge-crew-a' },
@@ -1392,9 +1612,10 @@
           const t2 = sub.filter(r => r.shiftKey === 'T2').length;
           const t3 = sub.filter(r => r.shiftKey === 'T3').length;
           const des = sub.filter(r => r.tipo === 'Descargas').length;
-          const car = sub.filter(r => r.tipo === 'Cargas').length;
+          const carNac = sub.filter(r => r.tipo === 'Cargas').length;
           const int = sub.filter(r => r.tipo === 'Intras').length;
           const exp = sub.filter(r => r.tipo === 'Exportaciones').length;
+          const carTot = carNac + int + exp;
           const subTot = sub.length;
           const pct = total > 0 ? ((subTot/total)*100).toFixed(1) : 0;
           const validDurs = sub.map(r => r.durationMinutes).filter(m => m > 0);
@@ -1404,7 +1625,11 @@
             <tr>
               <td><span class="badge ${cfg.b}">${cfg.n}</span></td>
               <td>${t1}</td><td>${t2}</td><td>${t3}</td>
-              <td><strong>${des}</strong></td><td><strong>${car}</strong></td><td><strong>${int}</strong></td><td><strong>${exp}</strong></td>
+              <td><strong>${des}</strong></td>
+              <td><strong>${carNac}</strong></td>
+              <td>${int}</td>
+              <td>${exp}</td>
+              <td style="background-color: #F8FAFC;"><strong style="color: #0369A1;">${carTot}</strong></td>
               <td><strong>${subTot}</strong></td><td><strong>${pct}%</strong></td>
               <td>${formatMinutes(avgD)}</td>
             </tr>
@@ -1413,7 +1638,7 @@
         tbodySummary.innerHTML = h;
       }
 
-      // 4. Detalle de Operaciones
+      // Detalle de Operaciones
       const tbodyDet = document.getElementById('trafico-tbody-details');
       document.getElementById('trafico-row-count').textContent = total;
       if (!total) {
@@ -1422,15 +1647,16 @@
         let hd = '';
         data.slice(0, 150).forEach(r => {
           let bType = 'badge-descarga';
-          if (r.tipo === 'Cargas') bType = 'badge-carga';
-          if (r.tipo === 'Intras') bType = 'badge-intra';
-          if (r.tipo === 'Exportaciones') bType = 'badge-expo';
+          let labelType = r.tipo;
+          if (r.tipo === 'Cargas') { bType = 'badge-carga'; labelType = 'Carga Nacional'; }
+          else if (r.tipo === 'Intras') bType = 'badge-intra';
+          else if (r.tipo === 'Exportaciones') bType = 'badge-expo';
           let bCrew = `badge-crew-${(r.crew || 'a').toLowerCase()}`;
 
           hd += `
             <tr>
               <td><strong>${r.shipment}</strong></td>
-              <td><span class="badge ${bType}">${r.tipo}</span></td>
+              <td><span class="badge ${bType}">${labelType}</span></td>
               <td>${r.endStr || '-'}</td>
               <td>${r.opDate || '-'}</td>
               <td>${r.shiftKey}</td>
@@ -1461,8 +1687,394 @@
       renderTrafico();
     });
 
+    // ========================================================
+    // NUEVA PESTAÑA 2: MOVIMIENTOS POR MONTACARGUISTA
+    // ========================================================
+    let montacargasRecords = [];
+    let montacargasBarChart = null;
+    let montacargasDonutChart = null;
+    let currentMcSortField = 'totalMovimientos';
+    let currentMcSortDir = 'DESC'; // 'DESC' (Mayor a menor) o 'ASC' (Menor a mayor)
+
+    const dropZoneMontacargas = document.getElementById('drop-zone-montacargas');
+    const fileInputMontacargas = document.getElementById('file-input-montacargas');
+
+    dropZoneMontacargas.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneMontacargas.classList.add('dragover'); });
+    dropZoneMontacargas.addEventListener('dragleave', () => dropZoneMontacargas.classList.remove('dragover'));
+    dropZoneMontacargas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZoneMontacargas.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleMontacargasFiles(e.dataTransfer.files);
+    });
+    fileInputMontacargas.addEventListener('change', (e) => {
+      if (e.target.files.length) handleMontacargasFiles(e.target.files);
+    });
+
+    function handleMontacargasFiles(files) {
+      const arr = Array.from(files);
+      arr.forEach(file => {
+        Papa.parse(file, {
+          header: false,
+          skipEmptyLines: false,
+          complete: function(results) {
+            processMontacargasData(results.data, file.name);
+          }
+        });
+      });
+    }
+
+    function processMontacargasData(rows, fileName) {
+      if (!rows || rows.length < 2) return;
+      montacargasRecords = [];
+
+      let validCount = 0;
+
+      // Índices estándar fijados según el formato WMS de 36 columnas:
+      // Col W (índice 22)  -> Fecha Movimiento
+      // Col AA (índice 26) -> Subconcepto
+      // Col AB (índice 27) -> Tipo de Movimiento
+      // Col AD (índice 29) -> ID Origen (Usuario / Montacarguista)
+      let idxSubconcepto = 26; 
+      let idxTipoMov = 27;     
+      let idxIdOrigen = 29;    
+      let idxFechaMov = 22;    
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !Array.isArray(row) || row.length < 30) continue;
+
+        // Limpieza y validación de texto
+        const subconcepto = String(row[idxSubconcepto] || '').trim().toUpperCase();
+        // Condición 1: Subconcepto debe ser estrictamente 'IN'
+        if (subconcepto !== 'IN') continue;
+
+        const tipoMov = String(row[idxTipoMov] || '').trim().toUpperCase();
+        let categoria = null;
+
+        // Condición 2: Clasificación de Cargas vs Precargas
+        if (tipoMov.includes('SURTIDO DIRIGIDO')) {
+          categoria = 'CARGA';
+        } else if (tipoMov.includes('VERIFICA PALLET')) {
+          categoria = 'PRECARGA';
+        }
+
+        if (!categoria) continue;
+
+        // Condición 3: ID de Operador / Montacarguista
+        const userId = String(row[idxIdOrigen] || '').trim();
+        if (!userId || userId.toUpperCase() === 'ID ORIGEN.' || userId.toUpperCase() === 'ID ORIGEN') continue;
+
+        // Condición 4: Fecha y Turno
+        const fMovStr = String(row[idxFechaMov] || '').trim();
+        if (!fMovStr || fMovStr.toUpperCase() === 'F. MOVIMIENTO') continue;
+
+        let fDate = '', fTime = '';
+        if (fMovStr.includes(' ')) {
+          const parts = fMovStr.split(' ');
+          fDate = parts[0];
+          fTime = parts[1] || '00:00:00';
+        } else {
+          fDate = fMovStr;
+        }
+
+        const { shiftName, shiftKey, opDate, dtEnd } = determineShiftAndOpDate(fDate, fTime);
+        const crew = getCrewForDateAndShift(opDate, shiftKey);
+
+        montacargasRecords.push({
+          user: userId,
+          categoria,
+          subconcepto,
+          tipoMovRaw: row[idxTipoMov],
+          fMovStr,
+          opDate,
+          shiftKey,
+          shiftName,
+          crew,
+          dtEnd
+        });
+        validCount++;
+      }
+
+      const uniqueUsersCount = new Set(montacargasRecords.map(r => r.user)).size;
+
+      const pillCsv = document.getElementById('pill-montacargas-csv');
+      pillCsv.className = 'pill loaded';
+      pillCsv.textContent = `✓ ${fileName} (${validCount.toLocaleString()} movs)`;
+
+      const pillUsers = document.getElementById('pill-montacargas-operadores');
+      pillUsers.className = 'pill loaded';
+      pillUsers.textContent = `✓ ${uniqueUsersCount} montacarguistas activos`;
+
+      const dates = montacargasRecords.map(r => r.opDate).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('mc-date-from').value = dates[0];
+        document.getElementById('mc-date-to').value = dates[dates.length - 1];
+      }
+
+      updateMontacarguistasUserSelector();
+      renderMontacargas();
+    }
+
+    function updateMontacarguistasUserSelector() {
+      const sel = document.getElementById('mc-filter-user');
+      if (!sel) return;
+      const usersSet = new Set(montacargasRecords.map(t => t.user));
+
+      sel.innerHTML = '<option value="ALL">Todos los montacarguistas</option>';
+      Array.from(usersSet).sort().forEach(u => {
+        const emp = employeeCatalog[u];
+        const label = emp ? `${emp.nombre} (${u})` : `Montacarguista: ${u}`;
+        const opt = document.createElement('option');
+        opt.value = u;
+        opt.textContent = label;
+        sel.appendChild(opt);
+      });
+    }
+
+    function buildMontacargasJourneys(recordsList) {
+      const dailyMap = {};
+      recordsList.forEach(r => {
+        if (!r.opDate || !r.user) return;
+        const key = `${r.opDate}_${r.shiftKey}_${r.user}`;
+        if (!dailyMap[key]) {
+          const emp = employeeCatalog[r.user];
+          dailyMap[key] = {
+            opDate: r.opDate,
+            user: r.user,
+            name: emp ? emp.nombre : `Montacarguista ${r.user}`,
+            crew: r.crew,
+            shiftKey: r.shiftKey,
+            shiftName: r.shiftName,
+            cargas: 0,
+            precargas: 0,
+            totalMovimientos: 0
+          };
+        }
+        if (r.categoria === 'CARGA') dailyMap[key].cargas += 1;
+        if (r.categoria === 'PRECARGA') dailyMap[key].precargas += 1;
+        dailyMap[key].totalMovimientos += 1;
+      });
+
+      const list = Object.values(dailyMap);
+
+      // Ordenamiento Dinámico configurable
+      list.sort((a, b) => {
+        let valA = a[currentMcSortField];
+        let valB = b[currentMcSortField];
+
+        // Comparación numérica o de texto
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return currentMcSortDir === 'DESC' ? valB - valA : valA - valB;
+        }
+
+        valA = String(valA || '').toUpperCase();
+        valB = String(valB || '').toUpperCase();
+
+        if (currentMcSortDir === 'DESC') {
+          return valB.localeCompare(valA);
+        } else {
+          return valA.localeCompare(valB);
+        }
+      });
+
+      return list;
+    }
+
+    function setMcTableSort(field) {
+      if (currentMcSortField === field) {
+        currentMcSortDir = currentMcSortDir === 'DESC' ? 'ASC' : 'DESC';
+      } else {
+        currentMcSortField = field;
+        currentMcSortDir = (field === 'cargas' || field === 'precargas' || field === 'totalMovimientos') ? 'DESC' : 'ASC';
+      }
+
+      // Sincronizar selectores de filtros
+      const selField = document.getElementById('mc-sort-by');
+      const selDir = document.getElementById('mc-sort-order');
+      if (selField) {
+        const matchingOpt = Array.from(selField.options).find(o => o.value === field);
+        if (matchingOpt) selField.value = field;
+      }
+      if (selDir) selDir.value = currentMcSortDir;
+
+      updateMcSortHeaderIcons();
+      renderMontacargas();
+    }
+
+    function updateMcSortHeaderIcons() {
+      const sortableFields = ['user', 'name', 'shiftKey', 'crew', 'opDate', 'cargas', 'precargas', 'totalMovimientos'];
+      sortableFields.forEach(f => {
+        const iconSpan = document.getElementById(`mc-th-${f}`);
+        if (!iconSpan) return;
+        const thElement = iconSpan.parentElement;
+        if (currentMcSortField === f) {
+          thElement.classList.add('sort-active');
+          iconSpan.textContent = currentMcSortDir === 'DESC' ? '▼' : '▲';
+        } else {
+          thElement.classList.remove('sort-active');
+          iconSpan.textContent = '⇅';
+        }
+      });
+    }
+
+    function getFilteredMontacargas() {
+      const crewF = document.getElementById('mc-filter-crew').value;
+      const shiftF = document.getElementById('mc-filter-shift').value;
+      const userF = document.getElementById('mc-filter-user').value;
+      const typeF = document.getElementById('mc-filter-type').value;
+      const from = document.getElementById('mc-date-from').value;
+      const to = document.getElementById('mc-date-to').value;
+
+      return montacargasRecords.filter(r => {
+        if (crewF !== 'ALL' && r.crew !== crewF) return false;
+        if (shiftF !== 'ALL' && r.shiftKey !== shiftF) return false;
+        if (userF !== 'ALL' && r.user !== userF) return false;
+        if (typeF !== 'ALL' && r.categoria !== typeF) return false;
+        if (from && r.opDate && r.opDate < from) return false;
+        if (to && r.opDate && r.opDate > to) return false;
+        return true;
+      });
+    }
+
+    function renderMontacargas() {
+      const records = getFilteredMontacargas();
+      const totalMov = records.length;
+
+      const cargas = records.filter(r => r.categoria === 'CARGA').length;
+      const precargas = records.filter(r => r.categoria === 'PRECARGA').length;
+      const uniqueUsers = new Set(records.map(r => r.user)).size;
+      const avgMovUser = uniqueUsers > 0 ? Math.round(totalMov / uniqueUsers) : 0;
+
+      document.getElementById('mc-kpi-total').textContent = totalMov.toLocaleString();
+      document.getElementById('mc-kpi-cargas').textContent = cargas.toLocaleString();
+      document.getElementById('mc-kpi-precargas').textContent = precargas.toLocaleString();
+      document.getElementById('mc-kpi-operadores').textContent = uniqueUsers.toLocaleString();
+      document.getElementById('mc-kpi-promedio').textContent = avgMovUser.toLocaleString();
+
+      const pctCargas = totalMov > 0 ? ((cargas / totalMov) * 100).toFixed(1) : 0;
+      const pctPrecargas = totalMov > 0 ? ((precargas / totalMov) * 100).toFixed(1) : 0;
+      document.getElementById('mc-kpi-cargas-pct').textContent = `${pctCargas}% del total`;
+      document.getElementById('mc-kpi-precargas-pct').textContent = `${pctPrecargas}% del total`;
+
+      // 1. Gráfica de Barras por Turno (Cargas vs Precargas)
+      const shifts = ['T1', 'T2', 'T3'];
+      const shiftLabels = ['Turno 1 (06:00 - 14:00)', 'Turno 2 (14:00 - 22:00)', 'Turno 3 (22:00 - 06:00)'];
+      const seriesCargasShift = shifts.map(s => records.filter(r => r.shiftKey === s && r.categoria === 'CARGA').length);
+      const seriesPrecargasShift = shifts.map(s => records.filter(r => r.shiftKey === s && r.categoria === 'PRECARGA').length);
+
+      if (montacargasBarChart) montacargasBarChart.destroy();
+      const ctxBar = document.getElementById('chart-mc-bars');
+      if (ctxBar) {
+        montacargasBarChart = new Chart(ctxBar.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: shiftLabels,
+            datasets: [
+              { label: 'Cargas (Surtido Dirigido)', data: seriesCargasShift, backgroundColor: '#10B981', borderRadius: 4 },
+              { label: 'Precargas (Verifica Pallet)', data: seriesPrecargasShift, backgroundColor: '#F59E0B', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#F3F4F6' } } }
+          }
+        });
+      }
+
+      // 2. Gráfica de Dona: Proporción Cargas vs Precargas
+      if (montacargasDonutChart) montacargasDonutChart.destroy();
+      const ctxDonut = document.getElementById('chart-mc-donut');
+      if (ctxDonut) {
+        montacargasDonutChart = new Chart(ctxDonut.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Cargas (Surtido Dirigido)', 'Precargas (Verifica Pallet)'],
+            datasets: [{
+              data: [cargas, precargas],
+              backgroundColor: ['#10B981', '#F59E0B'],
+              borderWidth: 2, borderColor: '#FFFFFF'
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+            }
+          }
+        });
+      }
+
+      // 3. Tabla de Desempeño
+      const dailyJourneys = buildMontacargasJourneys(records);
+      const tbody = document.getElementById('mc-tbody-table');
+      document.getElementById('mc-row-count').textContent = dailyJourneys.length;
+
+      if (!dailyJourneys.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color: var(--text-muted);">Sin datos para el filtro seleccionado.</td></tr>';
+      } else {
+        let html = '';
+        dailyJourneys.forEach(j => {
+          const emp = employeeCatalog[j.user];
+          const displayName = emp ? emp.nombre : `Montacarguista ${j.user}`;
+          const badgeCrew = `badge-crew-${(j.crew || 'a').toLowerCase()}`;
+          const shiftClass = (j.shiftKey || 't1').toLowerCase();
+          const pctVolumen = totalMov > 0 ? ((j.totalMovimientos / totalMov) * 100).toFixed(1) : 0;
+
+          html += `
+            <tr>
+              <td><strong>${j.user}</strong></td>
+              <td>${displayName}</td>
+              <td><span class="badge badge-${shiftClass}">${j.shiftKey}</span></td>
+              <td><span class="badge ${badgeCrew}">Tripulación ${j.crew}</span></td>
+              <td>${j.opDate}</td>
+              <td><span class="badge badge-cargamov">${j.cargas}</span></td>
+              <td><span class="badge badge-precarga">${j.precargas}</span></td>
+              <td><strong>${j.totalMovimientos}</strong></td>
+              <td><strong>${pctVolumen}%</strong></td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+      }
+      updateMcSortHeaderIcons();
+    }
+
+    ['mc-filter-crew', 'mc-filter-shift', 'mc-filter-user', 'mc-filter-type', 'mc-date-from', 'mc-date-to'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderMontacargas);
+    });
+
+    document.getElementById('mc-sort-by').addEventListener('change', (e) => {
+      currentMcSortField = e.target.value;
+      updateMcSortHeaderIcons();
+      renderMontacargas();
+    });
+
+    document.getElementById('mc-sort-order').addEventListener('change', (e) => {
+      currentMcSortDir = e.target.value;
+      updateMcSortHeaderIcons();
+      renderMontacargas();
+    });
+
+    document.getElementById('mc-btn-reset').addEventListener('click', () => {
+      document.getElementById('mc-filter-crew').value = 'ALL';
+      document.getElementById('mc-filter-shift').value = 'ALL';
+      document.getElementById('mc-filter-user').value = 'ALL';
+      document.getElementById('mc-filter-type').value = 'ALL';
+      document.getElementById('mc-sort-by').value = 'totalMovimientos';
+      document.getElementById('mc-sort-order').value = 'DESC';
+      currentMcSortField = 'totalMovimientos';
+      currentMcSortDir = 'DESC';
+      const dates = montacargasRecords.map(r => r.opDate).filter(Boolean).sort();
+      if (dates.length) {
+        document.getElementById('mc-date-from').value = dates[0];
+        document.getElementById('mc-date-to').value = dates[dates.length - 1];
+      }
+      renderMontacargas();
+    });
+
     // ==========================================
-    // PESTAÑAS 2, 3 Y 4: LÓGICA DE PICKING (COMPACTADA)
+    // PESTAÑAS 3, 4 Y 5: LÓGICA DE PICKING
     // ==========================================
     let pickingTasks = [];
     let employeeCatalog = {};
@@ -1554,10 +2166,9 @@
         pill.className = 'pill loaded';
         pill.textContent = `✓ ${file.name} (${loadedEmployees} colaboradores)`;
 
-        if (pickingTasks.length) {
-          updateUserSelectors();
-          refreshActiveView();
-        }
+        updateUserSelectors();
+        updateMontacarguistasUserSelector();
+        refreshActiveView();
       };
       reader.readAsArrayBuffer(file);
     }
@@ -1649,6 +2260,7 @@
       else if (activeContent.id === 'tab-picking-diario') renderDiario();
       else if (activeContent.id === 'tab-meta-900') renderMeta900View();
       else if (activeContent.id === 'tab-trafico') renderTrafico();
+      else if (activeContent.id === 'tab-montacargas') renderMontacargas();
     }
 
     function updateUserSelectors() {
@@ -2283,8 +2895,8 @@
     // EXPORTACIÓN INTEGRAL MULTIPESTAÑA A EXCEL (.XLSX)
     // ========================================================
     function exportarTodoAExcel() {
-      if (!traficoRecords.length && !pickingTasks.length) {
-        alert('No hay datos cargados para exportar. Por favor carga primero los reportes de Tráfico o Picking.');
+      if (!traficoRecords.length && !pickingTasks.length && !montacargasRecords.length) {
+        alert('No hay datos cargados para exportar. Por favor carga primero reportes de Tráfico, Montacarguistas o Picking.');
         return;
       }
 
@@ -2293,7 +2905,8 @@
       // HOJA 1: OPERACIONES MX12
       const traficoExportData = getFilteredTrafico().map(r => ({
         'Shipment #': r.shipment,
-        'Tipo Operación': r.tipo,
+        'Tipo Operación': r.tipo === 'Cargas' ? 'Cargas Nacionales' : r.tipo,
+        'Es Carga Agrupada (Nac/Int/Exp)': r.isCargaTotal ? 'SÍ' : 'NO',
         'Fecha Operativa': r.opDate || '',
         'Turno': r.shiftKey,
         'Tripulación': `Tripulación ${r.crew}`,
@@ -2305,7 +2918,30 @@
       const wsTrafico = XLSX.utils.json_to_sheet(traficoExportData.length ? traficoExportData : [{ 'Aviso': 'Sin datos de Operaciones MX12' }]);
       XLSX.utils.book_append_sheet(wb, wsTrafico, 'OPERACIONES_MX12');
 
-      // HOJA 2: PRODUCTIVIDAD GLOBAL (RANKING PICKERS)
+      // HOJA 2: MOVIMIENTOS POR MONTACARGUISTA (NUEVA HOJA)
+      const mcFiltered = getFilteredMontacargas();
+      const mcJourneys = buildMontacargasJourneys(mcFiltered);
+      const totalMovExport = mcFiltered.length;
+      const mcExportData = mcJourneys.map(j => {
+        const emp = employeeCatalog[j.user];
+        const displayName = emp ? emp.nombre : `Montacarguista ${j.user}`;
+        const pctVol = totalMovExport > 0 ? `${((j.totalMovimientos / totalMovExport) * 100).toFixed(1)}%` : '0%';
+        return {
+          'ID Origen (Montacarguista)': j.user,
+          'Nombre del Colaborador': displayName,
+          'Turno': j.shiftKey,
+          'Tripulación': `Tripulación ${j.crew}`,
+          'Fecha Operativa': j.opDate,
+          'Movimientos de Carga (Surtido Dirigido)': j.cargas,
+          'Movimientos de Precarga (Verifica Pallet)': j.precargas,
+          'Total Movimientos': j.totalMovimientos,
+          '% del Volumen': pctVol
+        };
+      });
+      const wsMontacargas = XLSX.utils.json_to_sheet(mcExportData.length ? mcExportData : [{ 'Aviso': 'Sin datos de Movimientos de Montacarguistas' }]);
+      XLSX.utils.book_append_sheet(wb, wsMontacargas, 'Movimientos_Montacarguistas');
+
+      // HOJA 3: PRODUCTIVIDAD GLOBAL (RANKING PICKERS)
       const tasksGlobal = getFilteredPickingGlobal();
       const journeysGlobal = buildJourneys(tasksGlobal);
       const userAgg = {};
@@ -2345,7 +2981,7 @@
       const wsRanking = XLSX.utils.json_to_sheet(rankingExportData.length ? rankingExportData : [{ 'Aviso': 'Sin datos de Picking Global' }]);
       XLSX.utils.book_append_sheet(wb, wsRanking, 'Picking_Global_Ranking');
 
-      // HOJA 3: TABLA OPERATIVA (EVALUACIÓN DIARIA)
+      // HOJA 4: TABLA OPERATIVA (EVALUACIÓN DIARIA)
       const dailyExportData = getFilteredDiario().map(r => {
         const emp = employeeCatalog[r.user] || { nombre: 'No registrado', puesto: 'Operativo' };
         const densidad = r.tareas > 0 ? (r.cajas / r.tareas).toFixed(1) : 0;
@@ -2365,7 +3001,7 @@
       const wsDiario = XLSX.utils.json_to_sheet(dailyExportData.length ? dailyExportData : [{ 'Aviso': 'Sin datos de Evaluación Diaria' }]);
       XLSX.utils.book_append_sheet(wb, wsDiario, 'Evaluacion_Diaria');
 
-      // HOJA 4: ANALÍTICO META 900 (CONSOLIDADO ACUMULADO)
+      // HOJA 5: ANALÍTICO META 900 (CONSOLIDADO ACUMULADO)
       const shiftF = document.getElementById('meta900-filter-shift').value;
       const crewF = document.getElementById('meta900-filter-crew').value;
       const dateModeF = document.getElementById('meta900-filter-date-mode').value;
