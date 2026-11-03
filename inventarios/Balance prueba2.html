@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Balance de Almacén: SAP vs Izel | Traxión</title>
+  <!-- SheetJS para lectura y exportación universal de Excel/CSV en cliente -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="../traxion-sync.js"></script>
+  <style>
+    /* ============================================================
+       LINEAMIENTOS INSTITUCIONALES TRAXIÓN (TSE-09-SIGEO-PR)
+    ============================================================ */
+    :root {
+      --primary: #182237;         /* Azul Oscuro institucional */
+      --primary-dark: #100848;    /* Azul Oscuro headers / barras */
+      --accent: #cbd51b;          /* Verde Limón Traxión */
+      --accent-line: #C0D838;     /* Línea de acento institucional */
+      --bg: #F4F6F8;              /* Fondo Layout gris muy claro */
+      --surface: #FFFFFF;         /* Fondo de tarjetas */
+      --border: #E5E7EB;          /* Líneas y bordes suaves */
+      --text: #1D2939;            /* Texto principal */
+      --text-muted: #6B7280;      /* Texto secundario y metadatos */
+      --danger: #D92D20;          /* Rojo Crítico */
+      --danger-bg: #FEE4E2;       /* Fondo suave Rojo */
+      --success: #037A48;         /* Verde Cumplimiento / Tiempo */
+      --success-bg: #DCFCE7;      /* Verde suave */
+      --warning: #E07A00;         /* Naranja Riesgo */
+      --warning-bg: #FEF3C7;      /* Fondo suave Naranja */
+      --info: #0284c7;            /* Azul informativo */
+      --info-bg: #E0F2FE;         /* Fondo suave Azul */
+    }
+
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", Arial, sans-serif; 
+    }
+
+    body { 
+      background-color: var(--bg); 
+      color: var(--text); 
+      padding: 24px; 
+    }
+
+    .container { 
+      max-width: 1450px; 
+      margin: 0 auto; 
+    }
+
+    header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 24px; 
+      padding-bottom: 16px; 
+      border-bottom: 3px solid var(--accent-line); 
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      border-right: 2px solid var(--border);
+      padding-right: 16px;
+    }
+
+    .brand-logo span:first-child {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .brand-logo span:last-child {
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      line-height: 1.4;
+    }
+
+    h1 { 
+      font-size: 20px; 
+      font-weight: 800; 
+      color: var(--primary); 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+    }
+
+    .header-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .tabs { 
+      display: flex; 
+      gap: 8px; 
+      margin-bottom: 20px; 
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+    }
+
+    .tab-btn .badge-pill {
+      background: var(--danger);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      margin-left: 6px;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* GRID DE CARGA */
+    .grid-upload { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+      gap: 16px; 
+      margin-bottom: 20px; 
+    }
+
+    .card { 
+      background: var(--surface); 
+      border: 1px solid var(--border); 
+      border-radius: 10px; 
+      padding: 20px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); 
+    }
+
+    .card h3 { 
+      font-size: 14px; 
+      font-weight: 700; 
+      margin-bottom: 8px; 
+      color: var(--primary-dark); 
+      text-transform: uppercase; 
+    }
+
+    .card p { 
+      font-size: 12px; 
+      color: var(--text-muted); 
+      margin-bottom: 14px; 
+    }
+
+    .badge-fmt { 
+      display: inline-block; 
+      padding: 3px 8px; 
+      background: #eff6ff; 
+      color: var(--primary); 
+      border: 1px solid #bfdbfe; 
+      border-radius: 4px; 
+      font-size: 11px; 
+      font-weight: 700; 
+      margin-bottom: 8px; 
+    }
+
+    input[type="file"] { 
+      width: 100%; 
+      font-size: 12px; 
+      padding: 8px; 
+      background: #f8fafc; 
+      border-radius: 6px; 
+      border: 1px dashed var(--border); 
+    }
+
+    .corte-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 12px 18px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .corte-bar label { 
+      font-size: 13px; 
+      font-weight: 700; 
+      color: var(--primary-dark); 
+    }
+
+    .corte-bar input[type="text"] {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      width: 140px;
+      text-align: center;
+      color: var(--text);
+    }
+
+    .corte-bar span { 
+      font-size: 12px; 
+      color: var(--text-muted); 
+    }
+
+    .action-bar { 
+      display: flex; 
+      gap: 12px; 
+      margin-bottom: 20px; 
+      flex-wrap: wrap; 
+      align-items: center; 
+    }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      transition: opacity 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-secondary { background: #475569; color: #fff; }
+    .btn-excel { background: #15803d; color: #fff; }
+
+    /* TARJETAS KPI RESUMEN */
+    .kpi-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      border-top: 4px solid var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .kpi-card.kpi-danger { border-top-color: var(--danger); }
+    .kpi-card.kpi-success { border-top-color: var(--success); }
+    .kpi-card.kpi-warning { border-top-color: var(--warning); }
+    .kpi-card.kpi-accent { border-top-color: var(--accent); }
+    .kpi-card.kpi-info { border-top-color: var(--info); }
+
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* FILTROS */
+    .filter-control {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      background: #FFFFFF;
+      color: var(--text);
+      outline: none;
+    }
+    .filter-control:focus {
+      border-color: var(--primary);
+    }
+
+    /* TABLAS */
+    .table-container { 
+      background: var(--surface); 
+      border-radius: 8px; 
+      border: 1px solid var(--border); 
+      overflow-x: auto; 
+      max-height: 620px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03); 
+    }
+
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      font-size: 12px; 
+      text-align: left; 
+    }
+
+    th { 
+      position: sticky; 
+      top: 0; 
+      background: var(--primary-dark); 
+      color: #ffffff; 
+      padding: 10px 12px; 
+      z-index: 2; 
+      font-size: 11px; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+      border-right: 1px solid rgba(255,255,255,0.1); 
+      user-select: none;
+    }
+
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { background: #182237; }
+
+    td { 
+      padding: 8px 12px; 
+      border-bottom: 1px solid var(--border); 
+      color: var(--text); 
+    }
+
+    tr:hover { background-color: #f8fafc; }
+
+    .row-total-sku { background-color: #f1f5f9; font-weight: 700; border-top: 1px solid #cbd5e1; }
+    .row-gran-total { background-color: var(--accent); color: #000; font-weight: 800; font-size: 13px; }
+    
+    .num-negativo { color: var(--danger); font-weight: 700; }
+    .num-positivo { color: var(--success); font-weight: 700; }
+
+    /* RESALTADOS DE CORRECCIÓN */
+    .cell-highlight-faltante {
+      background-color: #fff1f2 !important;
+      border: 1px dashed var(--danger) !important;
+      font-weight: 700;
+    }
+    .cell-highlight-sobrante {
+      background-color: #f0fdf4 !important;
+      border: 1px dashed var(--success) !important;
+      font-weight: 700;
+    }
+
+    /* BADGES DE ACCIONES */
+    .badge-accion {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+    .accion-ok { background: var(--success-bg); color: var(--success); border: 1px solid #86efac; }
+    .accion-bajar-sap { background: var(--danger-bg); color: var(--danger); border: 1px solid #fca5a5; }
+    .accion-subir-sap { background: var(--info-bg); color: var(--info); border: 1px solid #7dd3fc; }
+
+    .date-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .chip { 
+      padding: 6px 14px; 
+      border-radius: 20px; 
+      border: 1px solid var(--border); 
+      cursor: pointer; 
+      background: #fff; 
+      font-size: 12px; 
+      font-weight: 600; 
+    }
+    .chip.selected { 
+      background: var(--primary); 
+      color: #fff; 
+      border-color: var(--primary); 
+    }
+
+    .tag-tendencia { padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; text-transform: uppercase; display: inline-block; }
+    .tag-aumento { background: var(--danger-bg); color: var(--danger); }
+    .tag-disminucion { background: #dcfce7; color: var(--success); }
+    .tag-fluctuante { background: #fef3c7; color: var(--warning); }
+    .tag-estancado { background: #f1f5f9; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="brand-box">
+      <div class="brand-logo">
+        <span>TRAXION</span>
+        <span>VIDA EN MOVIMIENTO</span>
+      </div>
+      <h1>Balance de Almacén: SAP vs Izel</h1>
+    </div>
+    <span id="status-tag" class="header-meta">Listo para procesar</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="cambiarTab('tab-carga')">1. Carga Multiformato</button>
+    <button class="tab-btn" onclick="cambiarTab('tab-match')">2. Balance MATCH (Base SAP)</button>
+    <button class="tab-btn" onclick="cambiarTab('tab-sobrantes')">3. SKUs No en SAP (Izel) <span id="badge-sobrantes" class="badge-pill" style="display:none;">0</span></button>
+    <button class="tab-btn" onclick="cambiarTab('tab-historico')">4. Historial y Comparativa</button>
+  </div>
+
+  <!-- TAB 1: CARGA MULTIFORMATO -->
+  <div id="tab-carga" class="tab-content active">
+    <div class="grid-upload">
+      <div class="card">
+        <span class="badge-fmt">Acepta .xlsx, .xls o .csv</span>
+        <h3>1. Reporte SAP (Base Rector)</h3>
+        <p>Reporte consolidado de SAP (ej. <i>DRbc.xlsx</i>).</p>
+        <input type="file" id="file-sap" accept=".csv, .xlsx, .xls" onchange="actualizarFechaDetectada()" />
+      </div>
+
+      <div class="card">
+        <span class="badge-fmt">Acepta .xlsx, .xls o .csv</span>
+        <h3>2. Existencias Izel</h3>
+        <p>Reporte de existencias (ej. <i>SSR IZEL 15102026.xlsx</i>).</p>
+        <input type="file" id="file-izel" accept=".csv, .xlsx, .xls" onchange="actualizarFechaDetectada()" />
+      </div>
+
+      <div class="card">
+        <span class="badge-fmt">Acepta .xlsx, .xls o .csv (Opcional)</span>
+        <h3>3. Maestro de Materiales</h3>
+        <p>Catálogo para valorizar diferencias monetarias por SKU.</p>
+        <input type="file" id="file-maestro" accept=".csv, .xlsx, .xls" />
+      </div>
+    </div>
+
+    <!-- Barra de Fecha de Corte -->
+    <div class="corte-bar">
+      <label for="input-fecha-corte">📅 Fecha de Corte Detectada:</label>
+      <input type="text" id="input-fecha-corte" placeholder="DD/MM/YYYY" />
+      <span id="fecha-origen-label">(Se extraerá del nombre del archivo al seleccionarlo)</span>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-primary" onclick="procesarArchivos()">⚡ Ejecutar Conciliación</button>
+    </div>
+  </div>
+
+  <!-- TAB 2: TABLA MATCH (BASE SAP CON CORRECCIONES RESALTADAS) -->
+  <div id="tab-match" class="tab-content">
+    
+    <!-- TARJETAS KPIS MATCH (SIN TRASPASOS, CON CAJAS E IZEL) -->
+    <div class="kpi-container">
+      <div class="kpi-card kpi-accent">
+        <div class="kpi-title">SKUs Únicos en SAP</div>
+        <div class="kpi-value" id="kpi-total-skus">0</div>
+        <div class="kpi-sub">Total de materiales auditados</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-title">Faltantes en Izel</div>
+        <div class="kpi-value" id="kpi-faltantes" style="color: var(--danger);">0</div>
+        <div class="kpi-sub">Bajar de SAP o verificar</div>
+      </div>
+      <div class="kpi-card kpi-info">
+        <div class="kpi-title">Sobrantes en Izel</div>
+        <div class="kpi-value" id="kpi-sobrantes" style="color: var(--info);">0</div>
+        <div class="kpi-sub">Subir / Ajustar en SAP</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Diferencia Total Cajas</div>
+        <div class="kpi-value" id="kpi-total-cajas">0</div>
+        <div class="kpi-sub">Izel vs SAP</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-title">Impacto Financiero Total</div>
+        <div class="kpi-value" id="kpi-total-dinero">$0.00</div>
+        <div class="kpi-sub">Valorización con Maestro</div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-success" onclick="guardarEnHistorico()">💾 Guardar en Historial</button>
+      <button class="btn btn-secondary" onclick="exportarExcelMatch()">📥 Exportar MATCH con Acciones a Excel</button>
+      
+      <!-- Búsqueda por SKU -->
+      <input type="text" id="filtro-sku" class="filter-control" placeholder="Buscar por SKU..." oninput="filtrarTablaMatch()" style="width: 200px;" />
+      
+      <!-- Filtro por Acción / Corrección -->
+      <select id="filtro-accion" class="filter-control" onchange="filtrarTablaMatch()">
+        <option value="todos">Todas las acciones / filas</option>
+        <option value="bajar_sap">🔴 Solo Bajar en SAP / Faltante en Izel</option>
+        <option value="subir_sap">🟢 Solo Ingresar a SAP / Sobrante en Izel</option>
+        <option value="con_dif">⚠️ Todas con Discrepancia (≠ 0)</option>
+        <option value="sin_dif">✅ Solo Cuadradas (= 0)</option>
+      </select>
+    </div>
+
+    <div class="table-container">
+      <table id="tabla-match">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="ordenarTablaMatch('sku')">SKU <span id="sort-sku"></span></th>
+            <th class="sortable" onclick="ordenarTablaMatch('desc')">DESCRIPCIÓN <span id="sort-desc"></span></th>
+            <th>SLOC</th>
+            <th class="sortable" onclick="ordenarTablaMatch('excel')">IZEL <span id="sort-excel"></span></th>
+            <th class="sortable" onclick="ordenarTablaMatch('balance')">SISTEMA (SAP) <span id="sort-balance"></span></th>
+            <th class="sortable" id="th-fecha-corte" onclick="ordenarTablaMatch('difCajas')">DIF CAJAS <span id="sort-difCajas"></span></th>
+            <th class="sortable" onclick="ordenarTablaMatch('difDinero')">DIF $ <span id="sort-difDinero"></span></th>
+            <th>ACCIÓN Y CORRECCIÓN REQUERIDA</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-match">
+          <tr><td colspan="8" style="text-align:center; padding: 24px;">No se ha generado conciliación aún.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 3: APARTADO SKUS SOLO EN IZEL (NO REGISTRADOS EN SAP) -->
+  <div id="tab-sobrantes" class="tab-content">
+    <div class="kpi-container">
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-title">SKUs Solo en Izel</div>
+        <div class="kpi-value" id="kpi-sobrantes-skus" style="color: var(--danger);">0</div>
+        <div class="kpi-sub">No están registrados en SAP</div>
+      </div>
+      <div class="kpi-card kpi-accent">
+        <div class="kpi-title">Total Cajas en Izel No en SAP</div>
+        <div class="kpi-value" id="kpi-sobrantes-cajas">0</div>
+        <div class="kpi-sub">Físico sin respaldo de sistema</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-title">Valor Estimado No Registrado</div>
+        <div class="kpi-value" id="kpi-sobrantes-dinero">$0.00</div>
+        <div class="kpi-sub">Valorización con Maestro</div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-excel" onclick="exportarSobrantesExcel()">📥 Exportar SKUs No en SAP a Excel</button>
+      <input type="text" id="filtro-sobrantes" class="filter-control" placeholder="Buscar por SKU o descripción..." oninput="filtrarTablaSobrantes()" style="width: 250px;" />
+    </div>
+
+    <div class="table-container">
+      <table id="tabla-sobrantes">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>DESCRIPCIÓN</th>
+            <th>SLOC / ÁREA DETECTADA</th>
+            <th>CANTIDAD EN IZEL</th>
+            <th>CANTIDAD SAP</th>
+            <th>DIFERENCIA (CAJAS)</th>
+            <th>VALOR ESTIMADO $</th>
+            <th>CORRECCIÓN REQUERIDA</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-sobrantes">
+          <tr><td colspan="8" style="text-align:center; padding: 24px;">No hay datos de sobrantes procesados aún.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB 4: HISTORIAL Y COMPARATIVA -->
+  <div id="tab-historico" class="tab-content">
+    
+    <div class="kpi-container" id="kpi-container-comp" style="display: none;">
+      <div class="kpi-card kpi-accent">
+        <div class="kpi-title">Casos Comparados</div>
+        <div class="kpi-value" id="kpi-comp-total">0</div>
+        <div class="kpi-sub">Combinaciones SKU/Sloc</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-title">Aumento Continuo</div>
+        <div class="kpi-value" id="kpi-comp-aumento" style="color: var(--danger);">0</div>
+        <div class="kpi-sub">Tendencia crítica creciente</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-title">Disminución Continua</div>
+        <div class="kpi-value" id="kpi-comp-disminucion" style="color: var(--success);">0</div>
+        <div class="kpi-sub">Tendencia correctiva / resuelta</div>
+      </div>
+      <div class="kpi-card kpi-warning">
+        <div class="kpi-title">Fluctuantes / Estancados</div>
+        <div class="kpi-value" id="kpi-comp-otros">0</div>
+        <div class="kpi-sub">Intermitentes o sin cambio</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <h3>Fechas de Archivos Registradas</h3>
+      <p>Selecciona fechas para evaluar variaciones y tendencias, o exporta el historial consolidado:</p>
+      <div id="contenedor-fechas" class="date-chips"></div>
+      
+      <div class="action-bar">
+        <button class="btn btn-primary" onclick="ejecutarComparativa()">📈 Comparar Fechas Seleccionadas</button>
+        <button class="btn btn-excel" onclick="exportarHistoricoCompletoExcel()">📑 Exportar Histórico Completo (7 Cols)</button>
+        <button class="btn btn-secondary" onclick="exportarComparativaExcel()">📊 Exportar Comparativa Actual a Excel</button>
+        
+        <button class="btn btn-secondary" onclick="exportarBackupJSON()">📤 Respaldar Historial (JSON)</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('input-restore-json').click()">📥 Restaurar Respaldo</button>
+        <input type="file" id="input-restore-json" accept=".json" style="display:none;" onchange="restaurarBackupJSON(event)" />
+        
+        <button class="btn btn-secondary" onclick="limpiarTodoHistorico()" style="background: var(--danger); margin-left:auto;">Borrar Historial</button>
+      </div>
+
+      <div class="action-bar" style="margin-bottom: 0; padding-top: 10px; border-top: 1px solid var(--border);">
+        <input type="text" id="filtro-sku-comp" class="filter-control" placeholder="Buscar SKU en comparativa..." oninput="filtrarTablaComparativa()" style="width: 220px;" />
+        
+        <select id="filtro-tendencia-comp" class="filter-control" onchange="filtrarTablaComparativa()">
+          <option value="todos">Todas las tendencias</option>
+          <option value="aumento">Solo Aumento Continuo</option>
+          <option value="disminucion">Solo Disminución Continua</option>
+          <option value="fluctuante">Solo Fluctuante</option>
+          <option value="estancado">Solo Estancado / Sin Movimiento</option>
+        </select>
+
+        <select id="filtro-sloc-comp" class="filter-control" onchange="filtrarTablaComparativa()">
+          <option value="todos">Todos los Sloc (Almacén)</option>
+          <option value="FG">Solo FG (Libre)</option>
+          <option value="QR">Solo QR (Cuarentena / Calidad)</option>
+          <option value="DR">Solo DR (Daño / Merma)</option>
+        </select>
+
+        <span id="label-resumen-comp" style="font-size: 12px; color: var(--text-muted); font-weight: 600;"></span>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table id="tabla-comparativa">
+        <thead id="thead-comparativa">
+          <tr>
+            <th class="sortable" onclick="ordenarComparativa('sku')">SKU <span id="sort-comp-sku"></span></th>
+            <th class="sortable" onclick="ordenarComparativa('sloc')">SLOC <span id="sort-comp-sloc"></span></th>
+            <th class="sortable" onclick="ordenarComparativa('variacionTotal')">VARIACIÓN TOTAL (CAJAS) <span id="sort-comp-variacionTotal"></span></th>
+            <th class="sortable" onclick="ordenarComparativa('tendencia')">TENDENCIA (REGLA) <span id="sort-comp-tendencia"></span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-comparativa">
+          <tr><td colspan="4" style="text-align:center; padding: 24px;">Selecciona fechas y ejecuta la comparación.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let datosMatchGenerados = [];
+  let datosSobrantesGenerados = [];
+  let mapaMaestroGlobal = {};
+  let fechasSeleccionadas = [];
+  let fechaCorteActual = "";
+
+  // Variables para ordenamiento de MATCH
+  let ordenColMatch = "";
+  let ordenAscMatch = true;
+
+  // Variables para datos y ordenamiento de COMPARATIVA
+  let datosComparativaGenerados = [];
+  let fechasComparativaActuales = [];
+  let ordenColComp = "";
+  let ordenAscComp = true;
+
+  function cambiarTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+    if (btn) btn.classList.add('active');
+    
+    const target = document.getElementById(tabId);
+    if (target) target.classList.add('active');
+  }
+
+  // ==========================================
+  // PARSER DE FECHAS DESDE NOMBRES DE ARCHIVO
+  // ==========================================
+  function extraerFechaDeNombre(nombreArchivo) {
+    if (!nombreArchivo) return null;
+    const sinExt = (nombreArchivo.substring(0, nombreArchivo.lastIndexOf('.')) || nombreArchivo).toUpperCase().trim();
+
+    const meses = {
+      "ENERO": "01", "ENE": "01",
+      "FEBRERO": "02", "FEB": "02",
+      "MARZO": "03", "MAR": "03",
+      "ABRIL": "04", "ABR": "04",
+      "MAYO": "05", "MAY": "05",
+      "JUNIO": "06", "JUN": "06",
+      "JULIO": "07", "JUL": "07",
+      "AGOSTO": "08", "AGO": "08",
+      "SEPTIEMBRE": "09", "SEP": "09", "SETIEMBRE": "09",
+      "OCTUBRE": "10", "OCT": "10",
+      "NOVIEMBRE": "11", "NOV": "11",
+      "DICIEMBRE": "12", "DIC": "12"
+    };
+
+    const mesesPattern = Object.keys(meses).join("|");
+    const regexTexto = new RegExp(`\\b(0?[1-9]|[12]\\d|3[01])(?:\\s+DE\\s+|\\s+)(${mesesPattern})(?:\\s+DE\\s+|\\s+)(20\\d{2})\\b`);
+    let m = sinExt.match(regexTexto);
+    if (m) {
+      const dia = String(m[1]).padStart(2, '0');
+      const mes = meses[m[2]];
+      const anio = m[3];
+      return `${dia}/${mes}/${anio}`;
+    }
+
+    m = sinExt.match(/\b(20\\d{2})[-_.](0[1-9]|1[0-2])[-_.](0[1-9]|[12]\\d|3[01])\b/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+    m = sinExt.match(/\b(20\\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\b/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
+    m = sinExt.match(/\b(0[1-9]|[12]\\d|3[01])[-_.](0[1-9]|1[0-2])[-_.](20\\d{2})\b/);
+    if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+
+    m = sinExt.match(/\b(0[1-9]|[12]\\d|3[01])(0[1-9]|1[0-2])(20\\d{2})\b/);
+    if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+
+    m = sinExt.match(/\b(0[1-9]|[12]\\d|3[01])[-_.](0[1-9]|1[0-2])[-_.](2\\d)\b/);
+    if (m) return `${m[1]}/${m[2]}/20${m[3]}`;
+
+    return null;
+  }
+
+  function actualizarFechaDetectada() {
+    const fileSap = document.getElementById('file-sap').files[0];
+    const fileIzel = document.getElementById('file-izel').files[0];
+    const inputFecha = document.getElementById('input-fecha-corte');
+    const labelOrigen = document.getElementById('fecha-origen-label');
+
+    let fechaSap = fileSap ? extraerFechaDeNombre(fileSap.name) : null;
+    let fechaIzel = fileIzel ? extraerFechaDeNombre(fileIzel.name) : null;
+
+    if (fechaIzel) {
+      inputFecha.value = fechaIzel;
+      labelOrigen.textContent = `(Extraída de Izel: "${fileIzel.name}")`;
+    } else if (fechaSap) {
+      inputFecha.value = fechaSap;
+      labelOrigen.textContent = `(Extraída de SAP: "${fileSap.name}")`;
+    } else {
+      labelOrigen.textContent = "(No se detectó fecha en los nombres; puedes escribirla manualmente)";
+    }
+  }
+
+  // ==========================================
+  // LECTOR UNIVERSAL (CSV / XLSX / XLS)
+  // ==========================================
+  function leerArchivoUniversal(file, sheetTargetName = "") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          
+          let targetSheet = workbook.SheetNames[0];
+          if (sheetTargetName) {
+            const match = workbook.SheetNames.find(n => n.toLowerCase().includes(sheetTargetName.toLowerCase()));
+            if (match) targetSheet = match;
+          }
+
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[targetSheet], { header: 1, defval: "" });
+          resolve(rows);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function limpiarNumero(val) {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const cleanStr = String(val).trim().replace(/,/g, "");
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? 0 : num;
+  }
+
+  // ==========================================
+  // PARSEO FLEXIBLE DE FUENTES
+  // ==========================================
+  async function procesarArchivos() {
+    const fileSap = document.getElementById('file-sap').files[0];
+    const fileIzel = document.getElementById('file-izel').files[0];
+    const fileMaestro = document.getElementById('file-maestro').files[0];
+    const inputFecha = document.getElementById('input-fecha-corte');
+
+    if (!fileSap || !fileIzel) {
+      alert("Debes seleccionar tanto el archivo de SAP como el de Izel.");
+      return;
+    }
+
+    fechaCorteActual = inputFecha.value.trim();
+    if (!fechaCorteActual) {
+      const hoy = new Date();
+      const dd = String(hoy.getDate()).padStart(2, '0');
+      const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+      const yyyy = hoy.getFullYear();
+      fechaCorteActual = `${dd}/${mm}/${yyyy}`;
+      inputFecha.value = fechaCorteActual;
+    }
+
+    document.getElementById('status-tag').textContent = `Procesando corte: ${fechaCorteActual}...`;
+
+    try {
+      if (fileMaestro) {
+        const rowsMaestro = await leerArchivoUniversal(fileMaestro, "maestro mat");
+        mapaMaestroGlobal = parsearMaestro(rowsMaestro);
+      }
+
+      const rowsSap = await leerArchivoUniversal(fileSap);
+      const { mapa: mapaBalance, skusSapSet, descSapMap } = parsearSAP(rowsSap);
+
+      const rowsIzel = await leerArchivoUniversal(fileIzel);
+      const { mapa: mapaExcel, skusIzelSet, descIzelMap } = parsearIzel(rowsIzel);
+
+      generarConciliacionBaseSap(mapaBalance, mapaExcel, mapaMaestroGlobal, skusSapSet, skusIzelSet, descSapMap, descIzelMap, fechaCorteActual);
+
+      cambiarTab('tab-match');
+      document.getElementById('status-tag').textContent = `Conciliación lista (${fechaCorteActual})`;
+    } catch (err) {
+      alert("Error al procesar: " + err.message);
+      document.getElementById('status-tag').textContent = "Error en procesamiento";
+      console.error(err);
+    }
+  }
+
+  function parsearSAP(rows) {
+    if (!rows || rows.length < 2) throw new Error("El archivo de SAP no contiene suficientes datos.");
+
+    const h0 = rows[0].map(c => String(c || "").trim().toLowerCase());
+    let idxSku = h0.findIndex(h => h.includes("material") || h.includes("sku") || h.includes("artículo") || h.includes("articulo"));
+    let idxDesc = h0.findIndex(h => h.includes("desc") || h.includes("denomin"));
+    let idxSloc = h0.findIndex(h => h.includes("storage") || h.includes("sloc") || h.includes("almacén") || h.includes("almacen"));
+    let idxQty = h0.findIndex(h => h.includes("bum") || h.includes("libre") || h.includes("cantidad") || h.includes("qty") || h.includes("cajas"));
+
+    if (idxSku === -1) idxSku = 1;
+    if (idxDesc === -1) idxDesc = 2;
+    if (idxSloc === -1) idxSloc = 4;
+    if (idxQty === -1) idxQty = 6;
+
+    const mapa = {};
+    const skusSapSet = new Set();
+    const descSapMap = {};
+
+    for (let i = 1; i < rows.length; i++) {
+      const fila = rows[i];
+      if (!fila || fila.length <= Math.max(idxSku, idxSloc)) continue;
+
+      const material = String(fila[idxSku] || "").trim().replace(/\./g, "");
+      const desc = String(fila[idxDesc] || "").trim();
+      const slocRaw = String(fila[idxSloc] || "").trim().toUpperCase();
+      const qty = limpiarNumero(fila[idxQty]);
+
+      if (!material || !slocRaw) continue;
+      if (material.includes("HMXTAR04") || material.includes("HMXTAR02")) continue;
+
+      skusSapSet.add(material);
+      if (desc && !descSapMap[material]) descSapMap[material] = desc;
+
+      let sloc = "FG";
+      if (slocRaw.includes("QR") || slocRaw.includes("CUARENTENA")) {
+        sloc = "QR";
+      } else if (slocRaw.includes("DAÑO") || slocRaw.includes("DR") || slocRaw.includes("MERMA") || slocRaw.includes("DES")) {
+        sloc = "DR";
+      } else if (slocRaw.includes("FG") || slocRaw.includes("LIBRE")) {
+        sloc = "FG";
+      } else {
+        sloc = slocRaw;
+      }
+
+      const clave = `${material}_${sloc}`;
+      mapa[clave] = (mapa[clave] || 0) + qty;
+    }
+    return { mapa, skusSapSet, descSapMap };
+  }
+
+  function parsearIzel(rows) {
+    if (!rows || rows.length < 2) throw new Error("El archivo de Izel no contiene suficientes datos.");
+
+    const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
+    const idxCant = headers.findIndex(h => h.includes("cantidad") || h.includes("qty") || h.includes("cajas"));
+    const idxSku = headers.findIndex(h => h.includes("sku") || h.includes("material") || h.includes("codigo") || h.includes("código"));
+    const idxDesc = headers.findIndex(h => h.includes("desc") || h.includes("nombre"));
+    
+    let idxArea = headers.findIndex(h => h === "area" || h === "área" || h.includes("sloc") || h.includes("almacen"));
+    let idxUbicacion = headers.findIndex(h => h.includes("ubicacion") || h.includes("ubicación"));
+
+    if (idxArea === -1 && idxUbicacion !== -1) {
+      idxArea = idxUbicacion;
+    }
+
+    if (idxCant === -1 || idxSku === -1 || idxArea === -1) {
+      throw new Error("No se localizaron las columnas ('Cantidad', 'SKU', 'Area') en el archivo de Izel.");
+    }
+
+    const mapa = {};
+    const skusIzelSet = new Set();
+    const descIzelMap = {};
+
+    for (let i = 1; i < rows.length; i++) {
+      const fila = rows[i];
+      if (!fila) continue;
+
+      const sku = String(fila[idxSku] || "").trim().replace(/\./g, "");
+      const desc = idxDesc !== -1 ? String(fila[idxDesc] || "").trim() : "";
+      const areaOriginal = String(fila[idxArea] || "").trim().toUpperCase();
+      const ubicacionOriginal = idxUbicacion !== -1 ? String(fila[idxUbicacion] || "").trim().toUpperCase() : "";
+      const cantidad = limpiarNumero(fila[idxCant]);
+
+      if (!sku || sku.includes("HMXTAR04") || sku.includes("HMXTAR02")) continue;
+
+      skusIzelSet.add(sku);
+      if (desc && !descIzelMap[sku]) descIzelMap[sku] = desc;
+
+      const textoZona = `${areaOriginal} ${ubicacionOriginal}`;
+
+      let sloc = "FG";
+      if (textoZona.includes("QR") || textoZona.includes("CUARENTENA")) {
+        sloc = "QR";
+      } else if (
+        textoZona.includes("DAÑO") || 
+        textoZona.includes("DAÑOS") || 
+        textoZona.includes("DR") || 
+        textoZona.includes("MERMA") || 
+        textoZona.includes("DES.") || 
+        textoZona.includes("DESTRUC")
+      ) {
+        sloc = "DR";
+      }
+
+      const clave = `${sku}_${sloc}`;
+      mapa[clave] = (mapa[clave] || 0) + cantidad;
+    }
+    return { mapa, skusIzelSet, descIzelMap };
+  }
+
+  function parsearMaestro(rows) {
+    const mapa = {};
+    if (!rows || rows.length < 7) return mapa;
+
+    for (let i = 6; i < rows.length; i++) {
+      const colA = rows[i][0];
+      const colB = rows[i][1];
+      const colAA = rows[i][26];
+
+      if (colA !== undefined && colA !== null && colA !== "") {
+        const sku = String(colA).trim().replace(/\./g, "");
+        mapa[sku] = {
+          descripcion: String(colB || "").trim(),
+          precio: limpiarNumero(colAA)
+        };
+      }
+    }
+    return mapa;
+  }
+
+  // ==========================================
+  // CONCILIACIÓN CON BASE ESTRICTA EN SAP
+  // ==========================================
+  function generarConciliacionBaseSap(mapaBalance, mapaExcel, mapaMaestro, skusSapSet, skusIzelSet, descSapMap, descIzelMap, fechaCorte) {
+    const skusSapOrdenados = Array.from(skusSapSet).sort();
+    const skusSoloIzel = Array.from(skusIzelSet).filter(s => !skusSapSet.has(s)).sort();
+
+    document.getElementById('th-fecha-corte').innerHTML = `${fechaCorte} (DIF CAJAS) <span id="sort-difCajas"></span>`;
+
+    const filasMatch = [];
+    let granTotalExcel = 0;
+    let granTotalBalance = 0;
+    let granTotalDifCajas = 0;
+    let granTotalDifDinero = 0;
+
+    let countFaltantes = 0;
+    let countSobrantes = 0;
+
+    skusSapOrdenados.forEach(sku => {
+      const slocs = new Set();
+      Object.keys(mapaBalance).forEach(k => { if (k.startsWith(sku + "_")) slocs.add(k.split("_")[1]); });
+      Object.keys(mapaExcel).forEach(k => { if (k.startsWith(sku + "_")) slocs.add(k.split("_")[1]); });
+
+      const infoMaestro = mapaMaestro[sku] || { 
+        descripcion: descSapMap[sku] || descIzelMap[sku] || "Sin Registro", 
+        precio: 0 
+      };
+
+      let totExcelSku = 0;
+      let totBalSku = 0;
+      const subFilasSku = [];
+
+      Array.from(slocs).sort().forEach(sloc => {
+        const clave = `${sku}_${sloc}`;
+        const valEx = mapaExcel[clave] || 0;
+        const valBal = mapaBalance[clave] || 0;
+        const difCaj = valEx - valBal;
+        const difDin = difCaj * infoMaestro.precio;
+
+        subFilasSku.push({
+          sku,
+          desc: infoMaestro.descripcion,
+          sloc,
+          excel: valEx,
+          balance: valBal,
+          difCajas: difCaj,
+          difDinero: difDin,
+          esTotal: false
+        });
+
+        totExcelSku += valEx;
+        totBalSku += valBal;
+      });
+
+      const totDifCaj = totExcelSku - totBalSku;
+      const totDifDin = totDifCaj * infoMaestro.precio;
+
+      if (totDifCaj < -0.0001) countFaltantes++;
+      else if (totDifCaj > 0.0001) countSobrantes++;
+
+      // Diagnóstico de acción por cada fila de almacén
+      subFilasSku.forEach(sf => {
+        let accion = "Sin Corrección";
+        let accionTipo = "ok";
+        let accionClass = "accion-ok";
+
+        if (sf.difCajas < -0.0001) {
+          accion = "🔴 Faltante en Izel: Bajar de SAP / Verificar";
+          accionTipo = "bajar_sap";
+          accionClass = "accion-bajar-sap";
+        } else if (sf.difCajas > 0.0001) {
+          accion = "🟢 Sobrante en Izel: Ingresar a SAP";
+          accionTipo = "subir_sap";
+          accionClass = "accion-subir-sap";
+        }
+
+        sf.accion = accion;
+        sf.accionTipo = accionTipo;
+        sf.accionClass = accionClass;
+
+        filasMatch.push(sf);
+      });
+
+      // Diagnóstico de acción del Total del SKU
+      let resumenAccion = "✅ Cuadrado";
+      let resumenTipo = "ok";
+      let resumenClass = "accion-ok";
+
+      if (totDifCaj < -0.0001) {
+        resumenAccion = "🔴 Faltante Neto en Izel";
+        resumenTipo = "bajar_sap";
+        resumenClass = "accion-bajar-sap";
+      } else if (totDifCaj > 0.0001) {
+        resumenAccion = "🟢 Sobrante Neto en Izel";
+        resumenTipo = "subir_sap";
+        resumenClass = "accion-subir-sap";
+      }
+
+      filasMatch.push({
+        sku: `Total ${sku}`,
+        desc: infoMaestro.descripcion,
+        sloc: "",
+        excel: totExcelSku,
+        balance: totBalSku,
+        difCajas: totDifCaj,
+        difDinero: totDifDin,
+        esTotal: true,
+        accion: resumenAccion,
+        accionTipo: resumenTipo,
+        accionClass: resumenClass
+      });
+
+      granTotalExcel += totExcelSku;
+      granTotalBalance += totBalSku;
+      granTotalDifCajas += totDifCaj;
+      granTotalDifDinero += totDifDin;
+    });
+
+    filasMatch.push({
+      sku: "GRAN TOTAL",
+      desc: "",
+      sloc: "",
+      excel: granTotalExcel,
+      balance: granTotalBalance,
+      difCajas: granTotalDifCajas,
+      difDinero: granTotalDifDinero,
+      esGranTotal: true,
+      accion: "",
+      accionTipo: "",
+      accionClass: ""
+    });
+
+    // Actualizar Tarjetas KPI de Match
+    document.getElementById('kpi-total-skus').textContent = skusSapOrdenados.length.toLocaleString('es-MX');
+    document.getElementById('kpi-faltantes').textContent = countFaltantes.toLocaleString('es-MX');
+    document.getElementById('kpi-sobrantes').textContent = countSobrantes.toLocaleString('es-MX');
+    
+    const elemCajas = document.getElementById('kpi-total-cajas');
+    elemCajas.textContent = granTotalDifCajas.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    elemCajas.className = 'kpi-value ' + (granTotalDifCajas < 0 ? 'num-negativo' : (granTotalDifCajas > 0 ? 'num-positivo' : ''));
+
+    const elemDin = document.getElementById('kpi-total-dinero');
+    elemDin.textContent = '$' + granTotalDifDinero.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    elemDin.className = 'kpi-value ' + (granTotalDifDinero < 0 ? 'num-negativo' : (granTotalDifDinero > 0 ? 'num-positivo' : ''));
+
+    datosMatchGenerados = filasMatch;
+    filtrarTablaMatch();
+
+    // ------------------------------------------
+    // TABLA DE SKUS NO EN SAP (SOBRANTES IZEL)
+    // ------------------------------------------
+    const filasSobrantes = [];
+    let totCajasSobrantes = 0;
+    let totDineroSobrantes = 0;
+
+    skusSoloIzel.forEach(sku => {
+      const slocs = new Set();
+      Object.keys(mapaExcel).forEach(k => { if (k.startsWith(sku + "_")) slocs.add(k.split("_")[1]); });
+
+      const infoMaestro = mapaMaestro[sku] || { 
+        descripcion: descIzelMap[sku] || "Sin Registro en SAP", 
+        precio: 0 
+      };
+
+      Array.from(slocs).sort().forEach(sloc => {
+        const clave = `${sku}_${sloc}`;
+        const cantIzel = mapaExcel[clave] || 0;
+        const valorEstimado = cantIzel * infoMaestro.precio;
+
+        filasSobrantes.push({
+          sku,
+          desc: infoMaestro.descripcion,
+          sloc,
+          cantIzel,
+          cantSap: 0,
+          diferencia: cantIzel,
+          valorEstimado,
+          correccion: "⭐ Dar de alta en SAP / Carga inicial"
+        });
+
+        totCajasSobrantes += cantIzel;
+        totDineroSobrantes += valorEstimado;
+      });
+    });
+
+    datosSobrantesGenerados = filasSobrantes;
+
+    document.getElementById('badge-sobrantes').textContent = skusSoloIzel.length;
+    document.getElementById('badge-sobrantes').style.display = skusSoloIzel.length > 0 ? 'inline-block' : 'none';
+
+    document.getElementById('kpi-sobrantes-skus').textContent = skusSoloIzel.length.toLocaleString('es-MX');
+    document.getElementById('kpi-sobrantes-cajas').textContent = totCajasSobrantes.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    document.getElementById('kpi-sobrantes-dinero').textContent = '$' + totDineroSobrantes.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+
+    renderizarTablaSobrantes(filasSobrantes);
+  }
+
+  // ==========================================
+  // RENDER Y FILTRO TABLA MATCH CON RESALTADOS
+  // ==========================================
+  function renderizarTablaMatch(filas) {
+    const tbody = document.getElementById('tbody-match');
+    tbody.innerHTML = "";
+
+    if (!filas || filas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 24px;">No hay registros que coincidan con el filtro.</td></tr>';
+      return;
+    }
+
+    filas.forEach(f => {
+      const tr = document.createElement('tr');
+      if (f.esGranTotal) tr.className = "row-gran-total";
+      else if (f.esTotal) tr.className = "row-total-sku";
+
+      const difCajClass = f.difCajas < 0 ? "num-negativo" : (f.difCajas > 0 ? "num-positivo" : "");
+      const difDinClass = f.difDinero < 0 ? "num-negativo" : (f.difDinero > 0 ? "num-positivo" : "");
+
+      let claseCellExcel = "";
+      let claseCellBal = "";
+
+      if (!f.esTotal && !f.esGranTotal && Math.abs(f.difCajas) > 0.0001) {
+        if (f.accionTipo === "bajar_sap") {
+          claseCellBal = "cell-highlight-faltante";
+        } else if (f.accionTipo === "subir_sap") {
+          claseCellExcel = "cell-highlight-sobrante";
+        }
+      }
+
+      tr.innerHTML = `
+        <td>${f.sku}</td>
+        <td>${f.desc}</td>
+        <td><b>${f.sloc}</b></td>
+        <td class="${claseCellExcel}">${f.excel ? f.excel.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td class="${claseCellBal}">${f.balance ? f.balance.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td class="${difCajClass}">${f.difCajas !== "" ? f.difCajas.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td class="${difDinClass}">${f.difDinero !== "" ? '$' + f.difDinero.toLocaleString('es-MX', {minimumFractionDigits: 2}) : ''}</td>
+        <td>${f.accion ? `<span class="badge-accion ${f.accionClass}">${f.accion}</span>` : ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filtrarTablaMatch() {
+    if (!datosMatchGenerados || datosMatchGenerados.length === 0) return;
+
+    const q = (document.getElementById('filtro-sku').value || "").trim().toLowerCase();
+    const filtroAccion = document.getElementById('filtro-accion').value;
+
+    let filtrados = datosMatchGenerados.filter(f => {
+      if (f.esGranTotal) return false;
+
+      const coincideSku = !q || f.sku.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q);
+      if (!coincideSku) return false;
+
+      if (filtroAccion === "bajar_sap") {
+        return f.accionTipo === "bajar_sap";
+      } else if (filtroAccion === "subir_sap") {
+        return f.accionTipo === "subir_sap";
+      } else if (filtroAccion === "con_dif") {
+        return Math.abs(f.difCajas) > 0.0001;
+      } else if (filtroAccion === "sin_dif") {
+        return Math.abs(f.difCajas) <= 0.0001;
+      }
+
+      return true;
+    });
+
+    if (ordenColMatch) {
+      filtrados.sort((a, b) => {
+        let valA = a[ordenColMatch];
+        let valB = b[ordenColMatch];
+
+        if (typeof valA === 'string') {
+          return ordenAscMatch ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          return ordenAscMatch ? (valA - valB) : (valB - valA);
+        }
+      });
+    }
+
+    const granTotalRow = datosMatchGenerados.find(f => f.esGranTotal);
+    if (granTotalRow && filtrados.length > 0) {
+      filtrados.push(granTotalRow);
+    }
+
+    renderizarTablaMatch(filtrados);
+  }
+
+  function ordenarTablaMatch(columna) {
+    if (ordenColMatch === columna) {
+      ordenAscMatch = !ordenAscMatch;
+    } else {
+      ordenColMatch = columna;
+      ordenAscMatch = true;
+    }
+
+    ['sku', 'desc', 'excel', 'balance', 'difCajas', 'difDinero'].forEach(col => {
+      const el = document.getElementById(`sort-${col}`);
+      if (el) el.textContent = "";
+    });
+
+    const activeHeader = document.getElementById(`sort-${columna}`);
+    if (activeHeader) {
+      activeHeader.textContent = ordenAscMatch ? " ▲" : " ▼";
+    }
+
+    filtrarTablaMatch();
+  }
+
+  // ==========================================
+  // RENDER Y FILTRO TABLA SOBRANTES (NO EN SAP)
+  // ==========================================
+  function renderizarTablaSobrantes(filas) {
+    const tbody = document.getElementById('tbody-sobrantes');
+    tbody.innerHTML = "";
+
+    if (!filas || filas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 24px;">No hay SKUs sobrantes fuera de SAP.</td></tr>';
+      return;
+    }
+
+    filas.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${f.sku}</b></td>
+        <td>${f.desc}</td>
+        <td><span class="badge-fmt" style="background:#fef3c7; border-color:#fde68a; color:#b45309;">${f.sloc}</span></td>
+        <td class="num-positivo cell-highlight-sobrante">${f.cantIzel.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+        <td>0.00</td>
+        <td class="num-positivo">+${f.diferencia.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+        <td class="num-positivo">$${f.valorEstimado.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+        <td><span class="badge-accion accion-subir-sap">${f.correccion}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filtrarTablaSobrantes() {
+    const q = (document.getElementById('filtro-sobrantes').value || "").trim().toLowerCase();
+    const filtrados = datosSobrantesGenerados.filter(f => {
+      return !q || f.sku.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.sloc.toLowerCase().includes(q);
+    });
+    renderizarTablaSobrantes(filtrados);
+  }
+
+  function exportarSobrantesExcel() {
+    if (!datosSobrantesGenerados || datosSobrantesGenerados.length === 0) {
+      alert("No hay registros de sobrantes para exportar.");
+      return;
+    }
+
+    const dataExcel = [
+      ["SKU", "Descripción", "Sloc / Área", "Cantidad Izel", "Cantidad SAP", "Diferencia (Cajas)", "Valor Estimado $", "Acción Sugerida"]
+    ];
+
+    datosSobrantesGenerados.forEach(f => {
+      dataExcel.push([
+        f.sku,
+        f.desc,
+        f.sloc,
+        f.cantIzel,
+        0,
+        f.diferencia,
+        f.valorEstimado,
+        f.correccion
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(dataExcel);
+    const wb = XLSX.utils.book_new();
+    const safeFecha = (fechaCorteActual || 'Corte').replace(/\//g, "-");
+    XLSX.utils.book_append_sheet(wb, ws, "SKUs_No_En_SAP");
+    XLSX.writeFile(wb, `Sobrantes_Izel_No_SAP_${safeFecha}.xlsx`);
+  }
+
+  // ==========================================
+  // HISTORIAL Y BASE DE DATOS LOCAL
+  // ==========================================
+  function guardarEnHistorico() {
+    if (!datosMatchGenerados || datosMatchGenerados.length === 0) {
+      alert("No hay datos de match para guardar.");
+      return;
+    }
+
+    const fechaGuardar = fechaCorteActual || document.getElementById('input-fecha-corte').value.trim();
+    if (!fechaGuardar) {
+      alert("No se especificó la fecha de corte a guardar.");
+      return;
+    }
+
+    let historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    historico[fechaGuardar] = datosMatchGenerados;
+    localStorage.setItem('balance_historico_completo', JSON.stringify(historico));
+
+    alert(`¡Éxito! Registrado balance histórico con la fecha: ${fechaGuardar}.`);
+    cargarChipsFechas();
+  }
+
+  function cargarChipsFechas() {
+    const contenedor = document.getElementById('contenedor-fechas');
+    contenedor.innerHTML = "";
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const fechas = Object.keys(historico);
+
+    if (fechas.length === 0) {
+      contenedor.innerHTML = "<span style='color: var(--text-muted); font-size:12px;'>No hay fechas guardadas aún.</span>";
+      return;
+    }
+
+    fechas.forEach(f => {
+      const chip = document.createElement('div');
+      chip.className = "chip" + (fechasSeleccionadas.includes(f) ? " selected" : "");
+      chip.textContent = f;
+      chip.onclick = () => {
+        if (fechasSeleccionadas.includes(f)) {
+          fechasSeleccionadas = fechasSeleccionadas.filter(x => x !== f);
+        } else {
+          fechasSeleccionadas.push(f);
+        }
+        cargarChipsFechas();
+      };
+      contenedor.appendChild(chip);
+    });
+  }
+
+  function limpiarTodoHistorico() {
+    if (confirm("¿Estás seguro de vaciar todo el historial guardado? Esta acción no se puede deshacer.")) {
+      localStorage.removeItem('balance_historico_completo');
+      fechasSeleccionadas = [];
+      datosComparativaGenerados = [];
+      cargarChipsFechas();
+      document.getElementById('tbody-comparativa').innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 24px;">Historial limpio.</td></tr>';
+      document.getElementById('label-resumen-comp').textContent = "";
+      document.getElementById('kpi-container-comp').style.display = 'none';
+    }
+  }
+
+  function exportarBackupJSON() {
+    const historico = localStorage.getItem('balance_historico_completo');
+    if (!historico || historico === "{}") {
+      alert("No hay datos en el historial para respaldar.");
+      return;
+    }
+    const blob = new Blob([historico], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Respaldo_Balance_Historico_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function restaurarBackupJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (typeof parsed !== 'object') throw new Error("Estructura JSON inválida.");
+        localStorage.setItem('balance_historico_completo', JSON.stringify(parsed));
+        alert("¡Historial restaurado correctamente!");
+        cargarChipsFechas();
+      } catch (err) {
+        alert("Error al leer el archivo de respaldo: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  }
+
+  // ==========================================
+  // COMPARATIVA MULTIFECHA Y TENDENCIAS
+  // ==========================================
+  function parseFechaOrden(fStr) {
+    const parts = fStr.split('/');
+    if (parts.length === 3) {
+      return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+    }
+    return 0;
+  }
+
+  function ejecutarComparativa() {
+    if (fechasSeleccionadas.length < 2) {
+      alert("Selecciona al menos 2 fechas en los botones superiores para comparar.");
+      return;
+    }
+
+    fechasComparativaActuales = [...fechasSeleccionadas].sort((a, b) => parseFechaOrden(a) - parseFechaOrden(b));
+
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const todasClaves = new Set();
+    const mapasPorFecha = {};
+
+    fechasComparativaActuales.forEach(f => {
+      mapasPorFecha[f] = {};
+      const filasCorte = historico[f] || [];
+      filasCorte.filter(it => !it.esTotal && !it.esGranTotal && it.sloc).forEach(item => {
+        const clave = `${item.sku}_${item.sloc}`.toUpperCase();
+        todasClaves.add(clave);
+        mapasPorFecha[f][clave] = item.difCajas !== undefined ? item.difCajas : (item.difPiezas || 0);
+      });
+    });
+
+    const listaProcesada = [];
+
+    Array.from(todasClaves).sort().forEach(clave => {
+      const [sku, sloc] = clave.split("_");
+      const valores = fechasComparativaActuales.map(f => mapasPorFecha[f][clave] || 0);
+
+      const primera = valores[0];
+      const ultima = valores[valores.length - 1];
+      const variacionTotal = ultima - primera;
+
+      let subio = false;
+      let bajo = false;
+      for (let i = 0; i < valores.length - 1; i++) {
+        const diff = valores[i + 1] - valores[i];
+        if (diff > 0) subio = true;
+        if (diff < 0) bajo = true;
+      }
+
+      let tendencia = "Sin Movimiento (Estancado)";
+      let tagClass = "tag-estancado";
+      let tipoTendencia = "estancado";
+
+      if (subio && !bajo) {
+        tendencia = "Aumento Continuo";
+        tagClass = "tag-aumento";
+        tipoTendencia = "aumento";
+      } else if (bajo && !subio) {
+        tendencia = "Disminución Continua";
+        tagClass = "tag-disminucion";
+        tipoTendencia = "disminucion";
+      } else if (subio && bajo) {
+        tendencia = "Fluctuante";
+        tagClass = "tag-fluctuante";
+        tipoTendencia = "fluctuante";
+      }
+
+      const tieneMovimiento = valores.some(v => v !== 0);
+      if (!tieneMovimiento) return;
+
+      listaProcesada.push({
+        sku,
+        sloc,
+        valores,
+        variacionTotal,
+        tendencia,
+        tagClass,
+        tipoTendencia
+      });
+    });
+
+    datosComparativaGenerados = listaProcesada;
+
+    const thead = document.getElementById('thead-comparativa');
+    let thHtml = `<tr>
+      <th class="sortable" onclick="ordenarComparativa('sku')">SKU <span id="sort-comp-sku"></span></th>
+      <th class="sortable" onclick="ordenarComparativa('sloc')">SLOC <span id="sort-comp-sloc"></span></th>`;
+    
+    fechasComparativaActuales.forEach(f => {
+      thHtml += `<th>DIF CAJAS (${f})</th>`;
+    });
+    
+    thHtml += `
+      <th class="sortable" onclick="ordenarComparativa('variacionTotal')">VARIACIÓN TOTAL (CAJAS) <span id="sort-comp-variacionTotal"></span></th>
+      <th class="sortable" onclick="ordenarComparativa('tendencia')">TENDENCIA (REGLA) <span id="sort-comp-tendencia"></span></th>
+    </tr>`;
+    thead.innerHTML = thHtml;
+
+    filtrarTablaComparativa();
+  }
+
+  function actualizarKpisComparativa(items) {
+    const container = document.getElementById('kpi-container-comp');
+    if (!items || items.length === 0) {
+      container.style.display = 'none';
+      return;
+    }
+
+    container.style.display = 'grid';
+
+    let countAumento = 0;
+    let countDisminucion = 0;
+    let countOtros = 0;
+
+    items.forEach(it => {
+      if (it.tipoTendencia === 'aumento') countAumento++;
+      else if (it.tipoTendencia === 'disminucion') countDisminucion++;
+      else countOtros++;
+    });
+
+    document.getElementById('kpi-comp-total').textContent = items.length.toLocaleString('es-MX');
+    document.getElementById('kpi-comp-aumento').textContent = countAumento.toLocaleString('es-MX');
+    document.getElementById('kpi-comp-disminucion').textContent = countDisminucion.toLocaleString('es-MX');
+    document.getElementById('kpi-comp-otros').textContent = countOtros.toLocaleString('es-MX');
+  }
+
+  function renderizarTablaComparativa(items) {
+    const tbody = document.getElementById('tbody-comparativa');
+    tbody.innerHTML = "";
+
+    const totalCols = 4 + fechasComparativaActuales.length;
+
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${totalCols}" style="text-align:center; padding: 24px;">No hay registros para mostrar con los filtros aplicados.</td></tr>`;
+      return;
+    }
+
+    items.forEach(item => {
+      const tr = document.createElement('tr');
+      let celdas = `<td>${item.sku}</td><td>${item.sloc}</td>`;
+      
+      item.valores.forEach(v => {
+        const valClass = v < 0 ? "num-negativo" : (v > 0 ? "num-positivo" : "");
+        celdas += `<td class="${valClass}">${v.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
+      });
+
+      const varClass = item.variacionTotal < 0 ? "num-negativo" : (item.variacionTotal > 0 ? "num-positivo" : "");
+      celdas += `<td class="${varClass}"><b>${item.variacionTotal.toLocaleString('es-MX', {minimumFractionDigits: 2})}</b></td>`;
+      celdas += `<td><span class="tag-tendencia ${item.tagClass}">${item.tendencia}</span></td>`;
+
+      tr.innerHTML = celdas;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('label-resumen-comp').textContent = `Mostrando ${items.length} combinaciones SKU/Sloc`;
+  }
+
+  function filtrarTablaComparativa() {
+    if (!datosComparativaGenerados || datosComparativaGenerados.length === 0) return;
+
+    const q = (document.getElementById('filtro-sku-comp').value || "").trim().toLowerCase();
+    const filtroTendencia = document.getElementById('filtro-tendencia-comp').value;
+    const filtroSloc = document.getElementById('filtro-sloc-comp').value;
+
+    let filtrados = datosComparativaGenerados.filter(item => {
+      const matchSku = !q || item.sku.toLowerCase().includes(q);
+      if (!matchSku) return false;
+
+      if (filtroTendencia !== "todos" && item.tipoTendencia !== filtroTendencia) {
+        return false;
+      }
+
+      if (filtroSloc !== "todos" && item.sloc !== filtroSloc) {
+        return false;
+      }
+
+      return true;
+    });
+
+    actualizarKpisComparativa(filtrados);
+
+    if (ordenColComp) {
+      filtrados.sort((a, b) => {
+        let valA = a[ordenColComp];
+        let valB = b[ordenColComp];
+
+        if (typeof valA === 'string') {
+          return ordenAscComp ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          return ordenAscComp ? (valA - valB) : (valB - valA);
+        }
+      });
+    }
+
+    renderizarTablaComparativa(filtrados);
+  }
+
+  function ordenarComparativa(columna) {
+    if (ordenColComp === columna) {
+      ordenAscComp = !ordenAscComp;
+    } else {
+      ordenColComp = columna;
+      ordenAscComp = true;
+    }
+
+    ['sku', 'sloc', 'variacionTotal', 'tendencia'].forEach(col => {
+      const el = document.getElementById(`sort-comp-${col}`);
+      if (el) el.textContent = "";
+    });
+
+    const activeHeader = document.getElementById(`sort-comp-${columna}`);
+    if (activeHeader) {
+      activeHeader.textContent = ordenAscComp ? " ▲" : " ▼";
+    }
+
+    filtrarTablaComparativa();
+  }
+
+  function exportarComparativaExcel() {
+    if (!datosComparativaGenerados || datosComparativaGenerados.length === 0) {
+      alert("No se ha ejecutado ninguna comparativa para exportar.");
+      return;
+    }
+
+    const q = (document.getElementById('filtro-sku-comp').value || "").trim().toLowerCase();
+    const filtroTendencia = document.getElementById('filtro-tendencia-comp').value;
+    const filtroSloc = document.getElementById('filtro-sloc-comp').value;
+
+    const filtrados = datosComparativaGenerados.filter(item => {
+      const matchSku = !q || item.sku.toLowerCase().includes(q);
+      if (!matchSku) return false;
+      if (filtroTendencia !== "todos" && item.tipoTendencia !== filtroTendencia) return false;
+      if (filtroSloc !== "todos" && item.sloc !== filtroSloc) return false;
+      return true;
+    });
+
+    const encabezados = ["SKU", "Sloc", ...fechasComparativaActuales.map(f => `Dif Cajas (${f})`), "Variación Total (Cajas)", "Tendencia"];
+    const matriz = [encabezados];
+
+    filtrados.forEach(it => {
+      matriz.push([
+        it.sku,
+        it.sloc,
+        ...it.valores,
+        it.variacionTotal,
+        it.tendencia
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(matriz);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Comparativa_Tendencias");
+
+    const fechaHoy = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Comparativa_Tendencias_${fechaHoy}.xlsx`);
+  }
+
+  function exportarHistoricoCompletoExcel() {
+    const historico = JSON.parse(localStorage.getItem('balance_historico_completo') || "{}");
+    const fechas = Object.keys(historico);
+
+    if (fechas.length === 0) {
+      alert("No hay ningún corte guardado en el historial para exportar.");
+      return;
+    }
+
+    const fechasDescendentes = fechas.sort((a, b) => parseFechaOrden(b) - parseFechaOrden(a));
+
+    let maxFilas = 0;
+    fechasDescendentes.forEach(f => {
+      if (historico[f].length > maxFilas) maxFilas = historico[f].length;
+    });
+
+    const matriz = [];
+    const totalFilasMatriz = maxFilas + 2;
+
+    for (let r = 0; r < totalFilasMatriz; r++) {
+      matriz.push(new Array(fechasDescendentes.length * 7).fill(""));
+    }
+
+    const merges = [];
+
+    fechasDescendentes.forEach((fechaStr, bIdx) => {
+      const colInicio = bIdx * 7;
+
+      matriz[0][colInicio] = fechaStr;
+      merges.push({
+        s: { r: 0, c: colInicio },
+        e: { r: 0, c: colInicio + 6 }
+      });
+
+      const encabezados = ["SKU", "Descripción", "Sloc", "Izel", "Balance_SAP", "Fecha_Dif_Cajas", "Dif $"];
+      encabezados.forEach((h, hIdx) => {
+        matriz[1][colInicio + hIdx] = h;
+      });
+
+      const datosBloque = historico[fechaStr];
+      datosBloque.forEach((filaItem, rIdx) => {
+        const filaDestino = rIdx + 2;
+        matriz[filaDestino][colInicio + 0] = filaItem.sku;
+        matriz[filaDestino][colInicio + 1] = filaItem.desc;
+        matriz[filaDestino][colInicio + 2] = filaItem.sloc;
+        matriz[filaDestino][colInicio + 3] = filaItem.excel !== 0 ? filaItem.excel : "";
+        matriz[filaDestino][colInicio + 4] = filaItem.balance !== 0 ? filaItem.balance : "";
+        matriz[filaDestino][colInicio + 5] = filaItem.difCajas !== undefined ? filaItem.difCajas : (filaItem.difPiezas || 0);
+        matriz[filaDestino][colInicio + 6] = filaItem.difDinero;
+      });
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(matriz);
+    ws['!merges'] = merges;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Historico_Diferencias");
+
+    const fechaHoyDescarga = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `Historico_Diferencias_${fechaHoyDescarga}.xlsx`);
+  }
+
+  function exportarExcelMatch() {
+    if (!datosMatchGenerados || datosMatchGenerados.length === 0) {
+      alert("No hay información para exportar.");
+      return;
+    }
+
+    const colFecha = `${fechaCorteActual || 'Corte'} (Dif Cajas)`;
+    const dataExcel = [
+      ["SKU", "Descripción", "Sloc", "Izel", "Balance_SAP", colFecha, "Dif $", "Acción y Corrección"]
+    ];
+
+    datosMatchGenerados.forEach(f => {
+      dataExcel.push([
+        f.sku,
+        f.desc,
+        f.sloc,
+        f.excel || 0,
+        f.balance || 0,
+        f.difCajas !== undefined ? f.difCajas : (f.difPiezas || 0),
+        f.difDinero || 0,
+        f.accion || ""
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(dataExcel);
+    const wb = XLSX.utils.book_new();
+    const safeFecha = (fechaCorteActual || 'Corte').replace(/\//g, "-");
+    XLSX.utils.book_append_sheet(wb, ws, "Balance_MATCH");
+    XLSX.writeFile(wb, `Balance_MATCH_${safeFecha}.xlsx`);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    cargarChipsFechas();
+  });
+</script>
+<script>
+  // =========================================================================
+  // INTEGRACIÓN BIDIRECCIONAL CON HUB CENTRAL MULTIARCHIVOS (TRAXIONSYNC)
+  // =========================================================================
+  (function() {
+    if (!window.TraxionSync) return;
+
+    function normalizarEncabezadosIzel(rows) {
+      if (!Array.isArray(rows) || rows.length < 2) return rows;
+      const h = (rows[0] || []).map(function(c) { return String(c || '').trim().toLowerCase(); });
+      const tieneCant = h.some(function(x) { return x.includes('cantidad') || x.includes('qty') || x.includes('cajas'); });
+      const tieneSku = h.some(function(x) { return x.includes('sku') || x.includes('material') || x.includes('codigo') || x.includes('código'); });
+      const tieneArea = h.some(function(x) { return x === 'area' || x === 'área' || x.includes('sloc') || x.includes('almacen') || x.includes('ubicacion') || x.includes('ubicación'); });
+      if (tieneCant && tieneSku && tieneArea) return rows;
+
+      // Si viene en formato posicional de 16 columnas WMS, asegurar encabezados estándar en fila 0
+      const copia = rows.slice();
+      copia[0] = ['Cantidad', 'SKU', 'Descripción', 'Estatus', 'Col4', 'Ubicacion', 'Area', 'LPN', 'FechaCad', 'DiasVida', 'Col10', 'Batch'];
+      return copia;
+    }
+
+    function ejecutarConciliacionDesdeMatrices(rowsSap, rowsIzel, rowsMaestro) {
+      if (!Array.isArray(rowsSap) || rowsSap.length < 2 || !Array.isArray(rowsIzel) || rowsIzel.length < 2) return false;
+      try {
+        const inputFecha = document.getElementById('input-fecha-corte');
+        fechaCorteActual = (inputFecha && inputFecha.value.trim()) || '';
+        if (!fechaCorteActual) {
+          const hoy = new Date();
+          fechaCorteActual = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+          if (inputFecha) inputFecha.value = fechaCorteActual;
+        }
+
+        if (Array.isArray(rowsMaestro) && rowsMaestro.length >= 2) {
+          mapaMaestroGlobal = parsearMaestro(rowsMaestro);
+        }
+
+        const resSap = parsearSAP(rowsSap);
+        const izelNorm = normalizarEncabezadosIzel(rowsIzel);
+        const resIzel = parsearIzel(izelNorm);
+
+        generarConciliacionBaseSap(
+          resSap.mapa,
+          resIzel.mapa,
+          mapaMaestroGlobal,
+          resSap.skusSapSet,
+          resIzel.skusIzelSet,
+          resSap.descSapMap,
+          resIzel.descIzelMap,
+          fechaCorteActual
+        );
+
+        cambiarTab('tab-match');
+        const st = document.getElementById('status-tag');
+        if (st) st.textContent = `⚡ Conciliación Sync Hub (${fechaCorteActual})`;
+        return true;
+      } catch (err) {
+        console.warn('Aviso al auto-conciliar desde Hub MULTIARCHIVOS:', err);
+        return false;
+      }
+    }
+
+    // 1. Cuando el usuario selecciona archivos locales en Balance prueba2, publicarlos al Hub
+    const elSap = document.getElementById('file-sap');
+    if (elSap) {
+      elSap.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+          window.TraxionSync.publicarArchivoDesdeInput('sap', e.target.files[0], 'Balance SAP vs Izel', false);
+        }
+      });
+    }
+
+    const elIzel = document.getElementById('file-izel');
+    if (elIzel) {
+      elIzel.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+          window.TraxionSync.publicarArchivoDesdeInput('existencias', e.target.files[0], 'Balance SAP vs Izel', false);
+        }
+      });
+    }
+
+    const elMaestro = document.getElementById('file-maestro');
+    if (elMaestro) {
+      elMaestro.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+          window.TraxionSync.publicarArchivoDesdeInput('maestro_materiales', e.target.files[0], 'Balance SAP vs Izel', false);
+        }
+      });
+    }
+
+    // Permitir que procesarArchivos use el archivo compartido si solo se subió uno de los dos localmente
+    const _origProcesarArchivos = window.procesarArchivos;
+    window.procesarArchivos = async function() {
+      const fSap = document.getElementById('file-sap')?.files[0];
+      const fIzel = document.getElementById('file-izel')?.files[0];
+      const fMaestro = document.getElementById('file-maestro')?.files[0];
+      const dc = window.TraxionSync.obtenerDatos() || {};
+
+      if (fSap && fIzel) {
+        return _origProcesarArchivos();
+      }
+
+      const rowsSap = fSap ? await leerArchivoUniversal(fSap) : dc.sapData;
+      const rowsIzel = fIzel ? await leerArchivoUniversal(fIzel) : dc.existenciasData;
+      const rowsMaestro = fMaestro ? await leerArchivoUniversal(fMaestro, 'maestro mat') : dc.maestroMaterialesData;
+
+      if (Array.isArray(rowsSap) && rowsSap.length > 1 && Array.isArray(rowsIzel) && rowsIzel.length > 1) {
+        ejecutarConciliacionDesdeMatrices(rowsSap, rowsIzel, rowsMaestro);
+      } else {
+        return _origProcesarArchivos();
+      }
+    };
+
+    // 2. Auto-ejecutar conciliación cuando el Hub tenga SAP y Existencias Izel
+    window.TraxionSync.alActualizarDatos(function(datos) {
+      if (!datos) return;
+      const st = document.getElementById('status-tag');
+      const tieneSap = Array.isArray(datos.sapData) && datos.sapData.length > 1;
+      const tieneIzel = Array.isArray(datos.existenciasData) && datos.existenciasData.length > 1;
+
+      if (tieneSap && tieneIzel) {
+        ejecutarConciliacionDesdeMatrices(datos.sapData, datos.existenciasData, datos.maestroMaterialesData);
+      } else if (tieneSap && st) {
+        st.textContent = '⚡ SAP listo en Hub (Esperando Existencias Izel)';
+      } else if (tieneIzel && st) {
+        st.textContent = '⚡ Existencias Izel listas en Hub (Esperando SAP)';
+      }
+    });
+  })();
+</script>
+</body>
+</html>

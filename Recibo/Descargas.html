@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN - Tablero de Control Operativo de Descargas</title>
+  
+  <!-- Tipografía Sans-Serif Geométrica Oficial (Roboto / Arial) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Iconografía FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Roboto', 'Arial', 'sans-serif'],
+          },
+          colors: {
+            tx: {
+              header: '#182237',
+              headerAlt: '#100848',
+              bg: '#F4F6F8',
+              card: '#FFFFFF',
+              border: '#E5E7EB',
+              textPrimary: '#1D2939',
+              textSecondary: '#6B7280',
+              accent: '#C0D838',        // Verde limón institucional
+              accentHover: '#D0E934',
+              redText: '#D92D20',
+              redBg: '#FEE4E2',
+              orange: '#E07A00',
+              green: '#037A48',
+              blue: '#0070C0',
+              yellow: '#B45309',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilización del scrollbar interno para no saturar visualmente */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #F4F6F8;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+  </style>
+</head>
+<body class="bg-tx-bg text-tx-textPrimary font-sans antialiased min-h-screen flex flex-col justify-between">
+
+  <!-- ======================================================== -->
+  <!-- BLOQUE SUPERIOR FIJO (STICKY HEADER + NAVBAR) -->
+  <!-- ======================================================== -->
+  <div class="sticky top-0 z-50 shadow-md">
+    <!-- LÍNEA DE ACENTO INSTITUCIONAL SUPERIOR (#C0D838) -->
+    <div class="h-1.5 w-full bg-tx-accent"></div>
+
+    <!-- ENCABEZADO PRINCIPAL INSTITUCIONAL (#182237) -->
+    <header class="bg-tx-header text-white px-6 py-3 border-b border-tx-border/10">
+      <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+        
+        <!-- LOGO Y TÍTULO -->
+        <div class="flex items-center gap-5">
+          <div class="border-r border-slate-700 pr-5">
+            <div class="text-white font-black tracking-widest text-lg leading-tight">TRAXION</div>
+            <div class="text-[9px] text-tx-accent tracking-wider font-semibold uppercase">VIDA EN MOVIMIENTO</div>
+          </div>
+          <div>
+            <h1 class="text-[19px] font-bold tracking-wide uppercase leading-tight text-white">
+              SISTEMA DE MONITOREO Y REGISTRO DE DESCARGAS
+            </h1>
+            <p class="text-[11px] text-slate-300">Torre de Control de Patio y Gestión Operativa de Andenes</p>
+          </div>
+        </div>
+
+        <!-- RELOJ, TURNO ACTUAL Y ACTUALIZADOR -->
+        <div class="flex items-center gap-3 text-[12px]">
+          <div class="bg-tx-headerAlt px-3 py-1.5 rounded border border-slate-700 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-tx-accent animate-pulse"></span>
+            <span id="labelTurnoActivo" class="font-bold text-tx-accent text-[11px] uppercase">Turno 2</span>
+          </div>
+
+          <div class="bg-tx-headerAlt px-3.5 py-1.5 rounded border border-slate-700/80 flex items-center gap-2">
+            <i class="fa-regular fa-clock text-tx-accent"></i>
+            <span id="liveTimestamp" class="font-medium text-white">--/--/---- --:--:--</span>
+          </div>
+
+          <button id="btnSync" onclick="sincronizarConSheets()" class="bg-tx-accent hover:bg-tx-accentHover text-tx-header font-bold px-3.5 py-1.5 rounded transition flex items-center gap-1.5 text-[12px] shadow-sm">
+            <i class="fa-solid fa-arrows-rotate"></i> <span>Actualizar</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- BARRA DE NAVEGACIÓN MODULAR -->
+    <nav class="bg-white border-b border-tx-border px-6 py-2">
+      <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center gap-2">
+          
+          <button onclick="cambiarModulo('prioridades')" id="navBtnPrioridades"
+                  class="px-4 py-2 font-bold text-[12px] uppercase rounded border-b-2 border-transparent text-tx-textSecondary hover:text-tx-header hover:bg-slate-50 flex items-center gap-2 transition">
+            <i class="fa-solid fa-tower-broadcast text-tx-blue"></i>
+            <span>Monitor de Prioridades</span>
+            <span id="badgeCountPrio" class="bg-tx-header text-white text-[10px] px-2 py-0.2 rounded-full">0</span>
+          </button>
+
+          <button onclick="cambiarModulo('registro')" id="navBtnRegistro"
+                  class="px-4 py-2 font-bold text-[12px] uppercase rounded border-b-2 border-tx-header text-tx-header bg-slate-100 flex items-center gap-2 transition">
+            <i class="fa-solid fa-truck-ramp-box text-tx-orange"></i>
+            <span>Registro y Bitácora Activa</span>
+            <span id="badgeCountBitacora" class="bg-slate-200 text-tx-textPrimary text-[10px] px-2 py-0.2 rounded-full">0</span>
+          </button>
+
+        </div>
+
+        <div class="flex items-center gap-3 text-[11px] text-tx-textSecondary font-medium">
+          <label class="flex items-center gap-1.5 cursor-pointer bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded border border-tx-border">
+            <input type="checkbox" id="chkMostrarCompletados" onchange="alternarFiltroCompletados()" class="rounded border-slate-300 text-tx-header focus:ring-0">
+            <span>Ver descargadas/despachadas</span>
+          </label>
+          <span class="text-slate-300">|</span>
+          <div class="flex items-center gap-1">
+            <i class="fa-solid fa-warehouse text-tx-header"></i>
+            <span>Site Central (Bodegas Roja y Naranja)</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </div>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="max-w-7xl mx-auto p-6 space-y-6 w-full">
+
+    <!-- TARJETAS KPI RESUMEN -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- KPI 1: EN TRÁNSITO -->
+      <div class="bg-tx-card p-4 rounded-lg border border-tx-border shadow-sm flex items-center justify-between">
+        <div>
+          <h3 class="text-[13px] font-bold text-tx-textSecondary uppercase tracking-wide">EN TRÁNSITO</h3>
+          <div class="text-[30px] font-bold text-tx-textPrimary leading-tight mt-1" id="kpiTransito">0</div>
+          <p class="text-[11px] text-tx-textSecondary mt-0.5">Pendientes en camino</p>
+        </div>
+        <div class="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center text-tx-blue text-lg">
+          <i class="fa-solid fa-truck-moving"></i>
+        </div>
+      </div>
+
+      <!-- KPI 2: EN ANDÉN (PROCESO) -->
+      <div class="bg-tx-card p-4 rounded-lg border border-tx-border shadow-sm flex items-center justify-between">
+        <div>
+          <h3 class="text-[13px] font-bold text-tx-textSecondary uppercase tracking-wide">EN ANDÉN (PROCESO)</h3>
+          <div class="text-[30px] font-bold text-tx-orange leading-tight mt-1" id="kpiProceso">0</div>
+          <p class="text-[11px] text-tx-textSecondary mt-0.5">Descargando actualmente</p>
+        </div>
+        <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center text-tx-orange text-lg">
+          <i class="fa-solid fa-boxes-packing"></i>
+        </div>
+      </div>
+
+      <!-- KPI 3: DESCARGADAS TURNO + APARTADO PENDIENTE -->
+      <div class="bg-tx-card p-4 rounded-lg border border-tx-border shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-[13px] font-bold text-tx-textSecondary uppercase tracking-wide">DESCARGADAS TURNO</h3>
+            <div class="text-[30px] font-bold text-tx-green leading-tight mt-1" id="kpiDescargadasTurno">0</div>
+            <p class="text-[11px] text-tx-textSecondary mt-0.5" id="labelHorarioTurno">Horario actual</p>
+          </div>
+          <div class="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-tx-green text-lg">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+        
+        <div class="mt-3 pt-2 border-t border-tx-border flex items-center justify-between bg-amber-50/70 px-2.5 py-1.5 rounded">
+          <div class="flex items-center gap-1.5 text-amber-800 text-[11px] font-bold">
+            <i class="fa-solid fa-pause text-[10px]"></i>
+            <span>A medio descargar:</span>
+          </div>
+          <div class="font-bold font-mono text-[13px] text-amber-900 bg-amber-200 px-2 py-0.2 rounded" id="kpiPendientesMedio">0</div>
+        </div>
+      </div>
+
+      <!-- KPI 4: CRÍTICOS SLA (>2 DÍAS) -->
+      <div class="bg-tx-redBg/60 p-4 rounded-lg border border-tx-redText/30 shadow-sm flex items-center justify-between">
+        <div>
+          <h3 class="text-[13px] font-bold text-tx-redText uppercase tracking-wide">CRÍTICOS SLA (&gt;2 DÍAS)</h3>
+          <div class="text-[30px] font-bold text-tx-redText leading-tight mt-1" id="kpiCriticos">0</div>
+          <p class="text-[11px] text-tx-redText/80 font-medium mt-0.5">Urgencia en patio / roja</p>
+        </div>
+        <div class="w-12 h-12 rounded-full bg-white border border-tx-redText/40 flex items-center justify-center text-tx-redText text-lg shadow-sm">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- MÓDULO 1: MONITOR DE PRIORIDADES -->
+    <!-- ========================================== -->
+    <section id="moduloPrioridades" class="hidden space-y-4">
+      <div class="bg-tx-card rounded-lg border border-tx-border shadow-sm p-5">
+        <div class="flex flex-wrap justify-between items-center gap-3 border-b border-tx-border pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-5 bg-tx-header rounded-xs"></span>
+            <div>
+              <h2 class="text-[15px] font-bold text-tx-textPrimary uppercase tracking-wide">
+                TORRE DE CONTROL - PRIORIDADES DE ARRIBO EN PATIO
+              </h2>
+              <p class="text-[11px] text-tx-textSecondary">Visualización de arribos programados con SLA</p>
+            </div>
+          </div>
+
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-tx-textSecondary text-[11px]"></i>
+            <input type="text" id="filtroPrio" onkeyup="filtrarPrioridades()" placeholder="Buscar shipment, remolque..."
+                   class="pl-8 pr-3 py-1.5 bg-tx-bg border border-tx-border rounded text-[11px] text-tx-textPrimary focus:outline-none focus:border-tx-header w-64 font-medium">
+          </div>
+        </div>
+
+        <!-- CONTENEDOR CON ALTURA MÁXIMA Y SCROLL INTERNO -->
+        <div class="max-h-[520px] overflow-y-auto custom-scroll border border-tx-border rounded">
+          <table class="w-full text-left border-collapse">
+            <thead class="sticky top-0 z-20 shadow-xs">
+              <tr class="bg-tx-header text-white text-[11px] font-bold uppercase tracking-wider">
+                <th class="py-3 px-4">SLA</th>
+                <th class="py-3 px-4">Shipment</th>
+                <th class="py-3 px-4">Andén</th>
+                <th class="py-3 px-4">Transporte</th>
+                <th class="py-3 px-4">Remolque</th>
+                <th class="py-3 px-4">Tiempo</th>
+                <th class="py-3 px-4">Estatus Actual</th>
+                <th class="py-3 px-4 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPrioridades" class="divide-y divide-tx-border text-[12px] bg-white">
+              <tr>
+                <td colspan="8" class="text-center py-8 text-tx-textSecondary">
+                  <i class="fa-solid fa-spinner fa-spin mr-2"></i> Cargando prioridades...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- MÓDULO 2: REGISTRO Y BITÁCORA ACTIVA -->
+    <!-- ========================================== -->
+    <section id="moduloRegistro" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- FORMULARIO DE REGISTRO (4 COLS) -->
+        <div class="lg:col-span-4 bg-tx-card rounded-lg border border-tx-border shadow-sm p-5 h-fit">
+          <div class="flex items-center gap-2 border-b border-tx-border pb-3 mb-4">
+            <span class="w-2 h-4 bg-tx-header rounded-sm"></span>
+            <h2 class="text-[14px] font-bold text-tx-textPrimary uppercase tracking-wide">
+              NUEVO REGISTRO / ARRIBO
+            </h2>
+          </div>
+
+          <form id="formRegistro" onsubmit="registrarMovimiento(event)" class="space-y-3 text-[12px]">
+            <div>
+              <label class="block text-tx-textSecondary font-medium mb-1">Shipment / Folio</label>
+              <input type="text" id="inShipment" required placeholder="Ej. 6500545025"
+                     class="w-full bg-white border border-tx-border rounded px-3 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-medium">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Site / Bodega</label>
+                <select id="inSite" class="w-full bg-white border border-tx-border rounded px-2.5 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-medium">
+                  <option value="ROJA">Bodega Roja</option>
+                  <option value="NARANJA">Bodega Naranja</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Andén Asignado</label>
+                <input type="text" id="inAnden" required placeholder="Ej. 31"
+                       class="w-full bg-white border border-tx-border rounded px-3 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-mono font-medium">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Transportista</label>
+                <input type="text" id="inTransporte" placeholder="Ej. CIL / T. Méndez"
+                       class="w-full bg-white border border-tx-border rounded px-3 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header">
+              </div>
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Remolque / Caja</label>
+                <input type="text" id="inRemolque" placeholder="Ej. TR-HGIU502896"
+                       class="w-full bg-white border border-tx-border rounded px-3 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-mono">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Verificador</label>
+                <select id="inVerificador" class="w-full bg-white border border-tx-border rounded px-2.5 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-medium">
+                  <option value="Omar">Omar</option>
+                  <option value="Monse">Monse</option>
+                  <option value="Alan">Alan</option>
+                  <option value="Paulina">Paulina</option>
+                  <option value="Brenda">Brenda</option>
+                  <option value="Fernanda">Fernanda</option>
+                  <option value="Alexsander">Alexsander</option>
+                  <option value="Leonel">Leonel</option>
+                  <option value="Jocsan">Jocsan</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Cant. SKUs</label>
+                <input type="number" id="inSkus" min="1" value="1"
+                       class="w-full bg-white border border-tx-border rounded px-3 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-medium">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Turno</label>
+                <select id="inTurno" class="w-full bg-white border border-tx-border rounded px-2.5 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-medium">
+                  <option value="Turno 1">Turno 1 (06:00 - 14:00)</option>
+                  <option value="Turno 2" selected>Turno 2 (14:00 - 22:00)</option>
+                  <option value="Turno 3">Turno 3 (22:00 - 06:00)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-tx-textSecondary font-medium mb-1">Estatus Inicial</label>
+                <select id="inEstatus" class="w-full bg-white border border-tx-border rounded px-2.5 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header font-medium">
+                  <option value="EN ESPERA">EN ESPERA</option>
+                  <option value="EN PROCESO">EN PROCESO</option>
+                  <option value="PENDIENTE">PENDIENTE</option>
+                  <option value="DESCARGADA">DESCARGADA</option>
+                  <option value="DESPACHADA">DESPACHADA</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-tx-textSecondary font-medium mb-1">Observaciones</label>
+              <textarea id="inObservaciones" rows="2" placeholder="Notas operativas del andén..."
+                        class="w-full bg-white border border-tx-border rounded px-3 py-2 text-tx-textPrimary focus:outline-none focus:border-tx-header"></textarea>
+            </div>
+
+            <button type="submit" id="btnSubmitForm" class="w-full bg-tx-header hover:bg-tx-headerAlt text-white font-bold py-2.5 rounded transition shadow-sm flex items-center justify-center gap-2">
+              <i class="fa-solid fa-plus text-tx-accent"></i> <span>Registrar Descarga</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- TABLA BITÁCORA CON SCROLL INTERNO Y BUSCADOR RÁPIDO (8 COLS) -->
+        <div class="lg:col-span-8 bg-tx-card rounded-lg border border-tx-border shadow-sm p-5">
+          <div class="flex flex-wrap justify-between items-center gap-3 border-b border-tx-border pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-4 bg-tx-header rounded-sm"></span>
+              <div>
+                <h2 class="text-[14px] font-bold text-tx-textPrimary uppercase tracking-wide">
+                  BITÁCORA ACTIVA DE ARRIBOS Y DESCARGAS
+                </h2>
+                <p class="text-[11px] text-tx-textSecondary">Mostrando viajes activos (En proceso, pendientes y en espera)</p>
+              </div>
+            </div>
+
+            <!-- BUSCADOR RÁPIDO DE SHIPMENT CON BOTÓN DE LIMPIEZA -->
+            <div class="relative flex items-center">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 text-tx-textSecondary text-[11px]"></i>
+              <input type="text" id="filtroBitacora" onkeyup="filtrarBitacora()" placeholder="Buscar Shipment, Caja, Andén..."
+                     class="pl-8 pr-7 py-1.5 bg-tx-bg border border-tx-border rounded text-[11px] text-tx-textPrimary focus:outline-none focus:border-tx-header focus:ring-1 focus:ring-tx-header w-64 font-medium transition">
+              <button onclick="limpiarBuscadorBitacora()" id="btnLimpiarFiltro" title="Limpiar búsqueda"
+                      class="hidden absolute right-2 text-slate-400 hover:text-slate-600 text-xs font-bold">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- CONTENEDOR CON ALTURA FIJA Y SCROLL INTERNO (NO DESBORDA LA PÁGINA) -->
+          <div class="max-h-[500px] overflow-y-auto custom-scroll border border-tx-border rounded">
+            <table class="w-full text-left border-collapse">
+              <thead class="sticky top-0 z-20 shadow-xs">
+                <tr class="bg-tx-header text-white text-[10px] font-bold uppercase tracking-wider">
+                  <th class="py-2.5 px-3">Fecha/Hora</th>
+                  <th class="py-2.5 px-3">Shipment</th>
+                  <th class="py-2.5 px-3">Andén</th>
+                  <th class="py-2.5 px-3">Remolque</th>
+                  <th class="py-2.5 px-3">Verificador</th>
+                  <th class="py-2.5 px-3">Estatus Visual</th>
+                  <th class="py-2.5 px-3 text-center">Actualizar Estatus</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyBitacora" class="divide-y divide-tx-border text-[11px] bg-white">
+                <tr>
+                  <td colspan="7" class="text-center py-6 text-tx-textSecondary font-medium">
+                    <i class="fa-solid fa-spinner fa-spin mr-2"></i> Cargando bitácora activa...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-tx-textSecondary pt-3 border-t border-tx-border mt-3">
+            <div>Sincronizado con hoja <strong>Respuestas de formulario 1</strong></div>
+            <div class="text-tx-green font-medium"><i class="fa-solid fa-bolt mr-1"></i> Búsqueda en vivo y actualización directa</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bg-white border-t border-tx-border py-3 px-6 mt-8">
+    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center text-[11px] text-tx-textSecondary">
+      <div>Traxión y Subsidiarias © 2026 | Sistema Operativo MFD</div>
+      <div>Cumplimiento de Procedimiento Oficial TSE-09-SIGEO-PR</div>
+    </div>
+  </footer>
+
+  <script>
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwn_0WAzlF8AFOmZNdxxD-Lh4u__x3N4LrHJL-6bWk9EZXw1aQoqASyHsppymZcBtnj/exec';
+
+    let listaPrioridades = [];
+    let listaBitacora = [];
+    let moduloActivo = 'registro';
+    let mostrarCompletados = false;
+
+    let resumenPatio = { transito: 44, proceso: 15 };
+
+    function normalizarEstatus(estatusRaw) {
+      const e = String(estatusRaw || '').trim().toUpperCase();
+      if (e.includes('DESP')) return 'DESPACHADA';
+      if (e.includes('DESC')) return 'DESCARGADA';
+      if (e.includes('PEND')) return 'PENDIENTE';
+      if (e.includes('PROC')) return 'EN PROCESO';
+      return 'EN ESPERA';
+    }
+
+    function obtenerTurnoActual(fecha = new Date()) {
+      const horas = fecha.getHours();
+      if (horas >= 6 && horas < 14) {
+        return { nombre: 'Turno 1', horario: '06:00 - 14:00' };
+      } else if (horas >= 14 && horas < 22) {
+        return { nombre: 'Turno 2', horario: '14:00 - 22:00' };
+      } else {
+        return { nombre: 'Turno 3', horario: '22:00 - 06:00' };
+      }
+    }
+
+    function actualizarReloj() {
+      const d = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      document.getElementById('liveTimestamp').textContent = 
+        `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      
+      const turnoActivo = obtenerTurnoActual(d);
+      document.getElementById('labelTurnoActivo').textContent = turnoActivo.nombre;
+      document.getElementById('labelHorarioTurno').textContent = `${turnoActivo.nombre} (${turnoActivo.horario})`;
+    }
+    setInterval(actualizarReloj, 1000);
+    actualizarReloj();
+
+    function alternarFiltroCompletados() {
+      mostrarCompletados = document.getElementById('chkMostrarCompletados').checked;
+      renderizarTodo();
+    }
+
+    function cambiarModulo(modulo) {
+      moduloActivo = modulo;
+      const btnPrio = document.getElementById('navBtnPrioridades');
+      const btnReg = document.getElementById('navBtnRegistro');
+      const secPrio = document.getElementById('moduloPrioridades');
+      const secReg = document.getElementById('moduloRegistro');
+
+      if (modulo === 'prioridades') {
+        secPrio.classList.remove('hidden');
+        secReg.classList.add('hidden');
+        btnPrio.className = 'px-4 py-2 font-bold text-[12px] uppercase rounded border-b-2 border-tx-header text-tx-header bg-slate-100 flex items-center gap-2 transition';
+        btnReg.className = 'px-4 py-2 font-bold text-[12px] uppercase rounded border-b-2 border-transparent text-tx-textSecondary hover:text-tx-header hover:bg-slate-50 flex items-center gap-2 transition';
+      } else {
+        secPrio.classList.add('hidden');
+        secReg.classList.remove('hidden');
+        btnReg.className = 'px-4 py-2 font-bold text-[12px] uppercase rounded border-b-2 border-tx-header text-tx-header bg-slate-100 flex items-center gap-2 transition';
+        btnPrio.className = 'px-4 py-2 font-bold text-[12px] uppercase rounded border-b-2 border-transparent text-tx-textSecondary hover:text-tx-header hover:bg-slate-50 flex items-center gap-2 transition';
+      }
+    }
+
+    async function sincronizarConSheets() {
+      const btn = document.getElementById('btnSync');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Actualizando...</span>';
+
+      try {
+        const response = await fetch(`${WEB_APP_URL}?action=obtenerDatos`);
+        const result = await response.json();
+
+        if (result.status === 'success') {
+          listaPrioridades = result.prioridades || [];
+          listaBitacora = (result.bitacora || []).map(item => ({
+            ...item,
+            estatus: normalizarEstatus(item.estatus)
+          }));
+          
+          if (result.resumenPatio) {
+            resumenPatio.transito = result.resumenPatio.transito !== undefined ? result.resumenPatio.transito : 44;
+            resumenPatio.proceso = result.resumenPatio.proceso !== undefined ? result.resumenPatio.proceso : 15;
+          }
+          
+          cruzarEstadosBitacoraConPrioridades();
+          renderizarTodo();
+        }
+      } catch (err) {
+        console.warn('Error al conectar con API:', err);
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> <span>Actualizar</span>';
+      }
+    }
+
+    function cruzarEstadosBitacoraConPrioridades() {
+      listaBitacora.forEach(b => {
+        const itemPrio = listaPrioridades.find(p => p.shipment.trim() === b.shipment.trim());
+        if (itemPrio) {
+          itemPrio.estatus = b.estatus;
+          if (b.anden && b.anden !== 'S/A') itemPrio.anden = b.anden;
+        }
+      });
+    }
+
+    function renderizarTodo() {
+      renderizarPrioridades();
+      renderizarBitacora();
+      actualizarKPIs();
+    }
+
+    function renderizarPrioridades() {
+      const tbody = document.getElementById('tbodyPrioridades');
+      tbody.innerHTML = '';
+
+      const visibles = listaPrioridades.filter(item => {
+        if (mostrarCompletados) return true;
+        const e = normalizarEstatus(item.estatus);
+        return e !== 'DESCARGADA' && e !== 'DESPACHADA';
+      });
+
+      document.getElementById('badgeCountPrio').textContent = visibles.length;
+
+      if (visibles.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-tx-textSecondary">No hay prioridades pendientes en patio.</td></tr>';
+        return;
+      }
+
+      visibles.forEach((item) => {
+        const e = normalizarEstatus(item.estatus);
+        let badgeStyle = 'bg-blue-50 text-tx-blue border-blue-200';
+        if (e === 'EN PROCESO') badgeStyle = 'bg-amber-50 text-tx-orange border-amber-200';
+        if (e === 'PENDIENTE') badgeStyle = 'bg-yellow-50 text-yellow-800 border-yellow-300';
+        if (e === 'DESCARGADA') badgeStyle = 'bg-emerald-50 text-tx-green border-emerald-200';
+        if (e === 'DESPACHADA') badgeStyle = 'bg-slate-100 text-tx-textSecondary border-slate-300';
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b border-tx-border">
+            <td class="py-3 px-4 text-base">${item.sla || '🔴'}</td>
+            <td class="py-3 px-4 font-bold font-mono text-tx-textPrimary">${item.shipment}</td>
+            <td class="py-3 px-4">
+              <span class="bg-slate-100 border border-tx-border px-2.5 py-1 rounded font-mono font-bold text-[12px] text-tx-header">
+                ${item.anden || 'S/A'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-tx-textSecondary font-medium">${item.transporte}</td>
+            <td class="py-3 px-4 font-mono font-bold text-tx-textPrimary">${item.remolque}</td>
+            <td class="py-3 px-4 font-medium text-tx-textSecondary">${item.tiempo}</td>
+            <td class="py-3 px-4">
+              <span class="border px-2 py-0.5 rounded text-[10px] font-bold ${badgeStyle}">
+                ${e}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="transferirAlFormulario('${item.shipment}')" class="bg-tx-header hover:bg-tx-headerAlt text-white px-3 py-1.5 rounded text-[11px] font-bold transition flex items-center gap-1.5 mx-auto">
+                <i class="fa-solid fa-arrow-right text-tx-accent"></i> Recibir
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function transferirAlFormulario(shipmentId) {
+      const item = listaPrioridades.find(p => p.shipment.trim() === shipmentId.trim());
+      if (!item) return;
+
+      document.getElementById('inShipment').value = item.shipment;
+      document.getElementById('inTransporte').value = item.transporte;
+      document.getElementById('inRemolque').value = item.remolque;
+      if (item.anden !== 'S/A') document.getElementById('inAnden').value = item.anden;
+      
+      cambiarModulo('registro');
+      document.getElementById('inShipment').focus();
+    }
+
+    function renderizarBitacora() {
+      const tbody = document.getElementById('tbodyBitacora');
+      tbody.innerHTML = '';
+
+      const visibles = listaBitacora.filter(item => {
+        if (mostrarCompletados) return true;
+        const e = normalizarEstatus(item.estatus);
+        return e !== 'DESCARGADA' && e !== 'DESPACHADA';
+      });
+
+      document.getElementById('badgeCountBitacora').textContent = visibles.length;
+
+      if (visibles.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-tx-textSecondary font-medium">No hay descargas en proceso o pendientes en este momento.</td></tr>';
+        return;
+      }
+
+      visibles.forEach((item) => {
+        const e = normalizarEstatus(item.estatus);
+        let badgeStyle = 'bg-blue-50 text-tx-blue border-blue-200';
+        if (e === 'EN PROCESO') badgeStyle = 'bg-amber-50 text-tx-orange border-amber-200';
+        if (e === 'PENDIENTE') badgeStyle = 'bg-yellow-50 text-yellow-800 border-yellow-300';
+        if (e === 'DESCARGADA') badgeStyle = 'bg-emerald-50 text-tx-green border-emerald-200';
+        if (e === 'DESPACHADA') badgeStyle = 'bg-slate-100 text-tx-textSecondary border-slate-300';
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b border-tx-border">
+            <td class="py-2.5 px-3 text-tx-textSecondary font-mono text-[11px]">
+              <i class="fa-regular fa-clock text-tx-accent mr-1"></i>${item.fecha || 'Reciente'}
+            </td>
+            <td class="py-2.5 px-3 font-bold font-mono text-tx-textPrimary">${item.shipment}</td>
+            <td class="py-2.5 px-3 font-mono font-bold">${item.anden}</td>
+            <td class="py-2.5 px-3 font-mono">${item.remolque}</td>
+            <td class="py-2.5 px-3 font-medium text-tx-header">${item.verificador}</td>
+            <td class="py-2.5 px-3">
+              <span class="border px-2 py-0.5 rounded text-[10px] font-bold ${badgeStyle}">
+                ${e}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-center">
+              <select onchange="actualizarEstatusBitacora('${item.shipment}', this.value)"
+                      class="bg-white border border-tx-border hover:border-tx-header text-tx-textPrimary font-bold text-[11px] rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-tx-header shadow-2xs">
+                <option value="EN ESPERA" ${e === 'EN ESPERA' ? 'selected' : ''}>EN ESPERA</option>
+                <option value="EN PROCESO" ${e === 'EN PROCESO' ? 'selected' : ''}>EN PROCESO</option>
+                <option value="PENDIENTE" ${e === 'PENDIENTE' ? 'selected' : ''}>PENDIENTE</option>
+                <option value="DESCARGADA" ${e === 'DESCARGADA' ? 'selected' : ''}>DESCARGADA</option>
+                <option value="DESPACHADA" ${e === 'DESPACHADA' ? 'selected' : ''}>DESPACHADA</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function registrarMovimiento(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitForm');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Guardando...</span>';
+
+      const d = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const fechaTxt = `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+      const payload = {
+        shipment: document.getElementById('inShipment').value.trim(),
+        site: document.getElementById('inSite').value,
+        anden: document.getElementById('inAnden').value.trim(),
+        transporte: document.getElementById('inTransporte').value.trim(),
+        remolque: document.getElementById('inRemolque').value.trim(),
+        verificador: document.getElementById('inVerificador').value,
+        skus: document.getElementById('inSkus').value,
+        turno: document.getElementById('inTurno').value,
+        estatus: normalizarEstatus(document.getElementById('inEstatus').value),
+        observaciones: document.getElementById('inObservaciones').value
+      };
+
+      listaBitacora.unshift({
+        fecha: fechaTxt,
+        ...payload
+      });
+
+      const itemPrio = listaPrioridades.find(p => p.shipment.trim() === payload.shipment);
+      if (itemPrio) {
+        itemPrio.estatus = payload.estatus;
+        if (payload.anden) itemPrio.anden = payload.anden;
+      }
+
+      renderizarTodo();
+
+      try {
+        await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error('Error al sincronizar con Apps Script:', err);
+      } finally {
+        btn.innerHTML = '<i class="fa-solid fa-plus text-tx-accent"></i> <span>Registrar Descarga</span>';
+        document.getElementById('formRegistro').reset();
+      }
+    }
+
+    async function actualizarEstatusBitacora(shipmentId, nuevoEstatus) {
+      const eNormalizado = normalizarEstatus(nuevoEstatus);
+      const d = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const timestampActual = `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+      const itemBit = listaBitacora.find(b => b.shipment.trim() === shipmentId.trim());
+      if (itemBit) {
+        itemBit.estatus = eNormalizado;
+        itemBit.fecha = timestampActual;
+      }
+
+      const itemPrio = listaPrioridades.find(p => p.shipment.trim() === shipmentId.trim());
+      if (itemPrio) {
+        itemPrio.estatus = eNormalizado;
+      }
+
+      renderizarTodo();
+
+      try {
+        await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            shipment: shipmentId,
+            estatus: eNormalizado,
+            accion: 'actualizarEstatus'
+          })
+        });
+      } catch (err) {
+        console.error('Error al actualizar estatus:', err);
+      }
+    }
+
+    function actualizarKPIs() {
+      const turnoActual = obtenerTurnoActual();
+
+      const procesoBitacora = listaBitacora.filter(b => normalizarEstatus(b.estatus) === 'EN PROCESO').length;
+      const pendientesMedioDescargar = listaBitacora.filter(b => normalizarEstatus(b.estatus) === 'PENDIENTE').length;
+
+      const descargadasEnTurno = listaBitacora.filter(b => {
+        const e = normalizarEstatus(b.estatus);
+        if (e !== 'DESCARGADA') return false;
+        if (b.turno && b.turno.includes(turnoActual.nombre)) return true;
+        return true;
+      }).length;
+
+      document.getElementById('kpiTransito').textContent = resumenPatio.transito;
+      document.getElementById('kpiProceso').textContent = procesoBitacora > 0 ? procesoBitacora : resumenPatio.proceso;
+      document.getElementById('kpiDescargadasTurno').textContent = descargadasEnTurno;
+      document.getElementById('kpiPendientesMedio').textContent = pendientesMedioDescargar;
+
+      document.getElementById('kpiCriticos').textContent = listaPrioridades.filter(p => {
+        const e = normalizarEstatus(p.estatus);
+        return p.sla === '🔴' && e !== 'DESCARGADA' && e !== 'DESPACHADA';
+      }).length;
+    }
+
+    function filtrarPrioridades() {
+      const q = document.getElementById('filtroPrio').value.toLowerCase();
+      const filas = document.getElementById('tbodyPrioridades').getElementsByTagName('tr');
+      for (let fila of filas) {
+        fila.style.display = fila.textContent.toLowerCase().includes(q) ? '' : 'none';
+      }
+    }
+
+    // BUSCADOR RÁPIDO DE SHIPMENT EN BITÁCORA
+    function filtrarBitacora() {
+      const input = document.getElementById('filtroBitacora');
+      const btnLimpiar = document.getElementById('btnLimpiarFiltro');
+      const q = input.value.toLowerCase().trim();
+
+      // Muestra u oculta la "X" para limpiar
+      if (q.length > 0) {
+        btnLimpiar.classList.remove('hidden');
+      } else {
+        btnLimpiar.classList.add('hidden');
+      }
+
+      const filas = document.getElementById('tbodyBitacora').getElementsByTagName('tr');
+      for (let fila of filas) {
+        fila.style.display = fila.textContent.toLowerCase().includes(q) ? '' : 'none';
+      }
+    }
+
+    function limpiarBuscadorBitacora() {
+      const input = document.getElementById('filtroBitacora');
+      input.value = '';
+      filtrarBitacora();
+      input.focus();
+    }
+
+    sincronizarConSheets();
+  </script>
+</body>
+</html>
