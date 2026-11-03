@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRAXIÓN | Auditoría Operativa Izel</title>
+    <!-- Google Fonts: Montserrat & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PapaParse para CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- SheetJS (xlsx) para Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Montserrat', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    },
+                    colors: {
+                        traxion: {
+                            navy: '#182237',
+                            deepNavy: '#111827',
+                            accent: '#C0D838',
+                            accentLight: '#D0E934',
+                            canvas: '#F4F6F8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F4F6F8;
+            color: #1D2939;
+            font-family: 'Montserrat', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .traxion-accent-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #C0D838 0%, #D0E934 50%, #C0D838 100%);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F4F6F8;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+    <!-- Toast de Notificaciones -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- Input Oculto de Archivos -->
+    <input type="file" id="file-input" accept=".csv, .txt, .xlsx, .xls" class="hidden" />
+
+    <!-- Barra de Acento Traxión Superior -->
+    <div class="traxion-accent-bar w-full"></div>
+
+    <!-- Header Principal -->
+    <header class="bg-[#182237] text-white border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            
+            <!-- Logo Original Oficial de la Empresa & Título -->
+            <div class="flex items-center gap-4 min-w-0">
+                <div class="flex items-center pr-4 border-r border-slate-700/80 shrink-0">
+                    <!-- Logotipo Oficial Vectorial Traxión en Verde Corporativo -->
+                    <svg class="h-8 w-auto" viewBox="0 0 280 65" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <text x="140" y="38" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="900" font-size="34" letter-spacing="11" fill="#C0D838">TRAXIÓN</text>
+                        <text x="140" y="56" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="11" letter-spacing="6.5" fill="#C0D838">VIDA EN MOVIMIENTO</text>
+                    </svg>
+                </div>
+                <div class="flex items-center gap-2.5 truncate">
+                    <h1 class="text-sm sm:text-base font-bold tracking-tight text-white truncate">
+                        Auditoría Operativa Izel
+                    </h1>
+                    <span class="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-medium px-2.5 py-0.5 rounded-full" title="Sincronización activa con Google Sheets">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>En línea</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Controles del Header -->
+            <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+                <!-- Auditor y Turno -->
+                <div class="hidden md:flex items-center gap-2 bg-slate-800/70 border border-slate-700/80 rounded-lg px-2.5 py-1 text-xs">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="user" class="w-3.5 h-3.5 text-[#C0D838]"></i>
+                        <input type="text" id="input-auditor-name" value="MARTIN" placeholder="AUDITOR"
+                            class="w-20 bg-transparent text-white font-semibold uppercase text-xs focus:outline-none focus:text-[#C0D838]" title="Nombre del auditor activo" />
+                    </div>
+                    <div class="w-px h-3.5 bg-slate-700"></div>
+                    <div class="flex items-center gap-1 text-slate-300 font-mono text-[11px]">
+                        <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+                        <span id="current-shift-badge">1° TURNO</span>
+                    </div>
+                </div>
+
+                <!-- Cargar Archivo -->
+                <button id="btn-upload-file-header" class="px-3.5 py-1.5 bg-[#C0D838] hover:bg-[#D0E934] text-[#182237] text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                    <i data-lucide="upload-cloud" class="w-4 h-4 text-[#182237]"></i>
+                    <span>Cargar Archivo</span>
+                </button>
+
+                <!-- Sincronizar -->
+                <button id="btn-fetch-sheet" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white border border-slate-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs" title="Sincronizar con Google Sheets">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-[#C0D838]" id="icon-sync-refresh"></i>
+                    <span class="hidden sm:inline">Sincronizar</span>
+                </button>
+
+                <!-- Productividad -->
+                <button id="btn-open-productivity" class="px-2.5 py-1.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700/80 transition flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-[#C0D838]"></i>
+                    <span class="hidden lg:inline">Productividad</span>
+                </button>
+
+                <!-- Limpiar -->
+                <button id="btn-clean-data" class="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition cursor-pointer" title="Limpiar tablero">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Indicador de Carga Flotante -->
+    <div id="processing-indicator" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 w-full">
+        <div class="bg-blue-50 border border-blue-200 text-[#0070C0] px-4 py-2 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs animate-pulse">
+            <div class="flex items-center gap-2">
+                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                <span id="processing-text">Procesando archivo y validando estatus de auditoría...</span>
+            </div>
+            <span class="text-[11px] font-mono text-slate-500">WMS Traxión</span>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4">
+
+        <!-- 1. Fila de KPIs Exacta -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <!-- Viajes Activos -->
+            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
+                <div>
+                    <span class="text-xs font-medium text-slate-500">Viajes Activos</span>
+                    <div id="kpi-total-trips" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums mt-1">0</div>
+                    <span class="text-xs text-slate-500 mt-1 block">
+                        <strong id="kpi-trips-completed" class="text-emerald-600 font-semibold tabular-nums">0</strong> completados
+                    </span>
+                </div>
+                <div class="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="truck" class="w-4 h-4"></i>
+                </div>
+            </div>
+
+            <!-- Total Pallets (LPNs) -->
+            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
+                <div class="w-full pr-3">
+                    <span class="text-xs font-medium text-slate-500">Total Pallets (LPNs)</span>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="kpi-total-lpns" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums">0</span>
+                        <span id="kpi-lpns-pct" class="text-xs font-mono font-semibold text-emerald-600 tabular-nums">0%</span>
+                    </div>
+                    <span class="text-xs text-slate-500 mt-1 block">
+                        <strong id="kpi-lpns-audited" class="text-emerald-600 font-semibold tabular-nums">0</strong> de <span id="kpi-lpns-target">0</span> auditados
+                    </span>
+                </div>
+                <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="layers" class="w-4 h-4"></i>
+                </div>
+            </div>
+
+            <!-- Partidas SKU -->
+            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
+                <div class="w-full pr-3">
+                    <span class="text-xs font-medium text-slate-500">Partidas SKU</span>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span id="kpi-total-skus" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums">0</span>
+                        <span id="kpi-skus-pct" class="text-xs font-mono font-semibold text-[#0070C0] tabular-nums">0%</span>
+                    </div>
+                    <span class="text-xs text-slate-500 mt-1 block truncate">
+                        <strong id="kpi-skus-audited" class="text-slate-700 font-semibold tabular-nums">0</strong> validados · <span id="kpi-skus-pending">0</span> pend.
+                    </span>
+                </div>
+                <div class="w-9 h-9 rounded-lg bg-blue-50 text-[#0070C0] flex items-center justify-center shrink-0">
+                    <i data-lucide="boxes" class="w-4 h-4"></i>
+                </div>
+            </div>
+
+            <!-- Total Cajas -->
+            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
+                <div>
+                    <span class="text-xs font-medium text-slate-500">Total Cajas</span>
+                    <div id="kpi-total-boxes" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums mt-1">0</div>
+                    <span class="text-xs text-slate-500 mt-1 block">Volumen total en piso</span>
+                </div>
+                <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="package" class="w-4 h-4"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Barra de Control Operativo Exacta -->
+        <section class="bg-white rounded-xl border border-slate-200/80 p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 shadow-xs">
+            <!-- Buscador -->
+            <div class="relative flex-1 max-w-md">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="filter-input" placeholder="Buscar por viaje, LPN, SKU o descripción..."
+                    class="w-full pl-9 pr-8 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 transition" />
+                <button id="clear-filter-btn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+
+            <!-- Filtros, Pestañas y Acciones -->
+            <div class="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
+                <!-- Filtro de Estatus -->
+                <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
+                    <button id="filter-status-all" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold cursor-pointer transition">Todos</button>
+                    <button id="filter-status-pending" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Pendientes</button>
+                    <button id="filter-status-audited" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Auditados</button>
+                    <button id="filter-status-incidences" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Incidencias</button>
+                </div>
+
+                <!-- Selector de Vistas -->
+                <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
+                    <button id="tab-cards" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold flex items-center gap-1.5 cursor-pointer transition">
+                        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                        <span>Viajes</span>
+                    </button>
+                    <button id="tab-table" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer transition">
+                        <i data-lucide="table-2" class="w-3.5 h-3.5"></i>
+                        <span>Tabla</span>
+                    </button>
+                </div>
+
+                <!-- Botones Guardar en Sheet y Excel -->
+                <div class="flex items-center gap-2">
+                    <button id="btn-send-directly" class="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Guardar en Sheet</span>
+                    </button>
+                    <button id="btn-export-xlsx" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-40 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+                        <span>Excel</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Lista de Viajes -->
+        <section id="cards-view-wrapper" class="w-full flex flex-col gap-2.5"></section>
+
+        <!-- 4. Vista de Tabla Completa -->
+        <section id="table-view-wrapper" class="hidden bg-white border border-slate-200/80 rounded-xl shadow-xs overflow-hidden">
+            <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-[#182237] uppercase">Detalle de Auditoría por SKU (Columnas A:J)</span>
+                    <span class="text-[11px] text-slate-500">• Resaltados en verde al estar validados</span>
+                </div>
+                <span id="table-row-count-badge" class="text-[11px] font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded font-mono">0 filas</span>
+            </div>
+            <div class="overflow-x-auto max-h-[700px]">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-[#182237] text-white uppercase text-[11px] font-bold tracking-wider border-b border-slate-700 select-none sticky top-0 z-10">
+                        <tr>
+                            <th class="px-3 py-3 w-12 text-center">#</th>
+                            <th class="px-3 py-3 w-28">TURNO (A)</th>
+                            <th class="px-3 py-3 w-28">AUDITOR (B)</th>
+                            <th class="px-3 py-3 w-36">FECHA (C)</th>
+                            <th class="px-3 py-3 w-32">SHIPMENT (D)</th>
+                            <th class="px-3 py-3 w-36">LPN / ETIQUETA (E)</th>
+                            <th class="px-3 py-3 w-28">SKU (F)</th>
+                            <th class="px-4 py-3 min-w-[200px]">DESCRIPCIÓN (G)</th>
+                            <th class="px-3 py-3 w-36">INCIDENCIA (H)</th>
+                            <th class="px-3 py-3 w-24 text-center">CAJAS (J)</th>
+                            <th class="px-3 py-3 w-32 text-center">ESTADO AUDITORÍA (N)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-summary-body" class="divide-y divide-slate-100 text-slate-800"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal de Copiado -->
+    <div id="copy-modal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden">
+            <div class="bg-[#182237] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-[#C0D838] text-[#182237] flex items-center justify-center font-bold">
+                        <i data-lucide="copy-check" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-white">Copiar LPNs</h3>
+                </div>
+                <button id="btn-close-modal" class="text-slate-400 hover:text-white transition cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-5 flex flex-col gap-4 text-xs">
+                <div>
+                    <span class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Viaje Seleccionado:</span>
+                    <div class="p-2.5 bg-[#F4F6F8] rounded-lg border border-slate-200 flex items-center justify-between flex-wrap gap-2">
+                        <span id="modal-trip-name" class="font-mono font-bold text-sm text-[#0070C0]"></span>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span id="modal-trip-badge" class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded"></span>
+                            <span id="modal-trip-skus" class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded"></span>
+                            <span id="modal-trip-boxes" class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded font-mono"></span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-[11px] font-bold uppercase text-slate-500 block mb-1.5">Formato de Copiado:</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="modal-delimiter" value="all_repeated" checked class="mt-0.5 text-[#0070C0]">
+                            <div>
+                                <span class="font-bold text-slate-900 text-[11px] block">Todos los LPNs</span>
+                                <span class="text-[9px] text-slate-500 leading-tight block">1 fila por cada SKU</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="modal-delimiter" value="unique" class="mt-0.5 text-[#0070C0]">
+                            <div>
+                                <span class="font-bold text-slate-900 text-[11px] block">LPNs Únicos</span>
+                                <span class="text-[9px] text-slate-500 leading-tight block">1 línea por pallet</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
+                            <input type="radio" name="modal-delimiter" value="with_skus" class="mt-0.5 text-[#0070C0]">
+                            <div>
+                                <span class="font-bold text-slate-900 text-[11px] block">LPN + SKU + Cajas</span>
+                                <span class="text-[9px] text-slate-500 leading-tight block">Tabulado para Excel</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[11px] font-bold uppercase text-slate-500">Vista Previa (<span id="modal-lpn-total" class="font-mono text-slate-800">0</span> líneas):</span>
+                    </div>
+                    <textarea id="modal-textarea" readonly rows="6" class="w-full text-xs font-mono p-3 bg-[#F4F6F8] border border-slate-300 rounded-lg text-slate-800 focus:outline-none resize-none leading-relaxed"></textarea>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-[#F4F6F8] border-t border-slate-200 flex justify-end gap-2">
+                <button id="btn-cancel-modal" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg transition cursor-pointer">Cerrar</button>
+                <button id="btn-do-copy" class="px-4 py-2 text-xs font-bold text-white bg-[#0070C0] hover:bg-blue-700 rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+                    <i data-lucide="clipboard" class="w-3.5 h-3.5 text-[#C0D838]"></i>
+                    <span>Copiar al Portapapeles</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Incidencias -->
+    <div id="incidence-modal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+            <div class="bg-[#182237] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-white" id="incidence-modal-title">Registrar Incidencia</h3>
+                </div>
+                <button id="btn-close-incidence-modal" class="text-slate-400 hover:text-white transition cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-5 flex flex-col gap-4 text-xs">
+                <div class="p-3 bg-[#F4F6F8] rounded-lg border border-slate-200 flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono text-[#0070C0] font-bold" id="inc-trip-label"></span>
+                        <span class="font-mono text-slate-800 font-bold" id="inc-lpn-label"></span>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-slate-200 pt-1">
+                        <span class="font-mono text-purple-700 font-bold text-sm" id="inc-sku-label"></span>
+                        <span class="font-mono text-amber-600 font-bold" id="inc-boxes-label"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Tipo de Incidencia:</label>
+                    <select id="inc-type-select" class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none">
+                        <option value="Faltante">Faltante de Cajas</option>
+                        <option value="Sobrante">Sobrante de Cajas</option>
+                        <option value="Empaque dañado">Empaque Dañado / Roto</option>
+                        <option value="Código ilegible">Código de Barras Ilegible</option>
+                        <option value="Lote trocado">Lote Incorrecto</option>
+                        <option value="Otro">Otro / Discrepancia</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Cajas Afectadas:</label>
+                    <input type="number" id="inc-qty-input" min="1" value="1" class="w-24 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold" />
+                </div>
+
+                <div>
+                    <label class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Observaciones (Columna H):</label>
+                    <textarea id="inc-notes-input" rows="3" placeholder="Ej: Caja aplastada en estiba inferior..." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg resize-none"></textarea>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-[#F4F6F8] border-t border-slate-200 flex justify-between gap-2">
+                <button id="btn-clear-incidence" class="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer">Eliminar</button>
+                <div class="flex items-center gap-2">
+                    <button id="btn-cancel-incidence" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg transition cursor-pointer">Cancelar</button>
+                    <button id="btn-save-incidence" class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                        <span>Guardar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Productividad -->
+    <div id="productivity-modal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden">
+            <div class="bg-[#182237] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-[#C0D838] text-[#182237] flex items-center justify-center font-bold">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-white">Métricas de Productividad</h3>
+                        <p class="text-[10px] text-slate-300">Desempeño operativo en vivo</p>
+                    </div>
+                </div>
+                <button id="btn-close-productivity-modal" class="text-slate-400 hover:text-white transition cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-5 flex flex-col gap-4 text-xs">
+                <div class="p-3 bg-[#F4F6F8] rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Auditor en Turno:</span>
+                        <span id="prod-auditor-name" class="text-base font-bold text-[#182237] font-mono">MARTIN</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Turno:</span>
+                        <span id="prod-shift-badge" class="bg-[#182237] text-[#C0D838] px-2 py-0.5 rounded font-bold font-mono text-xs">1° TURNO</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                            <i data-lucide="timer" class="w-4 h-4 text-[#0070C0]"></i>
+                            <span class="text-[11px] font-bold uppercase">Tiempo Activo</span>
+                        </div>
+                        <span id="prod-time-elapsed" class="text-xl font-bold text-[#182237] font-mono">00:00:00</span>
+                    </div>
+                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                            <i data-lucide="package" class="w-4 h-4 text-amber-600"></i>
+                            <span class="text-[11px] font-bold uppercase">Ritmo de Auditoría</span>
+                        </div>
+                        <span id="prod-rate" class="text-xl font-bold text-amber-600 font-mono">0 CJ/h</span>
+                    </div>
+                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                            <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
+                            <span class="text-[11px] font-bold uppercase">Pallets Auditados</span>
+                        </div>
+                        <span id="prod-pallets" class="text-xl font-bold text-emerald-600 font-mono">0</span>
+                    </div>
+                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
+                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600"></i>
+                            <span class="text-[11px] font-bold uppercase">Incidencias</span>
+                        </div>
+                        <span id="prod-incidences" class="text-xl font-bold text-rose-600 font-mono">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="px-5 py-3 bg-[#F4F6F8] border-t border-slate-200 flex justify-end gap-2">
+                <button id="btn-cancel-productivity" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg transition cursor-pointer">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-3 mt-auto text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-[#182237]">TRAXIÓN</span>
+                <span>•</span>
+                <span>Vida en Movimiento</span>
+                <span>•</span>
+                <span>Dirección de Operaciones & Sistemas</span>
+            </div>
+            <p class="text-[11px]">Procedimiento: <strong>TSE-09-SIGEO-PR</strong> (Confidencial - Uso Interno)</p>
+        </div>
+    </footer>
+
+    <!-- Lógica JS Completa -->
+    <script>
+        function refreshIcons() {
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        // Estructuras principales
+        let groupedTrips = new Map();
+        let sheetAuditStatusMap = new Map();
+        let expandedTrips = new Set();
+        let expandedLpns = new Set();
+        let currentFilter = "";
+        let currentStatusFilter = "all";
+        let isSyncing = false;
+
+        // Auditor y Turno
+        const inputAuditorName = document.getElementById('input-auditor-name');
+        const currentShiftBadge = document.getElementById('current-shift-badge');
+        const savedAuditor = localStorage.getItem('traxion_auditor_name') || 'MARTIN';
+        if (inputAuditorName) {
+            inputAuditorName.value = savedAuditor;
+            inputAuditorName.addEventListener('input', () => {
+                localStorage.setItem('traxion_auditor_name', inputAuditorName.value.trim().toUpperCase());
+            });
+        }
+
+        // Productividad
+        let sessionStartTime = new Date();
+        let sessionSeconds = 0;
+        let auditedBoxesSession = 0;
+        let auditedPalletsSession = 0;
+        let incidencesCount = 0;
+
+        setInterval(() => {
+            sessionSeconds++;
+            const hours = Math.floor(sessionSeconds / 3600);
+            const minutes = Math.floor((sessionSeconds % 3600) / 60);
+            const seconds = sessionSeconds % 60;
+            const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const timeEl = document.getElementById('prod-time-elapsed');
+            if (timeEl) timeEl.textContent = formatted;
+
+            const hoursElapsed = Math.max(sessionSeconds / 3600, 1 / 60);
+            const rateEl = document.getElementById('prod-rate');
+            if (rateEl) rateEl.textContent = `${Math.round(auditedBoxesSession / hoursElapsed)} CJ/h`;
+        }, 1000);
+
+        // Apps Script Web App
+        const APPS_SCRIPT_EXEC_URL = "https://script.google.com/macros/s/AKfycbwplY5VhD9EThgPQpiACbhaE-QyPE-kVUqbrdXix7fgAhva9o6VUE63JN-xOjzfuHHV/exec";
+
+        // Elementos DOM
+        const fileInput = document.getElementById('file-input');
+        const btnUploadFileHeader = document.getElementById('btn-upload-file-header');
+        const btnFetchSheet = document.getElementById('btn-fetch-sheet');
+        const btnCleanData = document.getElementById('btn-clean-data');
+        const btnSendDirectly = document.getElementById('btn-send-directly');
+        const btnExportXlsx = document.getElementById('btn-export-xlsx');
+        const processingIndicator = document.getElementById('processing-indicator');
+        const processingText = document.getElementById('processing-text');
+        const iconSyncRefresh = document.getElementById('icon-sync-refresh');
+
+        const filterInput = document.getElementById('filter-input');
+        const clearFilterBtn = document.getElementById('clear-filter-btn');
+        const filterStatusAll = document.getElementById('filter-status-all');
+        const filterStatusPending = document.getElementById('filter-status-pending');
+        const filterStatusAudited = document.getElementById('filter-status-audited');
+        const filterStatusIncidences = document.getElementById('filter-status-incidences');
+
+        const tabCards = document.getElementById('tab-cards');
+        const tabTable = document.getElementById('tab-table');
+        const cardsViewWrapper = document.getElementById('cards-view-wrapper');
+        const tableViewWrapper = document.getElementById('table-view-wrapper');
+        const tableSummaryBody = document.getElementById('table-summary-body');
+        const tableRowCountBadge = document.getElementById('table-row-count-badge');
+
+        // KPIs
+        const kpiTotalTrips = document.getElementById('kpi-total-trips');
+        const kpiTripsCompleted = document.getElementById('kpi-trips-completed');
+        const kpiTotalLpns = document.getElementById('kpi-total-lpns');
+        const kpiLpnsPct = document.getElementById('kpi-lpns-pct');
+        const kpiLpnsAudited = document.getElementById('kpi-lpns-audited');
+        const kpiLpnsTarget = document.getElementById('kpi-lpns-target');
+        const kpiTotalSkus = document.getElementById('kpi-total-skus');
+        const kpiSkusPct = document.getElementById('kpi-skus-pct');
+        const kpiSkusAudited = document.getElementById('kpi-skus-audited');
+        const kpiSkusPending = document.getElementById('kpi-skus-pending');
+        const kpiTotalBoxes = document.getElementById('kpi-total-boxes');
+
+        // Modales
+        const copyModal = document.getElementById('copy-modal');
+        const btnCloseModal = document.getElementById('btn-close-modal');
+        const btnCancelModal = document.getElementById('btn-cancel-modal');
+        const btnDoCopy = document.getElementById('btn-do-copy');
+        const modalTripName = document.getElementById('modal-trip-name');
+        const modalTripBadge = document.getElementById('modal-trip-badge');
+        const modalTripSkus = document.getElementById('modal-trip-skus');
+        const modalTripBoxes = document.getElementById('modal-trip-boxes');
+        const modalLpnTotal = document.getElementById('modal-lpn-total');
+        const modalTextarea = document.getElementById('modal-textarea');
+
+        const productivityModal = document.getElementById('productivity-modal');
+        const btnOpenProductivity = document.getElementById('btn-open-productivity');
+        const btnCloseProductivityModal = document.getElementById('btn-close-productivity-modal');
+        const btnCancelProductivity = document.getElementById('btn-cancel-productivity');
+
+        const incidenceModal = document.getElementById('incidence-modal');
+        const btnCloseIncidenceModal = document.getElementById('btn-close-incidence-modal');
+        const btnCancelIncidence = document.getElementById('btn-cancel-incidence');
+        const btnSaveIncidence = document.getElementById('btn-save-incidence');
+        const btnClearIncidence = document.getElementById('btn-clear-incidence');
+        let currentIncidenceTarget = null;
+
+        function calculateShift(date = new Date()) {
+            const hours = date.getHours();
+            if (hours >= 6 && hours < 14) return "1° TURNO";
+            if (hours >= 14 && hours < 22) return "2° TURNO";
+            return "3° TURNO";
+        }
+
+        function formatAuditDateTime(date = new Date()) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            let hours = date.getHours();
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
+            hours = hours % 12 || 12;
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} ${ampm}`;
+        }
+
+        function formatNumber(num) {
+            if (isNaN(num)) return "0";
+            return Number(num).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function cleanTripNumber(rawTrip) {
+            if (!rawTrip) return null;
+            let str = String(rawTrip).trim();
+            if (!str.toUpperCase().includes('RECOLECCION PICK:')) return null;
+            if (str.toUpperCase().includes('REUBICACION')) return null;
+            str = str.replace(/^RECOLECCION\s*PICK\s*:\s*/i, '').replace(/^PICK\s*:\s*/i, '').trim();
+            const match = str.match(/(\d{7,14})/);
+            return match ? match[1] : (str || null);
+        }
+
+        function parseQuantity(rawQty) {
+            if (rawQty === undefined || rawQty === null) return 0;
+            const str = String(rawQty).trim().replace(/,/g, '');
+            const parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            let border = type === 'success' ? 'border-emerald-400' : (type === 'error' ? 'border-rose-500' : 'border-[#C0D838]');
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-lg shadow-xl text-xs font-semibold bg-[#182237] text-white border ${border} transition-all duration-200`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        function updateKPIs() {
+            let totalTrips = groupedTrips.size;
+            let fullyAuditedTrips = 0;
+            let totalLpns = 0;
+            let fullyAuditedLpns = 0;
+            let totalSkus = 0;
+            let auditedSkus = 0;
+            let totalBoxes = 0;
+            incidencesCount = 0;
+
+            groupedTrips.forEach((group) => {
+                totalLpns += group.lpns.size;
+                let tripHasSkus = false;
+                let isTrip100Audited = true;
+
+                group.lpns.forEach((lpnData) => {
+                    let allSkusOfLpnAudited = lpnData.skus.size > 0;
+                    lpnData.skus.forEach((skuData) => {
+                        tripHasSkus = true;
+                        totalSkus++;
+                        totalBoxes += skuData.boxes;
+                        if (skuData.isAudited) {
+                            auditedSkus++;
+                        } else {
+                            allSkusOfLpnAudited = false;
+                            isTrip100Audited = false;
+                        }
+                        if (skuData.incidence) {
+                            incidencesCount++;
+                        }
+                    });
+                    if (allSkusOfLpnAudited) {
+                        fullyAuditedLpns++;
+                    }
+                });
+
+                if (tripHasSkus && isTrip100Audited) {
+                    fullyAuditedTrips++;
+                }
+            });
+
+            kpiTotalTrips.textContent = totalTrips.toLocaleString();
+            kpiTripsCompleted.textContent = fullyAuditedTrips;
+            
+            kpiTotalLpns.textContent = totalLpns.toLocaleString();
+            const lpnPct = totalLpns > 0 ? Math.round((fullyAuditedLpns / totalLpns) * 100) : 0;
+            kpiLpnsPct.textContent = `${lpnPct}%`;
+            kpiLpnsAudited.textContent = fullyAuditedLpns;
+            kpiLpnsTarget.textContent = totalLpns;
+
+            kpiTotalSkus.textContent = totalSkus.toLocaleString();
+            const skuPct = totalSkus > 0 ? Math.round((auditedSkus / totalSkus) * 100) : 0;
+            kpiSkusPct.textContent = `${skuPct}%`;
+            kpiSkusAudited.textContent = auditedSkus;
+            kpiSkusPending.textContent = Math.max(0, totalSkus - auditedSkus);
+
+            kpiTotalBoxes.textContent = formatNumber(totalBoxes);
+
+            const prodPalletsEl = document.getElementById('prod-pallets');
+            if (prodPalletsEl) prodPalletsEl.textContent = fullyAuditedLpns;
+            const prodIncEl = document.getElementById('prod-incidences');
+            if (prodIncEl) prodIncEl.textContent = incidencesCount;
+
+            refreshIcons();
+        }
+
+        function toggleTrip(tripCode) {
+            if (expandedTrips.has(tripCode)) {
+                expandedTrips.delete(tripCode);
+            } else {
+                expandedTrips.add(tripCode);
+            }
+            renderCardsView();
+        }
+
+        function toggleLpn(tripCode, lpn) {
+            const key = `${tripCode}_${lpn}`;
+            if (expandedLpns.has(key)) {
+                expandedLpns.delete(key);
+            } else {
+                expandedLpns.add(key);
+            }
+            renderCardsView();
+        }
+
+        function renderAllViews() {
+            renderCardsView();
+            renderTableView();
+            refreshIcons();
+        }
+
+        function renderCardsView() {
+            cardsViewWrapper.innerHTML = '';
+            const query = currentFilter.trim().toLowerCase();
+
+            groupedTrips.forEach((group, tripCode) => {
+                const lpnsArray = [];
+                group.lpns.forEach((lpnData, lpn) => {
+                    lpnsArray.push({
+                        lpn: lpn,
+                        skus: lpnData.skus,
+                        totalBoxes: lpnData.totalBoxes
+                    });
+                });
+
+                const tripMatch = tripCode.toLowerCase().includes(query);
+                let filteredLpns = [];
+
+                lpnsArray.forEach(item => {
+                    const lpnMatch = item.lpn.toLowerCase().includes(query);
+                    let matchingSkus = new Map();
+
+                    item.skus.forEach((sData, sku) => {
+                        const isAudited = sData.isAudited === true;
+                        const hasIncidence = Boolean(sData.incidence);
+
+                        if (currentStatusFilter === "audited" && !isAudited) return;
+                        if (currentStatusFilter === "pending" && isAudited) return;
+                        if (currentStatusFilter === "incidences" && !hasIncidence) return;
+
+                        const textMatch = !query || tripMatch || lpnMatch ||
+                            sku.toLowerCase().includes(query) ||
+                            (sData.desc && sData.desc.toLowerCase().includes(query)) ||
+                            (sData.incidence && sData.incidence.toLowerCase().includes(query));
+
+                        if (textMatch) {
+                            matchingSkus.set(sku, sData);
+                        }
+                    });
+
+                    if (matchingSkus.size > 0) {
+                        filteredLpns.push({
+                            lpn: item.lpn,
+                            skus: matchingSkus,
+                            totalBoxes: item.totalBoxes
+                        });
+                    }
+                });
+
+                if (filteredLpns.length === 0) return;
+
+                let tripTotalPallets = group.lpns.size;
+                let tripAuditedLpnsCount = 0;
+                let tripBoxes = 0;
+                let tripSkus = 0;
+
+                group.lpns.forEach((lData) => {
+                    let allAudited = lData.skus.size > 0;
+                    lData.skus.forEach(s => {
+                        tripBoxes += s.boxes;
+                        tripSkus++;
+                        if (!s.isAudited) allAudited = false;
+                    });
+                    if (allAudited) tripAuditedLpnsCount++;
+                });
+
+                const palletAuditPercent = tripTotalPallets > 0 ? Math.round((tripAuditedLpnsCount / tripTotalPallets) * 100) : 0;
+                const isTripExpanded = expandedTrips.has(tripCode);
+                const isTrip100Audited = tripTotalPallets > 0 && tripAuditedLpnsCount === tripTotalPallets;
+
+                const card = document.createElement('div');
+                card.className = `w-full bg-white border rounded-xl transition overflow-hidden shadow-xs ${
+                    isTrip100Audited ? 'border-emerald-300' : 'border-slate-200/80 hover:border-slate-300'
+                }`;
+
+                card.innerHTML = `
+                    <div class="w-full px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
+                        isTripExpanded ? 'bg-slate-50/70 border-b border-slate-200/70' : 'hover:bg-slate-50/50'
+                    }">
+                        <div class="flex flex-wrap items-center gap-3 sm:gap-4 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <div class="w-5 h-5 flex items-center justify-center text-slate-400 transition-transform ${isTripExpanded ? 'rotate-90 text-slate-700' : ''}">
+                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <i data-lucide="truck" class="w-4 h-4 text-slate-400"></i>
+                                    <span class="text-xs font-medium text-slate-400 uppercase">VIAJE</span>
+                                    <span class="font-mono font-bold text-sm sm:text-base text-slate-900 tabular-nums">${escapeHtml(group.tripClean)}</span>
+                                </div>
+                            </div>
+                            <div class="hidden sm:block h-4 w-px bg-slate-200"></div>
+                            <div class="flex items-center gap-2.5 text-xs text-slate-500">
+                                <span><strong class="font-mono font-semibold text-slate-800 tabular-nums">${tripTotalPallets}</strong> Pallets</span>
+                                <span>·</span>
+                                <span><strong class="font-mono font-semibold text-slate-800 tabular-nums">${tripSkus}</strong> SKUs</span>
+                                <span>·</span>
+                                <span><strong class="font-mono font-semibold text-slate-800 tabular-nums">${formatNumber(tripBoxes)}</strong> Cajas</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 sm:min-w-[200px] justify-end">
+                            <div class="flex-1 sm:max-w-[160px] flex flex-col gap-1">
+                                <div class="flex items-center justify-between text-[11px] leading-none">
+                                    <span class="text-slate-500">
+                                        <strong class="font-mono font-semibold text-slate-700 tabular-nums">${tripAuditedLpnsCount}/${tripTotalPallets}</strong> auditados
+                                    </span>
+                                    <span class="font-mono font-bold tabular-nums ${isTrip100Audited ? 'text-emerald-600' : (palletAuditPercent > 0 ? 'text-[#0070C0]' : 'text-slate-400')}">
+                                        ${palletAuditPercent}%
+                                    </span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-300 ${isTrip100Audited ? 'bg-emerald-500' : (palletAuditPercent > 0 ? 'bg-[#0070C0]' : 'bg-transparent')}"
+                                        style="width: ${palletAuditPercent}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${isTripExpanded ? `
+                        <div class="w-full p-3 sm:p-4 flex flex-col gap-2.5 bg-slate-50/40">
+                            ${filteredLpns.map(item => {
+                                const lpnKey = `${tripCode}_${item.lpn}`;
+                                const isLpnExpanded = expandedLpns.has(lpnKey);
+                                let lpnAuditedCount = 0;
+                                let lpnIncidenceCount = 0;
+                                item.skus.forEach(s => {
+                                    if (s.isAudited) lpnAuditedCount++;
+                                    if (s.incidence) lpnIncidenceCount++;
+                                });
+                                const isLpnFullyAudited = lpnAuditedCount === item.skus.size && item.skus.size > 0;
+
+                                return `
+                                    <div class="w-full rounded-lg border transition-colors shadow-2xs ${
+                                        isLpnFullyAudited ? 'bg-emerald-50/40 border-emerald-300' : 'bg-white border-slate-200/80 hover:border-slate-300'
+                                    }">
+                                        <div class="lpn-header-bar w-full px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer select-none"
+                                            data-trip="${escapeHtml(tripCode)}" data-lpn="${escapeHtml(item.lpn)}">
+                                            <div class="flex items-center gap-3 min-w-0 flex-wrap">
+                                                <i data-lucide="${isLpnExpanded ? 'chevron-down' : 'chevron-right'}" class="w-4 h-4 text-slate-400"></i>
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-[11px] font-medium text-slate-400 uppercase">LPN</span>
+                                                    <span class="font-mono font-semibold text-xs sm:text-sm text-slate-900 tabular-nums">${escapeHtml(item.lpn)}</span>
+                                                    <button type="button" class="btn-copy-single-lpn p-1 text-slate-400 hover:text-slate-700 transition cursor-pointer" data-lpn="${escapeHtml(item.lpn)}" title="Copiar LPN">
+                                                        <i data-lucide="copy" class="w-3 h-3"></i>
+                                                    </button>
+                                                </div>
+                                                <span class="text-slate-300">·</span>
+                                                <div class="flex items-center gap-2 text-xs text-slate-500">
+                                                    <span><strong class="font-mono font-semibold text-slate-700 tabular-nums">${item.skus.size}</strong> SKUs</span>
+                                                    <span>·</span>
+                                                    <span><strong class="font-mono font-semibold text-slate-700 tabular-nums">${formatNumber(item.totalBoxes)}</strong> Cajas</span>
+                                                </div>
+                                                ${lpnIncidenceCount > 0 ? `
+                                                    <span class="inline-flex items-center gap-1 text-[11px] font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                                        <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i>
+                                                        <span>${lpnIncidenceCount}</span>
+                                                    </span>
+                                                ` : ''}
+                                            </div>
+                                            <div class="flex items-center gap-2.5 shrink-0">
+                                                <span class="text-[11px] font-mono text-slate-400 tabular-nums hidden sm:inline">${lpnAuditedCount}/${item.skus.size}</span>
+                                                ${isLpnFullyAudited ? `
+                                                    <span class="inline-flex items-center gap-1 text-[11px] bg-emerald-600 text-white font-semibold px-2 py-0.5 rounded">
+                                                        <i data-lucide="check-circle-2" class="w-3 h-3"></i>
+                                                        <span>Auditado</span>
+                                                    </span>
+                                                ` : (lpnAuditedCount > 0 ? `
+                                                    <span class="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 font-medium px-2 py-0.5 rounded">En progreso</span>
+                                                ` : `
+                                                    <span class="text-[11px] bg-slate-100 text-slate-500 font-medium px-2 py-0.5 rounded">Pendiente</span>
+                                                `)}
+                                            </div>
+                                        </div>
+
+                                        ${isLpnExpanded ? `
+                                            <div class="w-full p-3 border-t border-slate-100 bg-white rounded-b-lg">
+                                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                                    ${Array.from(item.skus.entries()).map(([skuKey, skuData]) => {
+                                                        const isAudited = skuData.isAudited === true;
+                                                        const hasInc = Boolean(skuData.incidence);
+                                                        return `
+                                                            <div class="flex flex-col justify-between p-3 rounded-lg border transition-all ${
+                                                                isAudited ? 'bg-emerald-50/60 border-emerald-300' : (hasInc ? 'bg-rose-50/50 border-rose-200' : 'bg-slate-50/60 border-slate-200/80')
+                                                            }">
+                                                                <div>
+                                                                    <div class="flex items-center justify-between gap-2 mb-1">
+                                                                        <span class="font-mono font-bold text-xs sm:text-sm tabular-nums ${isAudited ? 'text-emerald-900' : 'text-slate-900'}">${escapeHtml(skuKey)}</span>
+                                                                        <span class="font-mono font-semibold text-xs text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200/80 tabular-nums">
+                                                                            ${formatNumber(skuData.boxes)} CJ
+                                                                        </span>
+                                                                    </div>
+                                                                    <p class="text-xs text-slate-600 line-clamp-2 mb-2.5" title="${escapeHtml(skuData.desc)}">
+                                                                        ${escapeHtml(skuData.desc || 'Sin descripción')}
+                                                                    </p>
+                                                                    ${skuData.incidence ? `
+                                                                        <div class="mb-2 px-2 py-1 rounded bg-rose-100/80 text-rose-800 text-[11px] font-medium flex items-center gap-1.5">
+                                                                            <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600 shrink-0"></i>
+                                                                            <span class="truncate">${escapeHtml(skuData.incidence)}</span>
+                                                                        </div>
+                                                                    ` : ''}
+                                                                </div>
+                                                                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50">
+                                                                    <button type="button" class="btn-open-inc px-2 py-1 rounded text-[11px] font-medium transition flex items-center gap-1 cursor-pointer ${
+                                                                        hasInc ? 'bg-rose-100 text-rose-800' : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
+                                                                    }" data-trip="${escapeHtml(tripCode)}" data-lpn="${escapeHtml(item.lpn)}" data-sku="${escapeHtml(skuKey)}">
+                                                                        <i data-lucide="alert-triangle" class="w-3 h-3"></i>
+                                                                        <span>${hasInc ? 'Editar inc.' : 'Incidencia'}</span>
+                                                                    </button>
+                                                                    <button type="button" class="btn-toggle-sku px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
+                                                                        isAudited ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                                                                    }" data-trip="${escapeHtml(tripCode)}" data-lpn="${escapeHtml(item.lpn)}" data-sku="${escapeHtml(skuKey)}">
+                                                                        ${isAudited ? '<i data-lucide="check" class="w-3 h-3"></i><span>Auditado</span>' : '<span>Validar</span>'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                `;
+
+                const tripHeader = card.querySelector('.w-full.px-4');
+                if (tripHeader) {
+                    tripHeader.addEventListener('click', () => toggleTrip(tripCode));
+                }
+
+                card.querySelectorAll('.lpn-header-bar').forEach(headerBar => {
+                    headerBar.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const t = headerBar.getAttribute('data-trip');
+                        const l = headerBar.getAttribute('data-lpn');
+                        toggleLpn(t, l);
+                    });
+                });
+
+                card.querySelectorAll('.btn-copy-single-lpn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const val = btn.getAttribute('data-lpn');
+                        navigator.clipboard.writeText(val);
+                        showNotification(`LPN ${val} copiado al portapapeles`, 'success');
+                    });
+                });
+
+                card.querySelectorAll('.btn-toggle-sku').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const t = btn.getAttribute('data-trip');
+                        const l = btn.getAttribute('data-lpn');
+                        const s = btn.getAttribute('data-sku');
+                        toggleSkuStatus(t, l, s);
+                    });
+                });
+
+                card.querySelectorAll('.btn-open-inc').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const t = btn.getAttribute('data-trip');
+                        const l = btn.getAttribute('data-lpn');
+                        const s = btn.getAttribute('data-sku');
+                        openIncidenceModal(t, l, s);
+                    });
+                });
+
+                cardsViewWrapper.appendChild(card);
+            });
+
+            if (cardsViewWrapper.children.length === 0) {
+                cardsViewWrapper.innerHTML = `
+                    <div class="w-full bg-white border border-slate-200/80 rounded-xl p-10 text-center text-slate-500 shadow-xs">
+                        <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-300 mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-800">No se encontraron viajes</p>
+                        <p class="text-xs text-slate-400 mt-1">Intenta cambiar el filtro o sincronizar nuevamente.</p>
+                    </div>
+                `;
+            }
+            refreshIcons();
+        }
+
+        function renderTableView() {
+            tableSummaryBody.innerHTML = '';
+            let index = 1;
+            const query = currentFilter.trim().toLowerCase();
+            const now = new Date();
+            const shift = calculateShift(now);
+            const dateStr = formatAuditDateTime(now);
+            const auditorName = inputAuditorName ? (inputAuditorName.value.trim().toUpperCase() || "MARTIN") : "MARTIN";
+            let totalDisplayedRows = 0;
+
+            groupedTrips.forEach((group) => {
+                group.lpns.forEach((lpnData, lpn) => {
+                    lpnData.skus.forEach((skuData, sku) => {
+                        const isAudited = skuData.isAudited === true;
+                        const hasIncidence = Boolean(skuData.incidence);
+
+                        if (currentStatusFilter === "audited" && !isAudited) return;
+                        if (currentStatusFilter === "pending" && isAudited) return;
+                        if (currentStatusFilter === "incidences" && !hasIncidence) return;
+
+                        const rowMatch = !query || 
+                            group.tripClean.toLowerCase().includes(query) ||
+                            lpn.toLowerCase().includes(query) ||
+                            sku.toLowerCase().includes(query) ||
+                            (skuData.desc && skuData.desc.toLowerCase().includes(query)) ||
+                            (skuData.incidence && skuData.incidence.toLowerCase().includes(query));
+
+                        if (!rowMatch) return;
+
+                        totalDisplayedRows++;
+                        const tr = document.createElement('tr');
+                        tr.className = `transition-colors border-b ${
+                            isAudited ? 'bg-emerald-50/80 hover:bg-emerald-100/70 border-emerald-200 text-emerald-950 font-medium' : 'hover:bg-slate-50 border-slate-100 text-slate-800'
+                        }`;
+                        tr.innerHTML = `
+                            <td class="px-3 py-2.5 text-center text-slate-400 font-mono text-[11px]">${index++}</td>
+                            <td class="px-3 py-2.5 text-slate-600 text-[11px] whitespace-nowrap">${escapeHtml(shift)}</td>
+                            <td class="px-3 py-2.5 font-bold text-[11px] text-slate-900 whitespace-nowrap">${escapeHtml(auditorName)}</td>
+                            <td class="px-3 py-2.5 text-slate-500 text-[10px] whitespace-nowrap font-mono">${escapeHtml(dateStr)}</td>
+                            <td class="px-3 py-2.5 font-mono font-bold text-xs text-[#0070C0] whitespace-nowrap">${escapeHtml(group.tripClean)}</td>
+                            <td class="px-3 py-2.5 font-mono font-bold text-xs ${isAudited ? 'text-emerald-900 bg-emerald-100/50' : 'text-[#182237]'} whitespace-nowrap">${escapeHtml(lpn)}</td>
+                            <td class="px-3 py-2.5 font-mono font-bold text-xs ${isAudited ? 'text-emerald-900' : 'text-purple-700'} whitespace-nowrap">${escapeHtml(sku)}</td>
+                            <td class="px-4 py-2.5 text-xs truncate max-w-xs" title="${escapeHtml(skuData.desc)}">${escapeHtml(skuData.desc || 'Sin descripción')}</td>
+                            <td class="px-3 py-2.5">
+                                ${skuData.incidence ? `
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title="${escapeHtml(skuData.incidence)}">
+                                        <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i>
+                                        <span class="truncate max-w-[120px]">${escapeHtml(skuData.incidence)}</span>
+                                    </span>
+                                ` : '<span class="text-slate-400 text-[10px]">-</span>'}
+                            </td>
+                            <td class="px-3 py-2.5 text-center font-bold font-mono text-xs text-amber-600">${formatNumber(skuData.boxes)}</td>
+                            <td class="px-3 py-2.5 text-center">
+                                <button class="btn-toggle-sku inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded transition shadow-2xs cursor-pointer ${
+                                    isAudited ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+                                }" data-trip="${escapeHtml(group.tripClean)}" data-lpn="${escapeHtml(lpn)}" data-sku="${escapeHtml(sku)}">
+                                    ${isAudited ? '<i data-lucide="check" class="w-3 h-3"></i><span>AUDITADO</span>' : '<span>PENDIENTE</span>'}
+                                </button>
+                            </td>
+                        `;
+                        tableSummaryBody.appendChild(tr);
+                    });
+                });
+            });
+
+            if (tableRowCountBadge) {
+                tableRowCountBadge.textContent = `${totalDisplayedRows} filas mostradas`;
+            }
+
+            tableSummaryBody.querySelectorAll('.btn-toggle-sku').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const t = btn.getAttribute('data-trip');
+                    const l = btn.getAttribute('data-lpn');
+                    const s = btn.getAttribute('data-sku');
+                    toggleSkuStatus(t, l, s);
+                });
+            });
+        }
+
+        function toggleSkuStatus(tripCode, lpn, skuKey) {
+            const group = groupedTrips.get(tripCode);
+            if (!group) return;
+            const lpnData = group.lpns.get(lpn);
+            if (!lpnData) return;
+            const sku = lpnData.skus.get(skuKey);
+            if (!sku) return;
+
+            sku.isAudited = !sku.isAudited;
+            sku.status = sku.isAudited ? 'AUDITADO' : 'PENDIENTE';
+
+            if (sku.isAudited) {
+                auditedBoxesSession += sku.boxes;
+            } else {
+                auditedBoxesSession = Math.max(0, auditedBoxesSession - sku.boxes);
+            }
+
+            sheetAuditStatusMap.set(`${tripCode}_${lpn}_${skuKey}`, { isAudited: sku.isAudited, status: sku.status });
+            sheetAuditStatusMap.set(`${lpn}_${skuKey}`, { isAudited: sku.isAudited, status: sku.status });
+
+            updateKPIs();
+            renderAllViews();
+        }
+
+        function openIncidenceModal(trip, lpn, skuKey) {
+            currentIncidenceTarget = { trip, lpn, skuKey };
+            const group = groupedTrips.get(trip);
+            const lpnData = group?.lpns.get(lpn);
+            const skuData = lpnData?.skus.get(skuKey);
+
+            document.getElementById('inc-trip-label').textContent = `VIAJE: ${trip}`;
+            document.getElementById('inc-lpn-label').textContent = `LPN: ${lpn}`;
+            document.getElementById('inc-sku-label').textContent = skuKey;
+            document.getElementById('inc-boxes-label').textContent = `${skuData ? skuData.boxes : 0} Cajas`;
+            document.getElementById('inc-notes-input').value = skuData?.incidence || '';
+
+            incidenceModal.classList.remove('hidden');
+            refreshIcons();
+        }
+
+        btnSaveIncidence.addEventListener('click', () => {
+            if (!currentIncidenceTarget) return;
+            const { trip, lpn, skuKey } = currentIncidenceTarget;
+            const group = groupedTrips.get(trip);
+            const lpnData = group?.lpns.get(lpn);
+            const skuData = lpnData?.skus.get(skuKey);
+            if (!skuData) return;
+
+            const type = document.getElementById('inc-type-select').value;
+            const qty = document.getElementById('inc-qty-input').value;
+            const notes = document.getElementById('inc-notes-input').value.trim();
+
+            skuData.incidence = `${type}: ${qty} CJ${notes ? ' - ' + notes : ''}`;
+            incidenceModal.classList.add('hidden');
+            updateKPIs();
+            renderAllViews();
+            showNotification(`Incidencia guardada para SKU ${skuKey}`, 'info');
+        });
+
+        btnClearIncidence.addEventListener('click', () => {
+            if (!currentIncidenceTarget) return;
+            const { trip, lpn, skuKey } = currentIncidenceTarget;
+            const group = groupedTrips.get(trip);
+            const lpnData = group?.lpns.get(lpn);
+            const skuData = lpnData?.skus.get(skuKey);
+            if (skuData) skuData.incidence = '';
+            incidenceModal.classList.add('hidden');
+            updateKPIs();
+            renderAllViews();
+            showNotification(`Incidencia removida de SKU ${skuKey}`, 'info');
+        });
+
+        [btnCloseIncidenceModal, btnCancelIncidence].forEach(b => {
+            b.addEventListener('click', () => incidenceModal.classList.add('hidden'));
+        });
+
+        function setStatusFilter(filter) {
+            currentStatusFilter = filter;
+            [filterStatusAll, filterStatusPending, filterStatusAudited, filterStatusIncidences].forEach(btn => {
+                btn.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition";
+            });
+            if (filter === "all") {
+                filterStatusAll.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold cursor-pointer transition";
+            } else if (filter === "pending") {
+                filterStatusPending.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold cursor-pointer transition";
+            } else if (filter === "audited") {
+                filterStatusAudited.className = "px-2.5 py-1 rounded-md bg-white text-emerald-700 shadow-xs font-semibold cursor-pointer transition";
+            } else {
+                filterStatusIncidences.className = "px-2.5 py-1 rounded-md bg-white text-rose-700 shadow-xs font-semibold cursor-pointer transition";
+            }
+            renderAllViews();
+        }
+
+        filterStatusAll.addEventListener('click', () => setStatusFilter('all'));
+        filterStatusPending.addEventListener('click', () => setStatusFilter('pending'));
+        filterStatusAudited.addEventListener('click', () => setStatusFilter('audited'));
+        filterStatusIncidences.addEventListener('click', () => setStatusFilter('incidences'));
+
+        tabCards.addEventListener('click', () => {
+            tabCards.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold flex items-center gap-1.5 cursor-pointer transition";
+            tabTable.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer transition";
+            cardsViewWrapper.classList.remove('hidden');
+            tableViewWrapper.classList.add('hidden');
+            refreshIcons();
+        });
+
+        tabTable.addEventListener('click', () => {
+            tabTable.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold flex items-center gap-1.5 cursor-pointer transition";
+            tabCards.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer transition";
+            tableViewWrapper.classList.remove('hidden');
+            cardsViewWrapper.classList.add('hidden');
+            refreshIcons();
+        });
+
+        filterInput.addEventListener('input', (e) => {
+            currentFilter = e.target.value;
+            clearFilterBtn.classList.toggle('hidden', currentFilter.length === 0);
+            renderAllViews();
+        });
+
+        clearFilterBtn.addEventListener('click', () => {
+            filterInput.value = '';
+            currentFilter = '';
+            clearFilterBtn.classList.add('hidden');
+            renderAllViews();
+        });
+
+        btnUploadFileHeader.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) processIncomingFile(e.target.files[0]);
+        });
+
+        function processIncomingFile(file) {
+            if (!file) return;
+            processingIndicator.classList.remove('hidden');
+            processingText.textContent = `Procesando "${file.name}" y validando auditados...`;
+
+            const name = file.name.toLowerCase();
+            if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.SheetNames[0];
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: "" });
+                        processingIndicator.classList.add('hidden');
+                        processRawMatrix(rows);
+                    } catch (err) {
+                        processingIndicator.classList.add('hidden');
+                        showNotification("Error en lectura Excel: " + err.message, "error");
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                Papa.parse(file, {
+                    header: false,
+                    skipEmptyLines: 'greedy',
+                    encoding: "latin1",
+                    complete: function(results) {
+                        processingIndicator.classList.add('hidden');
+                        processRawMatrix(results.data);
+                    },
+                    error: function(err) {
+                        processingIndicator.classList.add('hidden');
+                        showNotification("Error en CSV: " + err.message, "error");
+                    }
+                });
+            }
+        }
+
+        function processRawMatrix(matrix) {
+            if (!matrix || matrix.length < 2) {
+                showNotification("El archivo no contiene suficientes registros.", "error");
+                return;
+            }
+            groupedTrips.clear();
+            let startRow = 1;
+            for (let i = 0; i < Math.min(15, matrix.length); i++) {
+                const cellLpn = matrix[i][2] ? String(matrix[i][2]).trim() : '';
+                if (/^\d{8,}/.test(cellLpn)) {
+                    startRow = i;
+                    break;
+                }
+            }
+
+            for (let r = startRow; r < matrix.length; r++) {
+                const row = matrix[r];
+                if (!row || row.length === 0) continue;
+
+                const lpnRaw = row[2] !== undefined ? String(row[2]).trim() : '';
+                const skuRaw = row[8] !== undefined ? String(row[8]).trim() : '';
+                const descRaw = row[34] !== undefined ? String(row[34]).trim() : (row[6] !== undefined ? String(row[6]).trim() : '');
+                const qtyRaw = row[21] !== undefined ? row[21] : 0;
+                const tripRaw = row[27] !== undefined ? String(row[27]).trim() : (row[26] !== undefined ? String(row[26]).trim() : '');
+
+                if (!lpnRaw || lpnRaw.toUpperCase() === 'LPN' || lpnRaw.length < 4) continue;
+
+                const cleanTrip = cleanTripNumber(tripRaw);
+                if (!cleanTrip) continue;
+
+                const qty = parseQuantity(qtyRaw);
+
+                if (!groupedTrips.has(cleanTrip)) {
+                    groupedTrips.set(cleanTrip, { tripClean: cleanTrip, lpns: new Map() });
+                }
+
+                const tripGroup = groupedTrips.get(cleanTrip);
+                if (!tripGroup.lpns.has(lpnRaw)) {
+                    tripGroup.lpns.set(lpnRaw, { skus: new Map(), totalBoxes: 0 });
+                }
+
+                const lpnData = tripGroup.lpns.get(lpnRaw);
+                const auditKey1 = `${cleanTrip}_${lpnRaw}_${skuRaw}`;
+                const auditKey2 = `${lpnRaw}_${skuRaw}`;
+                const auditStatusObj = sheetAuditStatusMap.get(auditKey1) || sheetAuditStatusMap.get(auditKey2);
+                const isAuditedFromSheet = auditStatusObj ? auditStatusObj.isAudited : false;
+                const statusFromSheet = auditStatusObj ? auditStatusObj.status : "PENDIENTE";
+
+                if (!lpnData.skus.has(skuRaw)) {
+                    lpnData.skus.set(skuRaw, {
+                        desc: descRaw,
+                        boxes: 0,
+                        isAudited: isAuditedFromSheet,
+                        status: statusFromSheet
+                    });
+                }
+
+                const skuItem = lpnData.skus.get(skuRaw);
+                skuItem.boxes += qty;
+                if (!skuItem.desc && descRaw) skuItem.desc = descRaw;
+                if (isAuditedFromSheet) {
+                    skuItem.isAudited = true;
+                    skuItem.status = statusFromSheet;
+                }
+                lpnData.totalBoxes += qty;
+            }
+
+            updateKPIs();
+            renderAllViews();
+            showNotification(`Archivo procesado: ${groupedTrips.size} viajes listos.`, 'success');
+        }
+
+        async function fetchExistingFromSheet(isSilent = false) {
+            if (isSyncing) return;
+            isSyncing = true;
+            if (!isSilent) {
+                processingIndicator.classList.remove('hidden');
+                processingText.textContent = "Sincronizando con Google Sheets...";
+                iconSyncRefresh.classList.add('animate-spin');
+            }
+
+            try {
+                const response = await fetch(`${APPS_SCRIPT_EXEC_URL}?action=getTrips`);
+                const res = await response.json();
+                if (res.status === "success" && Array.isArray(res.data)) {
+                    const loadFresh = groupedTrips.size === 0;
+
+                    res.data.forEach(item => {
+                        const trip = item.trip || "SIN_VIAJE";
+                        const lpn = item.lpn || "";
+                        const sku = item.sku || "SIN_SKU";
+                        const desc = item.descripcion || "";
+                        const boxes = item.boxes || 0;
+                        const isAudited = item.isAudited === true;
+                        const status = item.status || (isAudited ? "AUDITADO" : "PENDIENTE");
+
+                        sheetAuditStatusMap.set(`${trip}_${lpn}_${sku}`, { isAudited, status });
+                        sheetAuditStatusMap.set(`${lpn}_${sku}`, { isAudited, status });
+
+                        if (loadFresh) {
+                            if (!groupedTrips.has(trip)) groupedTrips.set(trip, { tripClean: trip, lpns: new Map() });
+                            const tGroup = groupedTrips.get(trip);
+                            if (!tGroup.lpns.has(lpn)) tGroup.lpns.set(lpn, { skus: new Map(), totalBoxes: 0 });
+                            const lGroup = tGroup.lpns.get(lpn);
+                            lGroup.skus.set(sku, { desc, boxes, isAudited, status });
+                            lGroup.totalBoxes += boxes;
+                        } else if (groupedTrips.has(trip)) {
+                            const tGroup = groupedTrips.get(trip);
+                            if (tGroup.lpns.has(lpn)) {
+                                const lGroup = tGroup.lpns.get(lpn);
+                                if (lGroup.skus.has(sku)) {
+                                    lGroup.skus.get(sku).isAudited = isAudited;
+                                    lGroup.skus.get(sku).status = status;
+                                }
+                            }
+                        }
+                    });
+
+                    updateKPIs();
+                    renderAllViews();
+                    if (!isSilent) showNotification(`Sincronizados ${res.total} registros de Google Sheets.`, 'success');
+                }
+            } catch (err) {
+                if (!isSilent) showNotification("No se pudo conectar con Google Sheets.", "error");
+            } finally {
+                isSyncing = false;
+                if (!isSilent) {
+                    processingIndicator.classList.add('hidden');
+                    iconSyncRefresh.classList.remove('animate-spin');
+                }
+            }
+        }
+
+        btnFetchSheet.addEventListener('click', () => fetchExistingFromSheet(false));
+        setInterval(() => fetchExistingFromSheet(true), 5000);
+
+        btnSendDirectly.addEventListener('click', async () => {
+            if (groupedTrips.size === 0) {
+                showNotification("No hay registros para enviar.", "error");
+                return;
+            }
+            const now = new Date();
+            const shift = calculateShift(now);
+            const dateStr = formatAuditDateTime(now);
+            const auditor = inputAuditorName.value.trim().toUpperCase() || "MARTIN";
+            const rows = [];
+
+            groupedTrips.forEach(g => {
+                g.lpns.forEach((lpnData, lpn) => {
+                    lpnData.skus.forEach((skuData, sku) => {
+                        const row = new Array(10).fill("");
+                        row[0] = shift;
+                        row[1] = auditor;
+                        row[2] = dateStr;
+                        row[3] = g.tripClean;
+                        row[4] = lpn;
+                        row[5] = sku;
+                        row[6] = skuData.desc;
+                        row[7] = skuData.incidence || "";
+                        row[8] = "";
+                        row[9] = skuData.boxes;
+                        rows.push(row);
+                    });
+                });
+            });
+
+            btnSendDirectly.disabled = true;
+            btnSendDirectly.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Guardando...</span>`;
+            refreshIcons();
+
+            try {
+                await fetch(APPS_SCRIPT_EXEC_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: "uploadRows", rows, auditor })
+                });
+                showNotification(`¡Éxito! Registros acumulados en Google Sheets.`, "success");
+                fetchExistingFromSheet(true);
+            } catch {
+                showNotification("Lote enviado en modo de contingencia.", "success");
+            } finally {
+                btnSendDirectly.disabled = false;
+                btnSendDirectly.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i><span>Guardar en Sheet</span>`;
+                refreshIcons();
+            }
+        });
+
+        btnExportXlsx.addEventListener('click', () => {
+            if (groupedTrips.size === 0) {
+                showNotification("No hay datos para exportar.", "error");
+                return;
+            }
+            const now = new Date();
+            const shift = calculateShift(now);
+            const dateStr = formatAuditDateTime(now);
+            const auditor = inputAuditorName.value.trim().toUpperCase() || "MARTIN";
+            const dataRows = [
+                ["TURNO", "AUDITOR", "FECHA DE AUDITORIA", "SHIPMENT", "LPN / ETIQUETA", "SKU", "DESCRIPCION", "INCIDENCIA", "AYUDANTE GENERAL", "TOTAL DE CAJAS EN LPN", "ESTADO AUDITORIA"]
+            ];
+
+            groupedTrips.forEach(g => {
+                g.lpns.forEach((lpnData, lpn) => {
+                    lpnData.skus.forEach((skuData, sku) => {
+                        dataRows.push([shift, auditor, dateStr, g.tripClean, lpn, sku, skuData.desc, skuData.incidence || "", "", skuData.boxes, skuData.isAudited ? "AUDITADO" : "PENDIENTE"]);
+                    });
+                });
+            });
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(dataRows);
+            XLSX.utils.book_append_sheet(wb, ws, "Auditoria");
+            XLSX.writeFile(wb, `Traxion_Auditoria_${now.getTime()}.xlsx`);
+            showNotification("Archivo Excel descargado.", "success");
+        });
+
+        btnCleanData.addEventListener('click', () => {
+            groupedTrips.clear();
+            expandedTrips.clear();
+            expandedLpns.clear();
+            fileInput.value = '';
+            updateKPIs();
+            renderAllViews();
+            showNotification("Tablero limpio.", "info");
+        });
+
+        btnOpenProductivity.addEventListener('click', () => {
+            document.getElementById('prod-auditor-name').textContent = inputAuditorName.value.toUpperCase();
+            document.getElementById('prod-shift-badge').textContent = calculateShift();
+            productivityModal.classList.remove('hidden');
+            refreshIcons();
+        });
+        [btnCloseProductivityModal, btnCancelProductivity].forEach(b => {
+            b.addEventListener('click', () => productivityModal.classList.add('hidden'));
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshIcons();
+            fetchExistingFromSheet(true);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Control de Sobrellenado - Traxión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --color-primary: #182237;
+      --color-primary-alt: #100848;
+      --color-accent: #C0D838;
+      --color-accent-sub: #D0E934;
+      --color-bg: #F4F6F8;
+      --color-card: #FFFFFF;
+      --color-border: #E5E7EB;
+      --color-text-main: #1D2939;
+      --color-text-muted: #6B7280;
+      --color-danger-text: #D92D20;
+      --color-danger-bg: #FEE4E2;
+      --color-warning-text: #E07A00;
+      --color-warning-bg: #FEF0C7;
+      --color-success-text: #037A48;
+      --color-success-bg: #D1FADF;
+      --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family);
+      background-color: var(--color-bg);
+      color: var(--color-text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-brand-bar {
+      height: 5px;
+      background: linear-gradient(90deg, var(--color-accent) 0%, var(--color-accent-sub) 100%);
+      width: 100%;
+    }
+
+    header {
+      background-color: var(--color-primary);
+      color: #FFFFFF;
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .brand-title-area { display: flex; align-items: center; gap: 16px; }
+    .traxion-logo {
+      font-weight: 900;
+      font-size: 20px;
+      letter-spacing: 2px;
+      color: #FFFFFF;
+      border-right: 2px solid var(--color-accent);
+      padding-right: 14px;
+      line-height: 1.1;
+    }
+    .traxion-logo span {
+      display: block;
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      color: var(--color-accent);
+      font-weight: 400;
+    }
+
+    .header-titles h1 {
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .header-titles p {
+      font-size: 12px;
+      color: #BAC2D1;
+      margin-top: 2px;
+    }
+
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      padding: 7px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-accent { background-color: var(--color-accent); color: var(--color-primary); }
+    .btn-accent:hover { background-color: var(--color-accent-sub); }
+    .btn-outline { background: transparent; border: 1px solid #FFFFFF; color: #FFFFFF; }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); }
+
+    main {
+      padding: 20px 28px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .upload-section {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .upload-card {
+      background: var(--color-card);
+      border: 1px dashed var(--color-border);
+      border-radius: 6px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      transition: border-color 0.2s;
+    }
+    .upload-card:hover { border-color: var(--color-primary); }
+
+    .upload-card-info h3 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-text-main);
+    }
+    .upload-card-info p {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    .file-input-wrapper { position: relative; }
+    .file-input-wrapper input[type="file"] {
+      position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .kpi-content h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .kpi-content .kpi-num {
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--color-text-main);
+      margin-top: 4px;
+      line-height: 1.1;
+    }
+
+    .kpi-icon-bubble {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .kpi-danger { border-left: 4px solid var(--color-danger-text); }
+    .kpi-danger .kpi-num { color: var(--color-danger-text); }
+    .kpi-danger .kpi-icon-bubble { background-color: var(--color-danger-bg); color: var(--color-danger-text); }
+    .kpi-normal .kpi-icon-bubble { background-color: var(--color-bg); color: var(--color-primary); }
+    .kpi-warning .kpi-icon-bubble { background-color: var(--color-warning-bg); color: var(--color-warning-text); }
+
+    .nav-tabs-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--color-border);
+    }
+    .tabs-group { display: flex; gap: 8px; }
+    .tab-btn {
+      padding: 10px 22px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { color: var(--color-primary); }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0; right: 0;
+      height: 3px;
+      background-color: var(--color-primary);
+    }
+
+    .view-toggles { display: flex; gap: 12px; align-items: center; font-size: 12px; }
+    .search-input {
+      padding: 6px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .layout-viewport-card {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .layout-legend {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 500;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--color-border); }
+    .legend-box.empty { background-color: #FFFFFF; }
+    .legend-box.orange { background-color: var(--color-warning-bg); border-color: var(--color-warning-text); }
+    .legend-box.green { background-color: var(--color-success-bg); border-color: var(--color-success-text); }
+    .legend-box.critical { background-color: #F87171; border-color: var(--color-danger-text); }
+
+    .warehouse-grid-container {
+      overflow-x: auto;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    .aisle-row { display: flex; align-items: center; gap: 4px; min-width: max-content; }
+    .aisle-label {
+      width: 60px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #FFFFFF;
+      background-color: var(--color-primary);
+      text-align: center;
+      padding: 6px 4px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+
+    .slots-container { display: flex; gap: 3px; }
+    .slot-cell {
+      width: 22px;
+      height: 28px;
+      border-radius: 2px;
+      border: 1px solid var(--color-border);
+      background-color: #FFFFFF;
+      font-size: 9px;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s;
+    }
+    .slot-cell:hover {
+      transform: scale(1.25);
+      z-index: 5;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    .slot-cell.state-empty { background-color: #FFFFFF; color: #BAC2D1; }
+    .slot-cell.state-orange { background-color: var(--color-warning-bg); border-color: #FDBA74; color: var(--color-warning-text); }
+    .slot-cell.state-green { background-color: var(--color-success-bg); border-color: #86EFAC; color: var(--color-success-text); }
+    .slot-cell.state-critical {
+      background-color: #F87171;
+      border-color: var(--color-danger-text);
+      color: #FFFFFF;
+      animation: pulse-danger 1.5s infinite;
+    }
+
+    @keyframes pulse-danger {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .audit-section {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 16px 20px;
+    }
+    .audit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .audit-header h3 {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--color-text-main);
+    }
+
+    .table-responsive {
+      overflow-x: auto;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th {
+      background-color: var(--color-primary);
+      color: #FFFFFF;
+      text-align: left;
+      padding: 8px 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td { padding: 7px 10px; border-bottom: 1px solid var(--color-border); color: var(--color-text-main); }
+    tr:hover td { background-color: rgba(0,0,0,0.015); }
+
+    .badge-status {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-critical { background-color: var(--color-danger-bg); color: var(--color-danger-text); }
+    .badge-orange { background-color: var(--color-warning-bg); color: var(--color-warning-text); }
+    .badge-green { background-color: var(--color-success-bg); color: var(--color-success-text); }
+
+    #tooltip-box {
+      position: fixed;
+      display: none;
+      background: var(--color-primary);
+      color: #FFFFFF;
+      padding: 10px 14px;
+      border-radius: 5px;
+      font-size: 11px;
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      border-left: 3px solid var(--color-accent);
+      max-width: 280px;
+    }
+    #tooltip-box h5 { font-size: 13px; font-weight: 700; color: var(--color-accent); margin-bottom: 4px; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-content {
+      background: #FFFFFF;
+      border-radius: 6px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .modal-header {
+      background: var(--color-primary);
+      color: #FFFFFF;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h4 { font-size: 14px; font-weight: 700; }
+    .modal-close { background: transparent; border: none; color: #FFFFFF; font-size: 18px; cursor: pointer; }
+    .modal-body { padding: 18px; font-size: 12px; display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto; }
+    .detail-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border); }
+    .detail-row span:first-child { color: var(--color-text-muted); font-weight: 500; }
+    .detail-row span:last-child { font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <div class="top-brand-bar"></div>
+
+  <header>
+    <div class="brand-title-area">
+      <div class="traxion-logo">
+        TRAXIÓN
+        <span>VIDA EN MOVIMIENTO</span>
+      </div>
+      <div class="header-titles">
+        <h1>Control de Sobrellenado y Capacidad de Ubicaciones</h1>
+        <p>TSE-09-SIGEO-PR &bull; Trazabilidad Forense &bull; Actualizado: <span id="lbl-update-time">Sin datos</span></p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="btn-load-demo">Cargar Demo</button>
+      <button class="btn btn-accent" id="btn-export-csv">Exportar Reporte</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="upload-section">
+      <!-- 1. Reglas Maestras -->
+      <div class="upload-card">
+        <div class="upload-card-info">
+          <h3>1. Fondeo y Estiba</h3>
+          <p id="lbl-status-rules">Base integrada (opcional: MFD.xlsx)</p>
+        </div>
+        <div class="file-input-wrapper">
+          <button class="btn btn-outline" style="border-color: var(--color-primary); color: var(--color-primary);">Subir Reglas</button>
+          <input type="file" id="file-rules" accept=".xlsx, .xls">
+        </div>
+      </div>
+
+      <!-- 2. Inventario Operativo -->
+      <div class="upload-card">
+        <div class="upload-card-info">
+          <h3>2. Inventario (Stock)</h3>
+          <p id="lbl-status-inv">Sube extracción de inventario</p>
+        </div>
+        <div class="file-input-wrapper">
+          <button class="btn btn-accent">Subir Inventario</button>
+          <input type="file" id="file-inventory" accept=".xlsx, .xls, .csv">
+        </div>
+      </div>
+
+      <!-- 3. Movimientos WMS -->
+      <div class="upload-card">
+        <div class="upload-card-info">
+          <h3>3. Log WMS (Movimientos)</h3>
+          <p id="lbl-status-wms">Sube log de movimientos CSV</p>
+        </div>
+        <div class="file-input-wrapper">
+          <button class="btn btn-outline" style="border-color: var(--color-warning-text); color: var(--color-warning-text);">Subir WMS</button>
+          <input type="file" id="file-wms" accept=".csv, .xlsx, .xls">
+        </div>
+      </div>
+    </section>
+
+    <!-- Tarjetas KPI -->
+    <section class="kpi-row">
+      <div class="kpi-card kpi-normal">
+        <div class="kpi-content">
+          <h4>Ubicaciones Auditadas</h4>
+          <div class="kpi-num" id="kpi-total-slots">0</div>
+        </div>
+        <div class="kpi-icon-bubble">&#128230;</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-content">
+          <h4>Sobrellenadas (&gt;100%)</h4>
+          <div class="kpi-num" id="kpi-overfilled-slots">0</div>
+        </div>
+        <div class="kpi-icon-bubble">&#9888;</div>
+      </div>
+      <div class="kpi-card kpi-warning">
+        <div class="kpi-content">
+          <h4>Subutilizadas (&lt;50%)</h4>
+          <div class="kpi-num" id="kpi-underfilled-slots">0</div>
+        </div>
+        <div class="kpi-icon-bubble">&#8681;</div>
+      </div>
+      <div class="kpi-card kpi-normal">
+        <div class="kpi-content">
+          <h4>Tarimas Excedentes</h4>
+          <div class="kpi-num" id="kpi-excess-pallets">0</div>
+        </div>
+        <div class="kpi-icon-bubble">&#8679;</div>
+      </div>
+    </section>
+
+    <!-- Pestañas -->
+    <section class="nav-tabs-wrapper">
+      <div class="tabs-group">
+        <button class="tab-btn active" data-bodega="ROJA">Bodega Roja (Islas CA, CB, 01A - 16P)</button>
+        <button class="tab-btn" data-bodega="NARANJA">Bodega Naranja (Islas N01A - N20S)</button>
+      </div>
+      <div class="view-toggles">
+        <input type="text" id="txt-filter" class="search-input" placeholder="Buscar ubicación, SKU u operador...">
+        <label><input type="checkbox" id="chk-only-danger"> Ver solo sobrellenadas</label>
+      </div>
+    </section>
+
+    <!-- Vista Aérea -->
+    <section class="layout-viewport-card">
+      <div class="layout-legend">
+        <div class="legend-item"><div class="legend-box empty"></div> Vacía (0%)</div>
+        <div class="legend-item"><div class="legend-box orange"></div> Ocupación Baja (&lt; 50%)</div>
+        <div class="legend-item"><div class="legend-box green"></div> Ocupación Óptima (&ge; 50% y &le; 100%)</div>
+        <div class="legend-item"><div class="legend-box critical"></div> Sobrellenado Crítico (&gt; 100%)</div>
+      </div>
+
+      <div class="warehouse-grid-container" id="grid-container"></div>
+    </section>
+
+    <!-- Tabla Detallada -->
+    <section class="audit-section">
+      <div class="audit-header">
+        <h3 id="table-title">Detalle de Ubicaciones - Bodega ROJA</h3>
+        <span style="font-size: 11px; color: var(--color-text-muted);" id="lbl-records-count">0 registros</span>
+      </div>
+      <div class="table-responsive">
+        <table id="tbl-audit">
+          <thead>
+            <tr>
+              <th>Bodega</th>
+              <th>Ubicación</th>
+              <th>SKU</th>
+              <th>Descripción</th>
+              <th>Fondos</th>
+              <th>Estiba</th>
+              <th>Cap. Máx</th>
+              <th>LPNs</th>
+              <th>% Ocup.</th>
+              <th>Excedente</th>
+              <th>Responsable (Último IN)</th>
+              <th>Maniobra</th>
+              <th>Fecha/Hora Mov.</th>
+              <th>Estatus</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body">
+            <tr>
+              <td colspan="14" style="text-align: center; color: var(--color-text-muted); padding: 20px;">
+                Carga el inventario operativo para comenzar la auditoría.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="tooltip-box"></div>
+
+  <div class="modal-overlay" id="modal-detail">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 id="mdl-title">Detalle de Ubicación</h4>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="mdl-body"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. REGLAS BASE Y CONFIGURACIÓN INICIAL
+       ========================================================================== */
+    const ISLAS_ROJA = new Set([
+      "CA", "CB",
+      "01A", "02B", "03C", "04D", "05E", "06F",
+      "07G", "08H", "09I", "10J", "11K", "12L", "13M", "16P", "15O", "14N"
+    ]);
+
+    const ISLAS_NARANJA = new Set([
+      "N01A", "N02B", "N03C", "N04D", "N05E", "N06F", "N07G", "N08H", "N09I", "N10J",
+      "N11K", "N12L", "N13M", "N14N", "N15M", "N16O", "N17P", "N18Q", "N19R", "N20S"
+    ]);
+
+    let FONDEO_RULES = {
+      "CA": { fondos: 6, maxPos: 70 },
+      "CB": { fondos: 7, maxPos: 8 },
+      "01A": { fondos: 9, maxPos: 100 },
+      "02B": { fondos: 9, maxPos: 100 },
+      "03C": { fondos: 18, maxPos: 100 },
+      "04D": { fondos: 9, maxPos: 100 },
+      "05E": { fondos: 9, maxPos: 100 },
+      "06F": { fondos: 9, maxPos: 100 },
+      "07G": { fondos: 9, maxPos: 100 },
+      "08H": { fondos: 10, maxPos: 100 },
+      "09I": { fondos: 11, maxPos: 100 },
+      "10J": { fondos: 10, maxPos: 64 },
+      "11K": { fondos: 9, maxPos: 100, split: 36, fondos2: 19 },
+      "12L": { fondos: 12, maxPos: 100 },
+      "13M": { fondos: 12, maxPos: 100 },
+      "14N": { fondos: 10, maxPos: 64 },
+      "15O": { fondos: 10, maxPos: 64 },
+      "16P": { fondos: 11, maxPos: 64 },
+
+      "N01A": { fondos: 15, maxPos: 58 },
+      "N02B": { fondos: 9, maxPos: 75 },
+      "N03C": { fondos: 9, maxPos: 75 },
+      "N04D": { fondos: 9, maxPos: 75 },
+      "N05E": { fondos: 9, maxPos: 75 },
+      "N06F": { fondos: 9, maxPos: 75 },
+      "N07G": { fondos: 9, maxPos: 75 },
+      "N08H": { fondos: 9, maxPos: 75 },
+      "N09I": { fondos: 9, maxPos: 75 },
+      "N10J": { fondos: 9, maxPos: 75 },
+      "N11K": { fondos: 8, maxPos: 75 },
+      "N12L": { fondos: 2, maxPos: 75 },
+      "N13M": { fondos: 10, maxPos: 76 },
+      "N14N": { fondos: 15, maxPos: 72 },
+      "N15M": { fondos: 15, maxPos: 72 },
+      "N16O": { fondos: 9, maxPos: 80 },
+      "N17P": { fondos: 9, maxPos: 80 },
+      "N18Q": { fondos: 15, maxPos: 80 },
+      "N19R": { fondos: 11, maxPos: 74 },
+      "N20S": { fondos: 14, maxPos: 74 }
+    };
+
+    let ESTIBA_RULES = { "DEFAULT": 2 };
+    let inventoryState = {};
+    let wmsHistory = {}; // Ubicacion -> Array de movimientos ordenados
+    let auditResults = [];
+    let currentBodega = "ROJA";
+
+    /* ==========================================================================
+       2. SANITIZACIÓN DE UBICACIONES Y PARSEO (ANTI NOTACIÓN CIENTÍFICA)
+       ========================================================================== */
+    function sanitizeLocation(raw) {
+      if (!raw) return "";
+      let s = String(raw).trim().toUpperCase();
+
+      // Caso 1: Notación científica explícita 5E+22, 5E+10, 5E+100
+      let sciMatch = s.match(/^5E\+(\d+)$/);
+      if (sciMatch) {
+        let n = parseInt(sciMatch[1], 10);
+        return "05E" + String(n).padStart(2, '0');
+      }
+
+      // Caso 2: Notación científica flotante 5.0E+22
+      let floatMatch = s.match(/^5(?:\.0+)?E\+?(\d+)$/);
+      if (floatMatch) {
+        let n = parseInt(floatMatch[1], 10);
+        return "05E" + String(n).padStart(2, '0');
+      }
+
+      // Caso 3: Número expandido como entero largo '50000000000' (5 seguido de ceros)
+      let zeroMatch = s.match(/^5(0{2,})$/);
+      if (zeroMatch) {
+        let exp = zeroMatch[1].length;
+        return "05E" + String(exp).padStart(2, '0');
+      }
+
+      // Caso 4: '5E22' sin el '+'
+      let directE = s.match(/^0?5E(\d+)$/);
+      if (directE) {
+        let n = parseInt(directE[1], 10);
+        return "05E" + String(n).padStart(2, '0');
+      }
+
+      return s;
+    }
+
+    function parseLocation(rawLoc) {
+      if (!rawLoc) return null;
+      let loc = sanitizeLocation(rawLoc);
+
+      if (loc.startsWith('N')) {
+        let match = loc.match(/^(N\d{1,2}[A-Z])(\d+)/);
+        if (match) {
+          return {
+            isla: match[1],
+            pos: parseInt(match[2], 10),
+            bodega: "NARANJA",
+            normalized: match[1] + String(match[2]).padStart(2, '0')
+          };
+        }
+      }
+
+      if (loc.startsWith('CA') || loc.startsWith('CB')) {
+        let isla = loc.substring(0, 2);
+        let posStr = loc.substring(2);
+        let pos = parseInt(posStr, 10);
+        return {
+          isla: isla,
+          pos: isNaN(pos) ? 1 : pos,
+          bodega: "ROJA",
+          normalized: isla + String(pos || 1).padStart(2, '0')
+        };
+      }
+
+      let matchRoja = loc.match(/^(\d{2}[A-Z])(\d+)/);
+      if (matchRoja) {
+        return {
+          isla: matchRoja[1],
+          pos: parseInt(matchRoja[2], 10),
+          bodega: "ROJA",
+          normalized: matchRoja[1] + String(matchRoja[2]).padStart(2, '0')
+        };
+      }
+
+      return null;
+    }
+
+    function getSlotCapacity(parsedLoc, sku) {
+      if (!parsedLoc) return { fondos: 9, estiba: 2, capacidad: 18 };
+      let rule = FONDEO_RULES[parsedLoc.isla];
+      let fondos = 9;
+
+      if (rule) {
+        if (rule.split && parsedLoc.pos > rule.split) {
+          fondos = rule.fondos2;
+        } else {
+          fondos = rule.fondos;
+        }
+      }
+
+      let estiba = ESTIBA_RULES[sku] || ESTIBA_RULES["DEFAULT"] || 2;
+      return {
+        fondos: fondos,
+        estiba: estiba,
+        capacidad: fondos * estiba
+      };
+    }
+
+    /* ==========================================================================
+       3. EVALUACIÓN Y SEMAFORIZACIÓN (NARANJA <50%, VERDE >=50%, ROJO >100%)
+       ========================================================================== */
+    function evaluateInventory() {
+      auditResults = [];
+      let totalAuditadas = 0;
+      let totalSobrellenadas = 0;
+      let totalSubutilizadas = 0;
+      let totalExcesoPallets = 0;
+
+      for (let locKey in inventoryState) {
+        totalAuditadas++;
+        let item = inventoryState[locKey];
+        let parsed = parseLocation(locKey);
+        let cleanLoc = parsed ? parsed.normalized : locKey;
+        
+        let skuList = Object.keys(item.skus);
+        let dominantSku = skuList[0] || "N/A";
+        let desc = item.skus[dominantSku]?.desc || "Sin descripción";
+
+        let capInfo = getSlotCapacity(parsed, dominantSku);
+        let lpns = item.lpns;
+        let exceso = Math.max(0, lpns - capInfo.capacidad);
+        let ratio = capInfo.capacidad > 0 ? (lpns / capInfo.capacidad) : 1;
+
+        let status = "OPTIMA"; // Verde
+        if (exceso > 0) {
+          status = "SOBRELLENADO"; // Rojo
+          totalSobrellenadas++;
+          totalExcesoPallets += exceso;
+        } else if (ratio < 0.50) {
+          status = "BAJA"; // Naranja
+          totalSubutilizadas++;
+        }
+
+        // Trazabilidad de Responsable WMS
+        let movHistory = wmsHistory[cleanLoc] || [];
+        let lastIn = movHistory.find(m => m.tipo === 'IN');
+        let responsable = lastIn ? lastIn.usuario : "No registrado";
+        let maniobra = lastIn ? `${lastIn.tipo} - ${lastIn.referencia || 'Almacenamiento'}` : "-";
+        let fechaMov = lastIn ? lastIn.fecha : "-";
+
+        let record = {
+          bodega: parsed ? parsed.bodega : (locKey.startsWith('N') ? 'NARANJA' : 'ROJA'),
+          isla: parsed ? parsed.isla : 'DESC',
+          pos: parsed ? parsed.pos : 0,
+          ubicacion: cleanLoc,
+          sku: dominantSku,
+          descripcion: desc,
+          fondos: capInfo.fondos,
+          estiba: capInfo.estiba,
+          capacidad: capInfo.capacidad,
+          lpns: lpns,
+          exceso: exceso,
+          ratio: ratio,
+          pct: Math.round(ratio * 100),
+          status: status,
+          responsable: responsable,
+          maniobra: maniobra,
+          fechaMov: fechaMov,
+          historial: movHistory
+        };
+
+        auditResults.push(record);
+      }
+
+      // KPIs
+      document.getElementById('kpi-total-slots').innerText = totalAuditadas.toLocaleString();
+      document.getElementById('kpi-overfilled-slots').innerText = totalSobrellenadas.toLocaleString();
+      document.getElementById('kpi-underfilled-slots').innerText = totalSubutilizadas.toLocaleString();
+      document.getElementById('kpi-excess-pallets').innerText = totalExcesoPallets.toLocaleString();
+
+      renderAisleLayout();
+      renderAuditTable();
+    }
+
+    /* ==========================================================================
+       4. RENDERIZADO DEL PLANO CENITAL / VISTA AÉREA
+       ========================================================================== */
+    function renderAisleLayout() {
+      const container = document.getElementById('grid-container');
+      container.innerHTML = '';
+
+      let filterText = document.getElementById('txt-filter').value.trim().toUpperCase();
+      let onlyDanger = document.getElementById('chk-only-danger').checked;
+
+      let islasActivas = currentBodega === "ROJA" ? Array.from(ISLAS_ROJA) : Array.from(ISLAS_NARANJA);
+
+      let auditMap = {};
+      auditResults.forEach(r => {
+        auditMap[r.ubicacion] = r;
+      });
+
+      islasActivas.forEach(isla => {
+        let rule = FONDEO_RULES[isla] || { maxPos: 75 };
+        let aisleRow = document.createElement('div');
+        aisleRow.className = 'aisle-row';
+
+        let label = document.createElement('div');
+        label.className = 'aisle-label';
+        label.innerText = isla;
+        aisleRow.appendChild(label);
+
+        let slotsBox = document.createElement('div');
+        slotsBox.className = 'slots-container';
+
+        for (let i = 1; i <= rule.maxPos; i++) {
+          let posPadded = String(i).padStart(2, '0');
+          let locCode = isla + posPadded;
+          let auditData = auditMap[locCode];
+
+          if (filterText && !locCode.includes(filterText) && 
+              (!auditData || (!auditData.sku.includes(filterText) && !auditData.responsable.toUpperCase().includes(filterText)))) {
+            continue;
+          }
+
+          let cell = document.createElement('div');
+          cell.className = 'slot-cell';
+          cell.innerText = i;
+          cell.dataset.loc = locCode;
+
+          if (!auditData || auditData.lpns === 0) {
+            cell.classList.add('state-empty');
+          } else if (auditData.status === "SOBRELLENADO") {
+            cell.classList.add('state-critical');
+          } else if (auditData.status === "BAJA") {
+            cell.classList.add('state-orange');
+          } else {
+            cell.classList.add('state-green');
+          }
+
+          if (onlyDanger && (!auditData || auditData.status !== "SOBRELLENADO")) {
+            cell.style.opacity = "0.15";
+          }
+
+          cell.addEventListener('mouseenter', (e) => showTooltip(e, locCode, auditData));
+          cell.addEventListener('mousemove', moveTooltip);
+          cell.addEventListener('mouseleave', hideTooltip);
+          cell.addEventListener('click', () => showDetailModal(locCode, auditData));
+
+          slotsBox.appendChild(cell);
+        }
+
+        aisleRow.appendChild(slotsBox);
+        container.appendChild(aisleRow);
+      });
+    }
+
+    /* ==========================================================================
+       5. RENDERIZADO DE TABLA DE AUDITORÍA
+       ========================================================================== */
+    function renderAuditTable() {
+      const tbody = document.getElementById('tbl-body');
+      tbody.innerHTML = '';
+
+      let filterText = document.getElementById('txt-filter').value.trim().toUpperCase();
+      let onlyDanger = document.getElementById('chk-only-danger').checked;
+
+      let filtered = auditResults.filter(r => {
+        if (r.bodega !== currentBodega) return false;
+        if (onlyDanger && r.status !== "SOBRELLENADO") return false;
+        if (filterText) {
+          return r.ubicacion.includes(filterText) || 
+                 r.sku.includes(filterText) || 
+                 r.descripcion.toUpperCase().includes(filterText) ||
+                 r.responsable.toUpperCase().includes(filterText);
+        }
+        return true;
+      });
+
+      filtered.sort((a, b) => b.exceso - a.exceso || b.pct - a.pct);
+      document.getElementById('lbl-records-count').innerText = `${filtered.length} ubicaciones`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding:18px; color:var(--color-text-muted);">No hay ubicaciones registradas con los filtros actuales.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(r => {
+        let tr = document.createElement('tr');
+        let badgeClass = "badge-green";
+        let statusText = "ÓPTIMA";
+
+        if (r.status === "SOBRELLENADO") {
+          badgeClass = "badge-critical";
+          statusText = "SOBRELLENADO";
+        } else if (r.status === "BAJA") {
+          badgeClass = "badge-orange";
+          statusText = "BAJA (<50%)";
+        }
+
+        tr.innerHTML = `
+          <td><strong>${r.bodega}</strong></td>
+          <td><strong>${r.ubicacion}</strong></td>
+          <td>${r.sku}</td>
+          <td title="${r.descripcion}">${r.descripcion.length > 22 ? r.descripcion.substring(0, 22) + '...' : r.descripcion}</td>
+          <td>${r.fondos}</td>
+          <td>${r.estiba}</td>
+          <td>${r.capacidad}</td>
+          <td><strong>${r.lpns}</strong></td>
+          <td><strong>${r.pct}%</strong></td>
+          <td style="color:${r.exceso > 0 ? 'var(--color-danger-text)' : 'inherit'}; font-weight:700;">+${r.exceso}</td>
+          <td><strong style="color:var(--color-primary);">${r.responsable}</strong></td>
+          <td title="${r.maniobra}">${r.maniobra.length > 25 ? r.maniobra.substring(0, 25) + '...' : r.maniobra}</td>
+          <td><small>${r.fechaMov}</small></td>
+          <td><span class="badge-status ${badgeClass}">${statusText}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /* ==========================================================================
+       6. TOOLTIPS Y MODAL
+       ========================================================================== */
+    const tooltip = document.getElementById('tooltip-box');
+
+    function showTooltip(e, loc, data) {
+      tooltip.style.display = 'block';
+      if (!data) {
+        tooltip.innerHTML = `<h5>${loc}</h5><p style="color:#BAC2D1;">Ubicación Vacía (0% Ocupación)</p>`;
+      } else {
+        let estatusMsg = "";
+        if (data.status === "SOBRELLENADO") {
+          estatusMsg = `
+            <p style="color:#F87171; font-weight:700; margin-top:4px;">&#9888; SOBRELLENADO: +${data.exceso} Pallets</p>
+            <p style="color:#FFFFFF; font-size:10px;"><strong>Responsable:</strong> ${data.responsable}</p>
+          `;
+        } else if (data.status === "BAJA") {
+          estatusMsg = `<p style="color:#FDBA74; font-weight:700; margin-top:4px;">&#8681; Ocupación Baja (&lt;50%)</p>`;
+        } else {
+          estatusMsg = `<p style="color:#86EFAC; font-weight:700; margin-top:4px;">&#10004; Ocupación Óptima (&ge;50%)</p>`;
+        }
+
+        tooltip.innerHTML = `
+          <h5>${loc}</h5>
+          <p><strong>SKU:</strong> ${data.sku}</p>
+          <p><strong>LPNs Físicos:</strong> ${data.lpns} de ${data.capacidad} (${data.pct}%)</p>
+          <p><strong>Fórmula:</strong> ${data.fondos} fondos &times; ${data.estiba} estiba</p>
+          ${estatusMsg}
+        `;
+      }
+      moveTooltip(e);
+    }
+
+    function moveTooltip(e) {
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 14) + 'px';
+    }
+
+    function hideTooltip() { tooltip.style.display = 'none'; }
+
+    function showDetailModal(loc, data) {
+      const modal = document.getElementById('modal-detail');
+      const body = document.getElementById('mdl-body');
+      document.getElementById('mdl-title').innerText = `Auditoría Forense: Ubicación ${loc}`;
+
+      if (!data) {
+        body.innerHTML = `<p style="color:var(--color-text-muted);">Ubicación sin registros de inventario.</p>`;
+      } else {
+        let histHtml = "";
+        if (data.historial && data.historial.length > 0) {
+          histHtml = `
+            <div style="margin-top:10px; border-top:1px solid var(--color-border); padding-top:8px;">
+              <strong style="font-size:11px; text-transform:uppercase;">Historial de Movimientos WMS:</strong>
+              <div style="max-height:140px; overflow-y:auto; margin-top:6px; font-size:11px;">
+          `;
+          data.historial.forEach(m => {
+            histHtml += `
+              <div style="padding:4px 0; border-bottom:1px dotted #E5E7EB; display:flex; justify-content:space-between;">
+                <span><strong>${m.tipo}</strong> &bull; ${m.usuario}</span>
+                <span style="color:var(--color-text-muted);">${m.fecha}</span>
+              </div>
+            `;
+          });
+          histHtml += `</div></div>`;
+        }
+
+        body.innerHTML = `
+          <div class="detail-row"><span>Bodega:</span><span>${data.bodega}</span></div>
+          <div class="detail-row"><span>Isla / Pasillo:</span><span>${data.isla}</span></div>
+          <div class="detail-row"><span>SKU Registrado:</span><span>${data.sku}</span></div>
+          <div class="detail-row"><span>Descripción:</span><span>${data.descripcion}</span></div>
+          <div class="detail-row"><span>Capacidad Teórica:</span><span>${data.capacidad} pallets (${data.fondos} fondos &times; ${data.estiba} estiba)</span></div>
+          <div class="detail-row"><span>LPNs Actuales:</span><span>${data.lpns} pallets (${data.pct}%)</span></div>
+          <div class="detail-row" style="color:${data.exceso > 0 ? 'var(--color-danger-text)' : 'inherit'}; font-weight:700;">
+            <span>Estatus:</span>
+            <span>${data.exceso > 0 ? `SOBRELLENADO (+${data.exceso} PALLETS)` : data.status}</span>
+          </div>
+          <div class="detail-row"><span>Último Operador (IN):</span><span><strong>${data.responsable}</strong></span></div>
+          <div class="detail-row"><span>Fecha / Hora Movimiento:</span><span>${data.fechaMov}</span></div>
+          <div class="detail-row"><span>Tarea / Referencia:</span><span>${data.maniobra}</span></div>
+          ${histHtml}
+        `;
+      }
+      modal.style.display = 'flex';
+    }
+
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+      document.getElementById('modal-detail').style.display = 'none';
+    });
+
+    /* ==========================================================================
+       7. CARGA DE ARCHIVOS CON PROTECCIÓN RAW = FALSE
+       ========================================================================== */
+    // A) Reglas Maestras
+    document.getElementById('file-rules').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: false });
+
+        if (wb.SheetNames.includes('ESTIBA')) {
+          let rows = XLSX.utils.sheet_to_json(wb.Sheets['ESTIBA'], { raw: false, defval: "" });
+          rows.forEach(r => {
+            let s = String(r['SKU'] || r['Material'] || '').trim();
+            let est = parseInt(r['Estiba Real'] || r['Estiba'] || 2, 10);
+            if (s) ESTIBA_RULES[s] = est;
+          });
+        }
+
+        if (wb.SheetNames.includes('FONDEO')) {
+          let rowsF = XLSX.utils.sheet_to_json(wb.Sheets['FONDEO'], { raw: false, defval: "" });
+          rowsF.forEach(r => {
+            let isla = String(r['ISLA'] || r['Zona'] || '').trim();
+            let fondos = parseInt(r['Fondos'] || r['Fondos.1'] || 0, 10);
+            let ubi = parseInt(r['Ubicaciones'] || r['Ubicaciones.1'] || 0, 10);
+            if (isla && fondos > 0) {
+              if (!FONDEO_RULES[isla]) FONDEO_RULES[isla] = {};
+              FONDEO_RULES[isla].fondos = fondos;
+              if (ubi > 0) FONDEO_RULES[isla].maxPos = ubi;
+            }
+          });
+        }
+
+        document.getElementById('lbl-status-rules').innerText = `Cargado: ${file.name}`;
+        if (Object.keys(inventoryState).length > 0) evaluateInventory();
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // B) Inventario Operativo (Protegido contra notación científica)
+    document.getElementById('file-inventory').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array', cellDates: false });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        // raw: false fuerza la captura del texto tal cual se ve en pantalla
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { raw: false, defval: "" });
+
+        inventoryState = {};
+
+        rows.forEach(r => {
+          let rawLoc = r['Ubicacion'] || r['Ubicación'] || r['UBICACION'] || '';
+          let loc = sanitizeLocation(rawLoc);
+          if (!loc) return;
+
+          let lpns = parseFloat(r['Lpns'] || r['LPNS'] || r['Pallets'] || 1);
+          let sku = String(r['SKU'] || r['Material'] || '').trim();
+          let desc = String(r['Descripción'] || r['Descripcion'] || r['DESCRIPCION'] || '').trim();
+
+          if (!inventoryState[loc]) {
+            inventoryState[loc] = { lpns: 0, skus: {} };
+          }
+
+          inventoryState[loc].lpns += isNaN(lpns) ? 1 : lpns;
+          if (sku) {
+            if (!inventoryState[loc].skus[sku]) {
+              inventoryState[loc].skus[sku] = { cant: 0, desc: desc };
+            }
+            inventoryState[loc].skus[sku].cant += lpns;
+          }
+        });
+
+        document.getElementById('lbl-status-inv').innerText = `Cargado: ${file.name} (${rows.length} líneas)`;
+        document.getElementById('lbl-update-time').innerText = new Date().toLocaleTimeString();
+        evaluateInventory();
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // C) Log WMS de Movimientos
+    document.getElementById('file-wms').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const text = evt.target.result;
+        const lines = text.split(/\r\n|\n/);
+        wmsHistory = {};
+
+        lines.forEach((line, idx) => {
+          if (idx < 2 || !line.trim()) return;
+          let cols = line.split(',');
+          if (cols.length >= 20) {
+            let rawLoc = cols[6] ? cols[6].trim() : '';
+            let loc = sanitizeLocation(rawLoc);
+            let tipoMov = cols[16] ? cols[16].trim().toUpperCase() : '';
+            let ref = cols[17] ? cols[17].trim() : '';
+            let usr = cols[19] ? cols[19].trim() : '';
+            let fecha = cols[4] ? cols[4].trim() : '';
+
+            if (loc && (tipoMov === 'IN' || tipoMov === 'DE')) {
+              if (!wmsHistory[loc]) wmsHistory[loc] = [];
+              wmsHistory[loc].push({
+                tipo: tipoMov,
+                usuario: usr,
+                referencia: ref,
+                fecha: fecha
+              });
+            }
+          }
+        });
+
+        // Ordenar desc por fecha
+        for (let l in wmsHistory) {
+          wmsHistory[l].sort((a, b) => b.fecha.localeCompare(a.fecha));
+        }
+
+        document.getElementById('lbl-status-wms').innerText = `Cargado: ${file.name}`;
+        if (Object.keys(inventoryState).length > 0) evaluateInventory();
+      };
+      reader.readAsText(file, 'latin1');
+    });
+
+    /* ==========================================================================
+       8. CONTROLES Y DEMO
+       ========================================================================== */
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentBodega = this.dataset.bodega;
+        document.getElementById('table-title').innerText = `Detalle de Ubicaciones - Bodega ${currentBodega}`;
+        renderAisleLayout();
+        renderAuditTable();
+      });
+    });
+
+    document.getElementById('txt-filter').addEventListener('input', () => {
+      renderAisleLayout();
+      renderAuditTable();
+    });
+
+    document.getElementById('chk-only-danger').addEventListener('change', () => {
+      renderAisleLayout();
+      renderAuditTable();
+    });
+
+    // Cargar demo sin errores de notación científica
+    document.getElementById('btn-load-demo').addEventListener('click', function() {
+      inventoryState = {
+        "05E10": { lpns: 27, skus: { "61024418": { cant: 27, desc: "FS SUAVITEL COMPL FRESH" } } },
+        "05E22": { lpns: 27, skus: { "61058965": { cant: 27, desc: "FS SUAVITEL SC FRESH SPRI" } } },
+        "05E23": { lpns: 27, skus: { "MX04697A": { cant: 27, desc: "DW AXION LEMON 1.4L" } } },
+        "01A02": { lpns: 4,  skus: { "FMX04763C": { cant: 4,  desc: "AXION LEMON POWDER" } } },
+        "01A03": { lpns: 12, skus: { "61013375":  { cant: 12, desc: "TP COLG LUMWHTE CHARCOAL" } } },
+        "01A42": { lpns: 32, skus: { "61002507":  { cant: 32, desc: "STY CAPRICE NATRLS KIWI" } } },
+        "N05E22": { lpns: 22, skus: { "114187": { cant: 22, desc: "ISS ORIG 3.7Z CS SP 6BAR" } } }
+      };
+
+      wmsHistory = {
+        "05E10": [{ tipo: "IN", usuario: "10123699", fecha: "2026-10-26 00:04:45", referencia: "6500547059" }],
+        "05E22": [{ tipo: "IN", usuario: "10122669", fecha: "2026-10-26 00:04:50", referencia: "6500546947" }],
+        "05E23": [{ tipo: "IN", usuario: "10118966", fecha: "2026-10-26 00:06:12", referencia: "REUBICACION" }]
+      };
+
+      ESTIBA_RULES["61002507"] = 3;
+      ESTIBA_RULES["61024418"] = 2;
+      ESTIBA_RULES["61058965"] = 2;
+      ESTIBA_RULES["MX04697A"] = 2;
+
+      document.getElementById('lbl-status-inv').innerText = "Cargado: Demo con nombres corregidos";
+      document.getElementById('lbl-update-time').innerText = new Date().toLocaleTimeString();
+      evaluateInventory();
+    });
+
+    document.getElementById('btn-export-csv').addEventListener('click', function() {
+      if (auditResults.length === 0) {
+        alert("No hay datos cargados para exportar.");
+        return;
+      }
+
+      let csv = "Bodega,Ubicacion,SKU,Descripcion,Fondos,Estiba,CapacidadMax,LpnsFisicos,PctOcupacion,Excedente,Responsable,Maniobra,FechaMov,Estatus\n";
+      auditResults.forEach(r => {
+        let cleanDesc = `"${r.descripcion.replace(/"/g, '""')}"`;
+        let cleanMan = `"${r.maniobra.replace(/"/g, '""')}"`;
+        csv += `${r.bodega},${r.ubicacion},${r.sku},${cleanDesc},${r.fondos},${r.estiba},${r.capacidad},${r.lpns},${r.pct}%,${r.exceso},"${r.responsable}",${cleanMan},"${r.fechaMov}",${r.status}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `Auditoria_Sobrellenado_${currentBodega}_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+    });
+
+    renderAisleLayout();
+  </script>
+</body>
+</html>

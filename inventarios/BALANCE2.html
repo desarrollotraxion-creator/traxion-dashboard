@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN - Conciliador de Inventarios (SAP Rector vs IZEL) [TSE-09]</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --primary-dark: #182237;
+      --secondary-dark: #100848;
+      --accent-lime: #C0D838;
+      --accent-lime-hover: #cbd51b;
+      --bg-layout: #F4F6F8;
+      --card-bg: #FFFFFF;
+      --border-soft: #E5E7EB;
+      --text-main: #1D2939;
+      --text-muted: #6B7280;
+      
+      --red-critical: #D92D20;
+      --red-bg: #FEE4E2;
+      --green-ok: #037A48;
+      --green-bg: #D1FADF;
+      --orange-risk: #E07A00;
+      --orange-bg: #FEF0C7;
+      --blue-accent: #0070C0;
+      --blue-bg: #E0F2FE;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Montserrat', sans-serif; }
+    body { background-color: var(--bg-layout); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Barra Superior Fija */
+    .top-header-fixed {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .top-brand-stripe { height: 4px; background: var(--accent-lime); width: 100%; }
+
+    header {
+      background-color: var(--primary-dark);
+      color: #FFFFFF;
+      padding: 10px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .brand-container { display: flex; align-items: center; gap: 16px; }
+    .brand-logo-text { border-right: 1px solid rgba(255,255,255,0.25); padding-right: 16px; }
+    .brand-logo-text h1 { font-size: 20px; font-weight: 900; letter-spacing: 2.5px; line-height: 1; color: #FFFFFF; }
+    .brand-logo-text span { font-size: 9px; letter-spacing: 1.8px; color: var(--accent-lime); font-weight: 700; display: block; margin-top: 2px; }
+    .system-title h2 { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+    .system-title p { font-size: 11px; color: #9CA3AF; font-weight: 400; }
+
+    /* Switch de Vistas DIS y SIN */
+    .view-mode-selector {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      gap: 4px;
+    }
+
+    .view-mode-btn {
+      background: transparent;
+      border: none;
+      color: #D1D5DB;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .view-mode-btn.active {
+      background: var(--accent-lime);
+      color: var(--primary-dark);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    main { padding: 18px 28px; flex: 1; max-width: 1600px; margin: 0 auto; width: 100%; }
+
+    /* Pestañas de Navegación */
+    .tabs-nav { display: flex; gap: 24px; border-bottom: 2px solid var(--border-soft); margin-bottom: 18px; }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 4px 12px 4px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      transition: color 0.2s;
+    }
+    .tab-btn.active { color: var(--text-main); }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0; right: 0;
+      height: 3px;
+      background: var(--primary-dark);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .upload-card {
+      background: #FFFFFF;
+      border: 1px dashed #CBD5E1;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .upload-inputs { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+    .file-btn {
+      border: 1px solid var(--border-soft);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 11px;
+      background: #F8FAFC;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text-main);
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .file-btn:hover { background: #F1F5F9; border-color: #94A3B8; }
+    .file-btn.loaded { background: #ECFDF5; border-color: #A7F3D0; color: #047857; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 14px; }
+    .k-card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .k-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .k-card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+    .k-card-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .k-card-value { font-size: 26px; font-weight: 800; color: var(--text-main); line-height: 1.1; margin-bottom: 8px; }
+    .k-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding-top: 8px;
+      border-top: 1px solid var(--border-soft);
+    }
+    .badge-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+
+    .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .status-card {
+      background: #FFFFFF;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status-left { display: flex; align-items: center; gap: 12px; }
+    .status-icon-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .status-info h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+    .status-info p { font-size: 14px; font-weight: 800; color: var(--text-main); }
+
+    .table-section {
+      background: #FFFFFF;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .table-header-bar {
+      padding: 12px 16px;
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .table-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .sub-switch-box { display: flex; background: #F1F5F9; padding: 3px; border-radius: 6px; border: 1px solid var(--border-soft); }
+    .sub-switch-btn {
+      border: none;
+      background: transparent;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+    .sub-switch-btn.active { background: #FFFFFF; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    .search-input { padding: 6px 12px; border: 1px solid var(--border-soft); border-radius: 6px; font-size: 11px; width: 220px; }
+    .table-wrapper { max-height: 580px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    thead { background-color: var(--primary-dark); color: #FFFFFF; position: sticky; top: 0; z-index: 2; }
+    th { padding: 10px 12px; text-align: left; font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+    th.num, td.num { text-align: right; }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border-soft); color: var(--text-main); white-space: nowrap; }
+    tr:nth-child(even) { background-color: #F8FAFC; }
+    tr:hover { background-color: #F1F5F9; }
+
+    .diff-zero { color: var(--green-ok); font-weight: 700; }
+    .diff-neg  { color: var(--red-critical); font-weight: 700; }
+    .diff-pos  { color: var(--blue-accent); font-weight: 700; }
+
+    .drop-zone-massive {
+      background: #FFFFFF;
+      border: 2px dashed #CBD5E1;
+      border-radius: 8px;
+      padding: 22px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+    }
+    .drop-zone-massive:hover { border-color: var(--accent-lime); background: #FAFDF0; }
+
+    .history-selector-bar {
+      background: #FFFFFF;
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .select-group { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; }
+    select { padding: 6px 12px; border: 1px solid var(--border-soft); border-radius: 6px; font-size: 11px; font-weight: 600; background: #FFF; }
+
+    footer {
+      background: #FFFFFF;
+      border-top: 1px solid var(--border-soft);
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra Principal Fija con Identidad y Conmutador de Vistas DIS/SIN -->
+  <div class="top-header-fixed">
+    <div class="top-brand-stripe"></div>
+    <header>
+      <div class="brand-container">
+        <div class="brand-logo-text">
+          <h1>TRAXION</h1>
+          <span>VIDA EN MOVIMIENTO</span>
+        </div>
+        <div class="system-title">
+          <h2>BALANCE TRAXION — SAP vs IZEL</h2>
+          <p>Procedimiento de Dashboards TSE-09-SIGEO-PR</p>
+        </div>
+      </div>
+
+      <!-- Conmutador Vista A / Vista B -->
+      <div class="view-mode-selector">
+        <button class="view-mode-btn active" id="btnModeOmit" onclick="setViewMode(false)">
+          <i data-lucide="eye-off" style="width:14px; height:14px;"></i>
+          Vista A: Omitir DIS y SIN (Operativa)
+        </button>
+        <button class="view-mode-btn" id="btnModeInclude" onclick="setViewMode(true)">
+          <i data-lucide="eye" style="width:14px; height:14px;"></i>
+          Vista B: Incluir DIS y SIN (Auditoría)
+        </button>
+      </div>
+    </header>
+  </div>
+
+  <main>
+    <!-- Pestañas de Navegación -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="btnTabGeneral" onclick="switchTab('tabGeneral')">
+        <i data-lucide="layout-dashboard" style="width:16px; height:16px;"></i> Auditoría General del Día
+      </button>
+      <button class="tab-btn" id="btnTabHistory" onclick="switchTab('tabHistory')">
+        <i data-lucide="calendar-range" style="width:16px; height:16px; color:#1D4ED8;"></i> Histórico Multidía (IndexedDB)
+      </button>
+    </div>
+
+    <!-- PESTAÑA 1: AUDITORÍA GENERAL DEL DÍA -->
+    <div id="tabGeneral">
+      <div class="upload-card">
+        <div class="upload-inputs">
+          <button type="button" class="file-btn" id="btnUploadSap" onclick="document.getElementById('inputSapFile').click()">
+            <i data-lucide="database" style="width:15px; height:15px; color:#1D4ED8;"></i>
+            <span id="lblFileSap">1. Subir Archivo SAP Rector</span>
+          </button>
+          <input type="file" id="inputSapFile" accept=".xlsx, .xls, .csv" style="display:none;" onclick="this.value=null;" onchange="handleFileChange(event, 'SAP')">
+
+          <button type="button" class="file-btn" id="btnUploadIzel" onclick="document.getElementById('inputIzelFile').click()">
+            <i data-lucide="boxes" style="width:15px; height:15px; color:#047857;"></i>
+            <span id="lblFileIzel">2. Subir Archivo Físico IZEL</span>
+          </button>
+          <input type="file" id="inputIzelFile" accept=".xlsx, .xls, .csv" style="display:none;" onclick="this.value=null;" onchange="handleFileChange(event, 'IZEL')">
+          
+          <span id="uploadStatusText" style="font-size:11px; color:var(--text-muted); font-weight:600;">
+            Haz clic en los botones para cargar los archivos del día.
+          </span>
+        </div>
+
+        <div>
+          <button class="file-btn" id="btnExport" onclick="exportToCSV()" style="background:var(--primary-dark); color:#FFF; display:none;">
+            <i data-lucide="download" style="width:14px; height:14px;"></i> Exportar CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- K-Cards -->
+      <div class="kpi-grid">
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title" id="lblCardSapTitle">1. BASE SAP RECTOR (DR+FG+QR)</span>
+            <div class="k-card-icon" style="background:#FAF5FF; color:#6B21A8;"><i data-lucide="database" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiSapTotal">0.00</div>
+          <div class="k-card-footer">
+            <span>FG Oper: <strong id="kpiSapFg">0.00</strong></span>
+            <span>DR: <strong id="kpiSapDr">0.00</strong></span>
+          </div>
+        </div>
+
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">2. FÍSICO IZEL WMS</span>
+            <div class="k-card-icon" style="background:#EFF6FF; color:#1D4ED8;"><i data-lucide="boxes" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiIzelTotal">0.00</div>
+          <div class="k-card-footer">
+            <span>FG: <strong id="kpiIzelFg">0.00</strong></span>
+            <span>DR: <strong id="kpiIzelDr">0.00</strong></span>
+          </div>
+        </div>
+
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">3. VARIACIÓN FÍSICA vs SAP</span>
+            <div class="k-card-icon" style="background:#FFFBEB; color:#B45309;"><i data-lucide="scale" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiNetDiff">0.00</div>
+          <div class="k-card-footer">
+            <span>Efectividad IRA:</span>
+            <span class="badge-status" id="badgeMatchRate" style="background:#E5E7EB; color:#6B7280;">0.00%</span>
+          </div>
+        </div>
+
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">4. BALANCE DAÑOS (DR)</span>
+            <div class="k-card-icon" style="background:#ECFDF5; color:#047857;"><i data-lucide="alert-triangle" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiDrDiff">0.00</div>
+          <div class="k-card-footer">
+            <span>SAP: <span id="kpiSubSapDr">0</span> | IZEL: <span id="kpiSubIzelDr">0</span></span>
+            <span class="badge-status" id="badgeDrStatus" style="background:#E5E7EB; color:#6B7280;">Sin Datos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fila de Estatus Secundario -->
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="status-left">
+            <div class="status-icon-circle" style="background:#D1FADF; color:#037A48;"><i data-lucide="check" style="width:18px; height:18px;"></i></div>
+            <div class="status-info">
+              <h4>SKUS CUADRADOS AL 100%</h4>
+              <p id="lblSkusCuadrados">0 de 0 (0.0%)</p>
+            </div>
+          </div>
+          <span class="badge-status" style="background:#E5E7EB; color:#6B7280;">En espera</span>
+        </div>
+
+        <div class="status-card">
+          <div class="status-left">
+            <div class="status-icon-circle" style="background:#FEE4E2; color:#D92D20;"><i data-lucide="alert-circle" style="width:18px; height:18px;"></i></div>
+            <div class="status-info">
+              <h4>SKUS CON DESVIACIÓN</h4>
+              <p id="lblSkusVariacion">0 materiales</p>
+            </div>
+          </div>
+          <span class="badge-status" style="background:#E5E7EB; color:#6B7280;">En espera</span>
+        </div>
+      </div>
+
+      <!-- TABLA DEL DÍA -->
+      <div class="table-section">
+        <div class="table-header-bar">
+          <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+            <div style="font-size:12px; font-weight:700; text-transform:uppercase;">
+              Detalle SKU por SKU vs Base SAP Rector
+            </div>
+            <div class="sub-switch-box">
+              <button class="sub-switch-btn active" id="btnTableSummary" onclick="setTableMode('summary')">
+                <i data-lucide="list" style="width:13px; height:13px;"></i> Vista Resumida (6 Col.)
+              </button>
+              <button class="sub-switch-btn" id="btnTableDetail" onclick="setTableMode('detailed')">
+                <i data-lucide="table-properties" style="width:13px; height:13px;"></i> Vista Detallada (12 Col.)[cite: 12]
+              </button>
+            </div>
+          </div>
+
+          <div class="table-controls">
+            <label style="font-size:11px; font-weight:600; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; gap:4px;">
+              <input type="checkbox" id="chkOnlyDiff" onchange="renderTable()"> Solo diferencias
+            </label>
+            <input type="text" id="tblSearch" class="search-input" placeholder="Buscar por SKU..." oninput="renderTable()">
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table id="mainTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody">
+              <tr>
+                <td colspan="12" style="text-align:center; padding:32px; color:var(--text-muted);">
+                  Carga los archivos SAP Rector e IZEL arriba para procesar la auditoría.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 2: HISTÓRICO MULTIDÍA (INDEXEDDB) -->
+    <div id="tabHistory" style="display:none;">
+      <div class="drop-zone-massive" onclick="document.getElementById('inputMassiveFiles').click()">
+        <i data-lucide="folder-archive" style="width: 32px; height: 32px; color: var(--primary-dark); margin-bottom: 6px;"></i>
+        <h3 style="font-size: 13px; font-weight: 800;">Arrastra o haz clic aquí para seleccionar los archivos de varios días (SAP e IZEL)</h3>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Soporta Excel (.xlsx, .xls) y CSV. Normaliza fechas automáticamente[cite: 14].</p>
+        <input type="file" id="inputMassiveFiles" multiple accept=".xlsx, .xls, .csv" style="display:none;" onclick="this.value=null;" onchange="handleMassiveUpload(event)">
+        <div id="massiveLogText" style="font-size: 11px; color: var(--green-ok); font-weight: 700; margin-top: 8px;"></div>
+      </div>
+
+      <!-- Barra de Selección de Fechas -->
+      <div class="history-selector-bar">
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+          <div class="select-group">
+            <i data-lucide="calendar" style="width:14px; height:14px; color:#1D4ED8;"></i>
+            <span>Día Base (Ayer / Anterior):</span>
+            <select id="selFechaBase" onchange="recalculateHistoricalComparison()"></select>
+          </div>
+
+          <div class="select-group">
+            <i data-lucide="calendar-check" style="width:14px; height:14px; color:#047857;"></i>
+            <span>Día Comparado (Hoy / Posterior):</span>
+            <select id="selFechaComp" onchange="recalculateHistoricalComparison()"></select>
+          </div>
+        </div>
+
+        <div id="dbStatusBadge" style="font-size: 11px; font-weight: 700; color: var(--primary-dark);">0 días almacenados</div>
+      </div>
+
+      <!-- K-Cards Comparativas -->
+      <div class="kpi-grid">
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">DIFERENCIA NETA DÍA BASE</span>
+            <div class="k-card-icon" style="background:#F1F5F9; color:var(--text-main);"><i data-lucide="calendar" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiHistBaseDiff">0.00</div>
+          <div class="k-card-footer"><span id="lblHistTagBase">Sin Selección</span></div>
+        </div>
+
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">DIFERENCIA NETA DÍA COMPARADO</span>
+            <div class="k-card-icon" style="background:#EFF6FF; color:#1D4ED8;"><i data-lucide="calendar-check" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiHistCompDiff">0.00</div>
+          <div class="k-card-footer"><span id="lblHistTagComp">Sin Selección</span></div>
+        </div>
+
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">EVOLUCIÓN DE BRECHA (COMP - BASE)</span>
+            <div class="k-card-icon" style="background:#FFFBEB; color:#B45309;"><i data-lucide="trending-up" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiHistDeltaDiff">0.00</div>
+          <div class="k-card-footer"><span class="badge-status" id="badgeHistImpact" style="background:#E5E7EB; color:#6B7280;">Sin Datos</span></div>
+        </div>
+
+        <div class="k-card">
+          <div class="k-card-header">
+            <span class="k-card-title">SKUS QUE SE CUADRARON</span>
+            <div class="k-card-icon" style="background:#ECFDF5; color:#047857;"><i data-lucide="check-check" style="width:16px; height:16px;"></i></div>
+          </div>
+          <div class="k-card-value" id="kpiHistCuadrados" style="color:var(--green-ok);">0</div>
+          <div class="k-card-footer"><span>Se descuadraron: <strong id="kpiHistDescuadrados" style="color:var(--red-critical);">0</strong></span></div>
+        </div>
+      </div>
+
+      <!-- Tabla Comparativa Multidía -->
+      <div class="table-section">
+        <div class="table-header-bar">
+          <div style="font-size:12px; font-weight:700; text-transform:uppercase;">
+            Comparativa de Variaciones por Material entre Fechas Seleccionadas
+          </div>
+          <div class="table-controls">
+            <input type="text" id="tblHistSearch" class="search-input" placeholder="Buscar SKU en histórico..." oninput="renderHistoricalTable()">
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>SKU / MATERIAL</th>
+                <th class="num">SAP BASE</th>
+                <th class="num">IZEL BASE</th>
+                <th class="num">DIF. BASE</th>
+                <th class="num">SAP COMP.</th>
+                <th class="num">IZEL COMP.</th>
+                <th class="num">DIF. COMP.</th>
+                <th class="num">DELTA DIF.</th>
+                <th style="text-align:center;">COMPORTAMIENTO</th>
+              </tr>
+            </thead>
+            <tbody id="tblHistBody">
+              <tr>
+                <td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">
+                  Carga los archivos en la zona superior para consultar la comparativa entre días.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <span>Procedimiento Operativo Homologado Traxión TSE-09-SIGEO-PR | Confidencial para fines internos[cite: 2, 4]</span>
+    <span id="txtTimestamp">Sistema listo para procesar</span>
+  </footer>
+
+  <script>
+    lucide.createIcons();
+
+    // Estado del conmutador DIS/SIN (false = Omitir / true = Incluir)
+    let includeDisSin = false;
+    let tableMode = 'summary';
+
+    // Datos Día Actual (Pestaña 1)
+    let rawIzelData = null, rawSapData = null;
+    let reconciledData = [];
+    let summaryTotals = { izelFg: 0, izelDr: 0, sapFg: 0, sapQr: 0, sapDr: 0, sapSin: 0, sapDis: 0 };
+
+    // Base de Datos IndexedDB
+    let db;
+    const dbReq = indexedDB.open("TraxionInventoryMultiDayDB_Clean", 4);
+    dbReq.onupgradeneeded = function(e) {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains("days")) {
+        db.createObjectStore("days", { keyPath: "dateKey" });
+      }
+    };
+    dbReq.onsuccess = function(e) {
+      db = e.target.result;
+      refreshDateSelectors();
+    };
+
+    function readExcelOrCSV(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet);
+            resolve(json);
+          } catch(err) {
+            reject(err);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function extractNormalizedDate(filename) {
+      const match = filename.match(/(\d{1,2})\s+([A-Za-z]+)/i);
+      if (match) {
+        const day = match[1].padStart(2, '0');
+        const month = match[2].toUpperCase();
+        return `${day} ${month}`;
+      }
+      return "FECHA_DESCONOCIDA";
+    }
+
+    function parseSapRows(json) {
+      const bySku = {};
+      const tarimas = ['HMXTAR02', 'HMXTAR04'];
+      json.forEach(row => {
+        const plant = String(row['Plant'] || '').trim();
+        if (!plant || plant === 'undefined') return;
+
+        const mat = String(row['Material'] || '').trim();
+        if (!mat || tarimas.includes(mat)) return;
+
+        const loc = String(row['Storage Location'] || '').trim().toUpperCase();
+        const qty = parseFloat(row['BUM Quantity'] || row['Quantity'] || 0) || 0;
+        const desc = String(row['Material Description'] || '').trim();
+
+        if (!bySku[mat]) bySku[mat] = { fg: 0, qr: 0, dr: 0, sin: 0, dis: 0, desc };
+
+        if (loc === 'DR') bySku[mat].dr += qty;
+        else if (loc === 'FG') bySku[mat].fg += qty;
+        else if (loc === 'QR') bySku[mat].qr += qty;
+        else if (loc === 'SIN') bySku[mat].sin += qty;
+        else if (loc === 'DIS') bySku[mat].dis += qty;
+        else bySku[mat].fg += qty;
+      });
+      return bySku;
+    }
+
+    function parseIzelRows(json) {
+      const bySku = {};
+      json.forEach(row => {
+        const sku = String(row['SKU'] || row['Material'] || '').trim();
+        if (!sku) return;
+        const qty = parseFloat(row['Cantidad'] || row['Quantity'] || 0) || 0;
+        const area = String(row['Area'] || row['Ubicacion'] || '').trim().toUpperCase();
+        const cat = (area === 'DAÑOS' || area === 'DANOS' || area === 'DR') ? 'DR' : 'FG';
+
+        if (!bySku[sku]) bySku[sku] = { fg: 0, dr: 0 };
+        bySku[sku][cat === 'DR' ? 'dr' : 'fg'] += qty;
+      });
+      return bySku;
+    }
+
+    /* SWITCH DIS Y SIN */
+    function setViewMode(include) {
+      includeDisSin = include;
+      document.getElementById('btnModeOmit').classList.toggle('active', !include);
+      document.getElementById('btnModeInclude').classList.toggle('active', include);
+
+      document.getElementById('lblCardSapTitle').innerText = include ? 
+        '1. BASE SAP AUDITORÍA (DR+FG+QR+SIN+DIS)' : 
+        '1. BASE SAP RECTOR (DR+FG+QR)';
+
+      updateDashboardMetrics();
+      renderTable();
+      recalculateHistoricalComparison();
+    }
+
+    /* CARGA PESTAÑA 1 */
+    async function handleFileChange(event, type) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      document.getElementById('uploadStatusText').innerText = `Leyendo ${file.name}...`;
+
+      try {
+        const json = await readExcelOrCSV(file);
+        if (type === 'SAP') {
+          rawSapData = json;
+          document.getElementById('lblFileSap').innerText = `✓ ${file.name}`;
+          document.getElementById('btnUploadSap').classList.add('loaded');
+        } else if (type === 'IZEL') {
+          rawIzelData = json;
+          document.getElementById('lblFileIzel').innerText = `✓ ${file.name}`;
+          document.getElementById('btnUploadIzel').classList.add('loaded');
+        }
+
+        if (rawSapData && rawIzelData) {
+          document.getElementById('uploadStatusText').innerText = "Conciliando inventario físico contra SAP Rector...";
+          setTimeout(processDailyAudit, 100);
+        } else if (rawSapData) {
+          document.getElementById('uploadStatusText').innerText = "SAP cargado. Ahora sube el archivo físico IZEL.";
+        } else if (rawIzelData) {
+          document.getElementById('uploadStatusText').innerText = "IZEL cargado. Ahora sube el archivo SAP Rector.";
+        }
+      } catch (err) {
+        alert("Error al leer el archivo: " + err.message);
+        document.getElementById('uploadStatusText').innerText = "Error en el archivo. Intenta de nuevo.";
+      }
+    }
+
+    function processDailyAudit() {
+      const sapBySku = parseSapRows(rawSapData);
+      const izelBySku = parseIzelRows(rawIzelData);
+
+      const allSkus = Array.from(new Set([...Object.keys(sapBySku), ...Object.keys(izelBySku)]));
+      reconciledData = [];
+      summaryTotals = { izelFg: 0, izelDr: 0, sapFg: 0, sapQr: 0, sapDr: 0, sapSin: 0, sapDis: 0 };
+
+      allSkus.forEach(sku => {
+        const sp = sapBySku[sku] || { fg: 0, qr: 0, dr: 0, sin: 0, dis: 0, desc: '' };
+        const iz = izelBySku[sku] || { fg: 0, dr: 0 };
+
+        summaryTotals.sapFg += sp.fg;
+        summaryTotals.sapQr += sp.qr;
+        summaryTotals.sapDr += sp.dr;
+        summaryTotals.sapSin += sp.sin;
+        summaryTotals.sapDis += sp.dis;
+
+        summaryTotals.izelFg += iz.fg;
+        summaryTotals.izelDr += iz.dr;
+
+        reconciledData.push({
+          sku,
+          desc: sp.desc,
+          sapFg: sp.fg,
+          sapQr: sp.qr,
+          sapDr: sp.dr,
+          sin: sp.sin,
+          dis: sp.dis,
+          izelFg: iz.fg,
+          izelDr: iz.dr,
+          inSap: !!sapBySku[sku],
+          inIzel: !!izelBySku[sku]
+        });
+      });
+
+      document.getElementById('uploadStatusText').innerText = `✓ Conciliación completada: ${allSkus.length} materiales auditados.`;
+      document.getElementById('txtTimestamp').innerText = `Último cálculo: ${new Date().toLocaleDateString('es-MX')} ${new Date().toLocaleTimeString('es-MX')}`;
+      document.getElementById('btnExport').style.display = 'inline-flex';
+
+      updateDashboardMetrics();
+      renderTable();
+    }
+
+    /* CARGA MASIVA MULTIDÍA (PESTAÑA 2) */
+    async function handleMassiveUpload(event) {
+      const files = Array.from(event.target.files);
+      if (files.length === 0) return;
+
+      document.getElementById('massiveLogText').innerText = `Leyendo ${files.length} archivos... Normalizando fechas.`;
+
+      const grouped = {};
+      for (let file of files) {
+        const dateKey = extractNormalizedDate(file.name);
+        if (!grouped[dateKey]) grouped[dateKey] = {};
+
+        const isSap = file.name.toUpperCase().includes('SAP');
+        const isIzel = file.name.toUpperCase().includes('IZEL');
+
+        try {
+          const json = await readExcelOrCSV(file);
+          if (isSap) grouped[dateKey].sap = json;
+          else if (isIzel) grouped[dateKey].izel = json;
+        } catch (err) {
+          console.error("Error al procesar archivo en lote:", file.name, err);
+        }
+      }
+
+      const tx = db.transaction("days", "readwrite");
+      const store = tx.objectStore("days");
+
+      let processedCount = 0;
+      for (let dateKey in grouped) {
+        if (grouped[dateKey].sap && grouped[dateKey].izel) {
+          const sapMap = parseSapRows(grouped[dateKey].sap);
+          const izelMap = parseIzelRows(grouped[dateKey].izel);
+          const skus = Array.from(new Set([...Object.keys(sapMap), ...Object.keys(izelMap)]));
+
+          const dayData = {};
+          skus.forEach(sku => {
+            const sp = sapMap[sku] || { fg: 0, qr: 0, dr: 0, sin: 0, dis: 0 };
+            const iz = izelMap[sku] || { fg: 0, dr: 0 };
+            dayData[sku] = {
+              sapFg: sp.fg, sapQr: sp.qr, sapDr: sp.dr, sin: sp.sin, dis: sp.dis,
+              izelFg: iz.fg, izelDr: iz.dr
+            };
+          });
+
+          store.put({ dateKey, data: dayData, timestamp: Date.now() });
+          processedCount++;
+        }
+      }
+
+      tx.oncomplete = () => {
+        document.getElementById('massiveLogText').innerText = `✓ ¡Éxito! Se procesaron y guardaron ${processedCount} días en la base de datos.`;
+        refreshDateSelectors();
+      };
+    }
+
+    function refreshDateSelectors() {
+      if (!db) return;
+      const tx = db.transaction("days", "readonly");
+      const store = tx.objectStore("days");
+      const req = store.getAllKeys();
+
+      req.onsuccess = () => {
+        let keys = req.result;
+        keys.sort((a, b) => parseInt(a) - parseInt(b));
+
+        document.getElementById('dbStatusBadge').innerText = `${keys.length} días almacenados`;
+        const selBase = document.getElementById('selFechaBase');
+        const selComp = document.getElementById('selFechaComp');
+        selBase.innerHTML = '';
+        selComp.innerHTML = '';
+
+        keys.forEach((k, idx) => {
+          selBase.add(new Option(k, k, false, idx === 0));
+          selComp.add(new Option(k, k, false, idx === keys.length - 1));
+        });
+
+        if (keys.length >= 2) recalculateHistoricalComparison();
+      };
+    }
+
+    function recalculateHistoricalComparison() {
+      const kBase = document.getElementById('selFechaBase').value;
+      const kComp = document.getElementById('selFechaComp').value;
+      if (!kBase || !kComp) return;
+
+      document.getElementById('lblHistTagBase').innerText = kBase;
+      document.getElementById('lblHistTagComp').innerText = kComp;
+
+      const tx = db.transaction("days", "readonly");
+      const store = tx.objectStore("days");
+
+      store.get(kBase).onsuccess = (e1) => {
+        const baseData = e1.target.result?.data || {};
+        store.get(kComp).onsuccess = (e2) => {
+          const compData = e2.target.result?.data || {};
+          renderHistoricalComparison(baseData, compData);
+        };
+      };
+    }
+
+    function renderHistoricalComparison(baseMap, compMap) {
+      const allSkus = Array.from(new Set([...Object.keys(baseMap), ...Object.keys(compMap)]));
+      let sumBaseDiff = 0, sumCompDiff = 0;
+      let seCuadraron = 0, seDescuadraron = 0;
+      const rows = [];
+
+      allSkus.forEach(sku => {
+        const b = baseMap[sku] || { sapFg: 0, sapQr: 0, sapDr: 0, sin: 0, dis: 0, izelFg: 0, izelDr: 0 };
+        const c = compMap[sku] || { sapFg: 0, sapQr: 0, sapDr: 0, sin: 0, dis: 0, izelFg: 0, izelDr: 0 };
+
+        const sapBase = b.sapFg + b.sapQr + b.sapDr + (includeDisSin ? (b.sin + b.dis) : 0);
+        const izelBase = b.izelFg + b.izelDr;
+        const diffBase = izelBase - sapBase;
+
+        const sapComp = c.sapFg + c.sapQr + c.sapDr + (includeDisSin ? (c.sin + c.dis) : 0);
+        const izelComp = c.izelFg + c.izelDr;
+        const diffComp = izelComp - sapComp;
+
+        sumBaseDiff += diffBase;
+        sumCompDiff += diffComp;
+
+        const delta = diffComp - diffBase;
+        const wasSq = Math.abs(diffBase) < 0.001;
+        const isSq = Math.abs(diffComp) < 0.001;
+
+        let badge = '';
+        if (!wasSq && isSq) {
+          seCuadraron++;
+          badge = '<span class="badge-status" style="background:#D1FADF; color:#037A48;">✓ SE CUADRÓ</span>';
+        } else if (wasSq && !isSq) {
+          seDescuadraron++;
+          badge = '<span class="badge-status" style="background:#FEE4E2; color:#D92D20;">⚠ SE DESCUADRÓ</span>';
+        } else if (!wasSq && !isSq) {
+          if (Math.abs(diffComp) < Math.abs(diffBase)) {
+            badge = '<span class="badge-status" style="background:#E0F2FE; color:#0070C0;">MEJORÓ BRECHA</span>';
+          } else if (Math.abs(diffComp) > Math.abs(diffBase)) {
+            badge = '<span class="badge-status" style="background:#FEF0C7; color:#B45309;">EMPEORÓ BRECHA</span>';
+          } else {
+            badge = '<span class="badge-status" style="background:#F3F4F6; color:#4B5563;">SIN CAMBIO</span>';
+          }
+        } else {
+          badge = '<span class="badge-status" style="background:#D1FADF; color:#037A48;">CUADRADO</span>';
+        }
+
+        rows.push({
+          sku,
+          sapBase, izelBase, diffBase,
+          sapComp, izelComp, diffComp,
+          delta, badge,
+          absDelta: Math.abs(delta)
+        });
+      });
+
+      document.getElementById('kpiHistBaseDiff').innerText = (sumBaseDiff > 0 ? '+' : '') + formatNum(sumBaseDiff);
+      document.getElementById('kpiHistCompDiff').innerText = (sumCompDiff > 0 ? '+' : '') + formatNum(sumCompDiff);
+
+      const deltaGlobal = sumCompDiff - sumBaseDiff;
+      document.getElementById('kpiHistDeltaDiff').innerText = (deltaGlobal > 0 ? '+' : '') + formatNum(deltaGlobal);
+
+      const badgeImpact = document.getElementById('badgeHistImpact');
+      if (Math.abs(sumCompDiff) < Math.abs(sumBaseDiff)) {
+        badgeImpact.innerText = `Mejoró Brecha (-${formatNum(Math.abs(sumBaseDiff) - Math.abs(sumCompDiff))} pzas)`;
+        badgeImpact.style.background = '#D1FADF'; badgeImpact.style.color = '#037A48';
+      } else if (Math.abs(sumCompDiff) > Math.abs(sumBaseDiff)) {
+        badgeImpact.innerText = `Aumentó Brecha (+${formatNum(Math.abs(sumCompDiff) - Math.abs(sumBaseDiff))} pzas)`;
+        badgeImpact.style.background = '#FEE4E2'; badgeImpact.style.color = '#D92D20';
+      } else {
+        badgeImpact.innerText = 'Sin Cambio';
+        badgeImpact.style.background = '#E5E7EB'; badgeImpact.style.color = '#6B7280';
+      }
+
+      document.getElementById('kpiHistCuadrados').innerText = seCuadraron;
+      document.getElementById('kpiHistDescuadrados').innerText = seDescuadraron;
+
+      window.cachedHistRows = rows;
+      renderHistoricalTable();
+    }
+
+    function renderHistoricalTable() {
+      if (!window.cachedHistRows) return;
+      const q = document.getElementById('tblHistSearch').value.toLowerCase();
+      const tbody = document.getElementById('tblHistBody');
+      tbody.innerHTML = '';
+
+      window.cachedHistRows.sort((a, b) => b.absDelta - a.absDelta);
+
+      window.cachedHistRows.forEach(r => {
+        if (q && !r.sku.toLowerCase().includes(q)) return;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${r.sku}</strong></td>
+          <td class="num">${formatNum(r.sapBase)}</td>
+          <td class="num">${formatNum(r.izelBase)}</td>
+          <td class="num" style="color:${Math.abs(r.diffBase) > 0.001 ? 'var(--red-critical)' : 'var(--green-ok)'}; font-weight:600;">
+            ${(r.diffBase > 0 ? '+' : '') + formatNum(r.diffBase)}
+          </td>
+          <td class="num" style="font-weight:600;">${formatNum(r.sapComp)}</td>
+          <td class="num" style="font-weight:600;">${formatNum(r.izelComp)}</td>
+          <td class="num" style="color:${Math.abs(r.diffComp) > 0.001 ? 'var(--red-critical)' : 'var(--green-ok)'}; font-weight:700;">
+            ${(r.diffComp > 0 ? '+' : '') + formatNum(r.diffComp)}
+          </td>
+          <td class="num" style="font-weight:700; color:${r.delta === 0 ? 'var(--text-muted)' : (r.delta > 0 ? 'var(--blue-accent)' : 'var(--red-critical)')};">
+            ${(r.delta > 0 ? '+' : '') + formatNum(r.delta)}
+          </td>
+          <td style="text-align:center;">${r.badge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function switchTab(tabId) {
+      document.getElementById('tabGeneral').style.display = (tabId === 'tabGeneral') ? 'block' : 'none';
+      document.getElementById('tabHistory').style.display = (tabId === 'tabHistory') ? 'block' : 'none';
+
+      document.getElementById('btnTabGeneral').classList.toggle('active', tabId === 'tabGeneral');
+      document.getElementById('btnTabHistory').classList.toggle('active', tabId === 'tabHistory');
+    }
+
+    function setTableMode(mode) {
+      tableMode = mode;
+      document.getElementById('btnTableSummary').classList.toggle('active', mode === 'summary');
+      document.getElementById('btnTableDetail').classList.toggle('active', mode === 'detailed');
+      renderTable();
+    }
+
+    function updateDashboardMetrics() {
+      const s = summaryTotals;
+      const sapTotal = s.sapFg + s.sapQr + s.sapDr + (includeDisSin ? (s.sapSin + s.sapDis) : 0);
+      const izelTotal = s.izelFg + s.izelDr;
+
+      const netDiff = izelTotal - sapTotal;
+      const drDiff = s.izelDr - s.sapDr;
+
+      document.getElementById('kpiSapTotal').innerText = formatNum(sapTotal);
+      document.getElementById('kpiSapFg').innerText = formatNum(s.sapFg + s.sapQr);
+      document.getElementById('kpiSapDr').innerText = formatNum(s.sapDr);
+
+      document.getElementById('kpiIzelTotal').innerText = formatNum(izelTotal);
+      document.getElementById('kpiIzelFg').innerText = formatNum(s.izelFg);
+      document.getElementById('kpiIzelDr').innerText = formatNum(s.izelDr);
+
+      const netElem = document.getElementById('kpiNetDiff');
+      netElem.innerText = (netDiff > 0 ? '+' : '') + formatNum(netDiff);
+      netElem.style.color = (Math.abs(netDiff) === 0) ? 'var(--green-ok)' : (Math.abs(netDiff) < 5000 ? 'var(--orange-risk)' : 'var(--red-critical)');
+
+      document.getElementById('kpiDrDiff').innerText = (drDiff > 0 ? '+' : '') + formatNum(drDiff);
+      document.getElementById('kpiSubSapDr').innerText = formatNum(s.sapDr);
+      document.getElementById('kpiSubIzelDr').innerText = formatNum(s.izelDr);
+
+      const matchPct = sapTotal > 0 ? Math.max(0, (1 - (Math.abs(netDiff) / sapTotal)) * 100) : 0;
+      document.getElementById('badgeMatchRate').innerText = matchPct > 0 ? matchPct.toFixed(2) + '%' : '0.00%';
+      document.getElementById('badgeMatchRate').style.background = matchPct >= 99 ? '#D1FADF' : '#FEE4E2';
+      document.getElementById('badgeMatchRate').style.color = matchPct >= 99 ? '#037A48' : '#D92D20';
+
+      const drMatchPct = s.sapDr > 0 ? Math.max(0, (1 - (Math.abs(drDiff) / s.sapDr)) * 100) : 100;
+      document.getElementById('badgeDrStatus').innerText = drMatchPct >= 98 ? `${drMatchPct.toFixed(2)}% Cuadrado` : 'Revisar DR';
+      document.getElementById('badgeDrStatus').style.background = drMatchPct >= 98 ? '#D1FADF' : '#FEE4E2';
+      document.getElementById('badgeDrStatus').style.color = drMatchPct >= 98 ? '#037A48' : '#D92D20';
+
+      let sqCount = 0, varCount = 0;
+      reconciledData.forEach(r => {
+        const spTot = r.sapFg + r.sapQr + r.sapDr + (includeDisSin ? (r.sin + r.dis) : 0);
+        const izTot = r.izelFg + r.izelDr;
+        if (Math.abs(izTot - spTot) < 0.001) sqCount++;
+        else varCount++;
+      });
+
+      const totalK = reconciledData.length;
+      const sqPct = totalK > 0 ? ((sqCount / totalK) * 100).toFixed(1) : 0;
+      document.getElementById('lblSkusCuadrados').innerText = `${sqCount} de ${totalK} (${sqPct}%)`;
+      document.getElementById('lblSkusVariacion').innerText = `${varCount} materiales`;
+    }
+
+    function renderTable() {
+      const q = document.getElementById('tblSearch').value.toLowerCase();
+      const onlyDiff = document.getElementById('chkOnlyDiff').checked;
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+
+      if (tableMode === 'summary') {
+        thead.innerHTML = `
+          <tr>
+            <th>SKU / MATERIAL</th>
+            <th class="num">TOTAL SAP</th>
+            <th class="num">TOTAL IZEL FÍSICO</th>
+            <th class="num">DIFERENCIA NETA</th>
+            <th style="text-align:center;">DONDE ESTÁ LA DIFERENCIA</th>
+            <th style="text-align:center;">ESTATUS VS SAP</th>
+          </tr>
+        `;
+      } else {
+        thead.innerHTML = `
+          <tr>
+            <th>SKU / MATERIAL</th>
+            <th class="num">SAP FG</th>
+            <th class="num">SAP QR</th>
+            <th class="num">SAP DR</th>
+            <th class="num">DIS / SIN</th>
+            <th class="num">TOTAL SAP RECTOR</th>
+            <th class="num">IZEL FG</th>
+            <th class="num">IZEL DR</th>
+            <th class="num">TOTAL IZEL FÍSICO</th>
+            <th class="num">DIFERENCIA NETA</th>
+            <th class="num">DIF. DR</th>
+            <th style="text-align:center;">ESTATUS VS SAP</th>
+          </tr>
+        `;
+      }
+
+      if (reconciledData.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${tableMode === 'summary' ? 6 : 12}" style="text-align:center; padding:32px; color:var(--text-muted);">
+              Carga los archivos SAP Rector e IZEL arriba para procesar la auditoría.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = '';
+
+      const sorted = [...reconciledData].sort((a, b) => {
+        const spA = a.sapFg + a.sapQr + a.sapDr + (includeDisSin ? (a.sin + a.dis) : 0);
+        const spB = b.sapFg + b.sapQr + b.sapDr + (includeDisSin ? (b.sin + b.dis) : 0);
+        return Math.abs((b.izelFg + b.izelDr) - spB) - Math.abs((a.izelFg + a.izelDr) - spA);
+      });
+
+      sorted.forEach(row => {
+        if (q && !row.sku.toLowerCase().includes(q)) return;
+
+        const sapExtra = (row.dis + row.sin);
+        const sapFgOper = row.sapFg + row.sapQr + (includeDisSin ? sapExtra : 0);
+        const sapTot = sapFgOper + row.sapDr;
+        const izelTot = row.izelFg + row.izelDr;
+
+        const netDiff = izelTot - sapTot;
+        const diffDR = row.izelDr - row.sapDr;
+        const diffFG = row.izelFg - sapFgOper;
+
+        const hasDiffDR = Math.abs(diffDR) > 0.001;
+        const hasDiffFG = Math.abs(diffFG) > 0.001;
+
+        if (onlyDiff && !hasDiffDR && !hasDiffFG) return;
+
+        let locationBadge = '';
+        if (!row.inSap) {
+          locationBadge = `<span class="badge-status" style="background:#FEE4E2; color:#D92D20; border:1px solid #FECDCA;">NO EXISTE EN SAP</span>`;
+        } else if (!row.inIzel) {
+          locationBadge = `<span class="badge-status" style="background:#FEE4E2; color:#D92D20; border:1px solid #FECDCA;">FALTANTE TOTAL EN IZEL</span>`;
+        } else if (hasDiffDR && hasDiffFG) {
+          locationBadge = `<span class="badge-status" style="background:#FEE4E2; color:#D92D20; border:1px solid #FECDCA;">AMBOS (DR y FG)</span>`;
+        } else if (hasDiffDR && !hasDiffFG) {
+          locationBadge = `<span class="badge-status" style="background:#FEF0C7; color:#B45309; border:1px solid #FDE68A;">SOLO EN DR</span>`;
+        } else if (!hasDiffDR && hasDiffFG) {
+          locationBadge = `<span class="badge-status" style="background:#E0F2FE; color:#0070C0; border:1px solid #BAE6FD;">SOLO EN FG</span>`;
+        } else {
+          locationBadge = `<span class="badge-status" style="background:#D1FADF; color:#037A48;">CUADRADO</span>`;
+        }
+
+        let diffClass = 'diff-zero';
+        let statusBadge = '<span class="badge-status" style="background:#D1FADF; color:#037A48;">Cuadrado</span>';
+
+        if (netDiff > 0.001) {
+          diffClass = 'diff-pos';
+          statusBadge = '<span class="badge-status" style="background:#E0F2FE; color:#0070C0;">Sobrante Físico</span>';
+        } else if (netDiff < -0.001) {
+          diffClass = 'diff-neg';
+          statusBadge = '<span class="badge-status" style="background:#FEE4E2; color:#D92D20;">Faltante Físico</span>';
+        }
+
+        const tr = document.createElement('tr');
+
+        if (tableMode === 'summary') {
+          tr.innerHTML = `
+            <td><strong>${row.sku}</strong></td>
+            <td class="num" style="background:rgba(24,34,55,0.02); font-weight:600;">${formatNum(sapTot)}</td>
+            <td class="num">${formatNum(izelTot)}</td>
+            <td class="num ${diffClass}"><strong>${(netDiff > 0 ? '+' : '') + formatNum(netDiff)}</strong></td>
+            <td style="text-align:center;">${locationBadge}</td>
+            <td style="text-align:center;">${statusBadge}</td>
+          `;
+        } else {
+          tr.innerHTML = `
+            <td><strong>${row.sku}</strong></td>
+            <td class="num">${formatNum(row.sapFg)}</td>
+            <td class="num" style="color:#0070C0;">${formatNum(row.sapQr)}</td>
+            <td class="num">${formatNum(row.sapDr)}</td>
+            <td class="num" style="color:var(--text-muted);">${formatNum(sapExtra)}</td>
+            <td class="num" style="background:rgba(24,34,55,0.02); font-weight:700;"><strong>${formatNum(sapTot)}</strong></td>
+            <td class="num">${formatNum(row.izelFg)}</td>
+            <td class="num">${formatNum(row.izelDr)}</td>
+            <td class="num"><strong>${formatNum(izelTot)}</strong></td>
+            <td class="num ${diffClass}">${(netDiff > 0 ? '+' : '') + formatNum(netDiff)}</td>
+            <td class="num" style="font-weight:600;">${(diffDR > 0 ? '+' : '') + formatNum(diffDR)}</td>
+            <td style="text-align:center;">${statusBadge}</td>
+          `;
+        }
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function formatNum(num) {
+      return Number(num).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function exportToCSV() {
+      if (reconciledData.length === 0) return;
+      let csv = "SKU,TOTAL_SAP_RECTOR,SAP_FG,SAP_QR,SAP_DR,DIS_SIN,TOTAL_IZEL_FISICO,IZEL_FG,IZEL_DR,DIFERENCIA_NETA,DIF_DR\n";
+      reconciledData.forEach(r => {
+        const izelTot = r.izelFg + r.izelDr;
+        const sapTot = r.sapFg + r.sapQr + r.sapDr + (includeDisSin ? (r.dis + r.sin) : 0);
+        csv += `${r.sku},${sapTot},${r.sapFg},${r.sapQr},${r.sapDr},${r.dis + r.sin},${izelTot},${r.izelFg},${r.izelDr},${izelTot - sapTot},${r.izelDr - r.sapDr}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Conciliacion_SAP_Rector_vs_IZEL_${includeDisSin ? 'Con_DIS_SIN' : 'Sin_DIS_SIN'}.csv`;
+      a.click();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderTable();
+    });
+  </script>
+</body>
+</html>

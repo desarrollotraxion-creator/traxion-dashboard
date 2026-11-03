@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN | Tablero de Prioridades de Carga</title>
+  
+  <!-- Fuente Institucional Sans-Serif: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #F4F6F8;
+      color: #1D2939;
+    }
+
+    /* Colores Traxión norma TSE-09-SIGEO-PR */
+    :root {
+      --tx-blue-main: #182237;
+      --tx-lime-accent: #C0D838;
+      --tx-border: #E5E7EB;
+      --tx-red-crit: #D92D20;
+      --tx-red-bg: #FEE4E2;
+      --tx-orange: #E07A00;
+      --tx-green: #037A48;
+      --tx-blue-tag: #0070C0;
+    }
+
+    /* Esferas de Semáforo 3D */
+    .semaforo-dot {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      vertical-align: middle;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+
+    .dot-rojo {
+      background: radial-gradient(circle at 35% 35%, #ff7675, #D92D20 60%, #901107);
+      box-shadow: 0 0 5px rgba(217, 45, 32, 0.5);
+      animation: critico-glow 1.5s infinite alternate;
+    }
+
+    .dot-naranja {
+      background: radial-gradient(circle at 35% 35%, #ffb84d, #E07A00 60%, #a35600);
+      box-shadow: 0 0 4px rgba(224, 122, 0, 0.4);
+    }
+
+    .dot-verde {
+      background: radial-gradient(circle at 35% 35%, #55efc4, #037A48 60%, #01472a);
+      box-shadow: 0 0 4px rgba(3, 122, 72, 0.4);
+    }
+
+    .dot-azul {
+      background: radial-gradient(circle at 35% 35%, #74b9ff, #0070C0 60%, #06477b);
+      box-shadow: 0 0 4px rgba(0, 112, 192, 0.4);
+    }
+
+    @keyframes critico-glow {
+      0% { transform: scale(0.95); opacity: 0.85; }
+      100% { transform: scale(1.15); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+  <!-- Header Institucional Traxión -->
+  <header class="bg-[#182237] text-white border-b-4 border-[#C0D838] shadow-sm w-full">
+    <div class="max-w-[1850px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Marca y Título -->
+      <div class="flex items-center gap-4">
+        <div class="flex flex-col pr-4 border-r border-slate-700 leading-none">
+          <span class="tracking-[0.25em] text-[20px] font-black text-white">TRAXION</span>
+          <span class="text-[9px] tracking-[0.18em] text-[#C0D838] font-bold mt-0.5">VIDA EN MOVIMIENTO</span>
+        </div>
+        <div>
+          <h1 class="text-[19px] md:text-[22px] font-bold uppercase tracking-tight">
+            Prioridades Operativas de Carga
+          </h1>
+          <p class="text-[12px] text-slate-300">
+            Control de Embarques (Clientes y EXPOS / INTRAS)
+          </p>
+        </div>
+      </div>
+
+      <!-- Barra de Metadatos, Carga CSV y Vistas -->
+      <div class="flex items-center gap-3 text-[12px]">
+        <div class="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700 flex items-center gap-2">
+          <i class="fa-regular fa-clock text-[#C0D838]"></i>
+          <span class="text-slate-300">Actualizado:</span>
+          <span id="reloj-sistema" class="font-semibold text-white font-mono">--:--:--</span>
+        </div>
+
+        <!-- Selector de Vista -->
+        <div class="bg-slate-800 p-1 rounded border border-slate-700 flex">
+          <button id="btn-tab-ambos" onclick="cambiarVista('ambos')" class="px-2.5 py-1 rounded font-semibold text-[11px] bg-[#C0D838] text-[#182237] transition">
+            Vista Dual
+          </button>
+          <button id="btn-tab-nacionales" onclick="cambiarVista('nacionales')" class="px-2.5 py-1 rounded font-semibold text-[11px] text-slate-300 hover:text-white transition">
+            Clientes
+          </button>
+          <button id="btn-tab-expos" onclick="cambiarVista('expos')" class="px-2.5 py-1 rounded font-semibold text-[11px] text-slate-300 hover:text-white transition">
+            Expos / Intras
+          </button>
+        </div>
+
+        <!-- Botón Subir CSV IZEL -->
+        <input type="file" id="input-csv" accept=".csv" class="hidden" onchange="subirArchivoCSV(event)">
+        <button onclick="document.getElementById('input-csv').click()" class="bg-slate-700 hover:bg-slate-600 text-white font-semibold px-3 py-1.5 rounded transition flex items-center gap-1.5">
+          <i class="fa-solid fa-file-csv text-[#C0D838]"></i> Subir CSV IZEL
+        </button>
+
+        <button id="btn-actualizar" onclick="cargarDatos(true)" class="bg-[#C0D838] hover:bg-[#b5cc32] text-[#182237] font-semibold px-3 py-1.5 rounded transition flex items-center gap-1.5">
+          <i id="icono-sync" class="fa-solid fa-arrows-rotate text-[11px]"></i> Actualizar
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Filtros Superiores Compartidos -->
+  <section class="max-w-[1850px] mx-auto px-4 pt-4 w-full">
+    <div class="bg-white p-3 rounded-lg border border-[#E5E7EB] shadow-sm flex flex-wrap items-center justify-between gap-3 text-[12px]">
+      <div class="flex flex-wrap items-center gap-3 flex-1">
+        <div class="relative min-w-[280px]">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-[#6B7280]"></i>
+          <input type="text" id="filtro-texto" placeholder="Buscar por Shipment, Cliente, Destino o Transportista..." 
+                 class="w-full bg-[#F4F6F8] border border-[#E5E7EB] rounded pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#182237]">
+        </div>
+        <select id="filtro-folio" class="bg-[#F4F6F8] border border-[#E5E7EB] rounded px-3 py-1.5 focus:outline-none focus:border-[#182237]">
+          <option value="TODOS">Todos los Folios</option>
+          <option value="CON FOLIO">Con Folio</option>
+          <option value="SIN FOLIO">Sin Folio</option>
+        </select>
+        <span id="mensaje-estado-carga" class="text-[11px] text-[#6B7280] italic"></span>
+      </div>
+      <div class="text-[#6B7280]">
+        Formato institucional según norma <span class="font-bold text-[#182237]">TSE-09-SIGEO-PR</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FILA GLOBAL DE TARJETAS KPI ==================== -->
+  <section class="max-w-[1850px] mx-auto px-4 py-4 w-full">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      
+      <!-- KPI 1: TOTAL DE VIAJES -->
+      <div class="bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">Total de Viajes</span>
+          <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#182237]">
+            <i class="fa-solid fa-truck-moving text-xs"></i>
+          </div>
+        </div>
+        <div id="kpi-total-global" class="text-[30px] font-bold text-[#1D2939] leading-tight my-2">0</div>
+        <div class="pt-2.5 border-t border-[#E5E7EB] flex items-center justify-between text-[11px] text-[#6B7280]">
+          <span class="bg-slate-50 px-2 py-1 rounded border border-slate-200">Clientes: <strong id="sub-clientes-total" class="text-[#1D2939]">0</strong></span>
+          <span class="bg-slate-50 px-2 py-1 rounded border border-slate-200">Expos: <strong id="sub-expos-total" class="text-[#1D2939]">0</strong></span>
+        </div>
+      </div>
+
+      <!-- KPI 2: CRÍTICOS -->
+      <div class="bg-white p-4 rounded-xl border-l-4 border-l-[#D92D20] border-t border-r border-b border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-[#D92D20] uppercase tracking-wider flex items-center gap-1.5">
+            <span class="semaforo-dot dot-rojo"></span> Críticos (&le; 2h / Atrasados)
+          </span>
+          <div class="w-8 h-8 rounded-full bg-[#FEE4E2] flex items-center justify-center text-[#D92D20]">
+            <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+          </div>
+        </div>
+        <div id="kpi-total-criticos" class="text-[30px] font-bold text-[#D92D20] leading-tight my-2">0</div>
+        <div class="pt-2.5 border-t border-[#E5E7EB] flex items-center justify-between text-[11px] text-[#6B7280]">
+          <span class="bg-rose-50 px-2 py-1 rounded border border-rose-200">Clientes: <strong id="sub-clientes-criticos" class="text-[#D92D20]">0</strong></span>
+          <span class="bg-rose-50 px-2 py-1 rounded border border-rose-200">Expos: <strong id="sub-expos-criticos" class="text-[#D92D20]">0</strong></span>
+        </div>
+      </div>
+
+      <!-- KPI 3: ATENCIÓN -->
+      <div class="bg-white p-4 rounded-xl border-l-4 border-l-[#E07A00] border-t border-r border-b border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-[#E07A00] uppercase tracking-wider flex items-center gap-1.5">
+            <span class="semaforo-dot dot-naranja"></span> Atención (2h - 5h)
+          </span>
+          <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-[#E07A00]">
+            <i class="fa-regular fa-hourglass-half text-xs"></i>
+          </div>
+        </div>
+        <div id="kpi-total-atencion" class="text-[30px] font-bold text-[#E07A00] leading-tight my-2">0</div>
+        <div class="pt-2.5 border-t border-[#E5E7EB] flex items-center justify-between text-[11px] text-[#6B7280]">
+          <span class="bg-amber-50 px-2 py-1 rounded border border-amber-200">Clientes: <strong id="sub-clientes-atencion" class="text-[#E07A00]">0</strong></span>
+          <span class="bg-amber-50 px-2 py-1 rounded border border-amber-200">Expos: <strong id="sub-expos-atencion" class="text-[#E07A00]">0</strong></span>
+        </div>
+      </div>
+
+      <!-- KPI 4: EN TIEMPO -->
+      <div class="bg-white p-4 rounded-xl border-l-4 border-l-[#037A48] border-t border-r border-b border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-[#037A48] uppercase tracking-wider flex items-center gap-1.5">
+            <span class="semaforo-dot dot-verde"></span> En Tiempo
+          </span>
+          <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-[#037A48]">
+            <i class="fa-solid fa-check text-xs"></i>
+          </div>
+        </div>
+        <div id="kpi-total-tiempo" class="text-[30px] font-bold text-[#037A48] leading-tight my-2">0</div>
+        <div class="pt-2.5 border-t border-[#E5E7EB] flex items-center justify-between text-[11px] text-[#6B7280]">
+          <span class="bg-emerald-50 px-2 py-1 rounded border border-emerald-200">Clientes: <strong id="sub-clientes-tiempo" class="text-[#037A48]">0</strong></span>
+          <span class="bg-emerald-50 px-2 py-1 rounded border border-emerald-200">Expos: <strong id="sub-expos-tiempo" class="text-[#037A48]">0</strong></span>
+        </div>
+      </div>
+
+      <!-- KPI 5: COMPLETADOS -->
+      <div class="bg-white p-4 rounded-xl border-l-4 border-l-[#0070C0] border-t border-r border-b border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-[#0070C0] uppercase tracking-wider flex items-center gap-1.5">
+            <span class="semaforo-dot dot-azul"></span> Completados (Cargados)
+          </span>
+          <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070C0]">
+            <i class="fa-solid fa-flag-checkered text-xs"></i>
+          </div>
+        </div>
+        <div id="kpi-total-completados" class="text-[30px] font-bold text-[#0070C0] leading-tight my-2">0</div>
+        <div class="pt-2.5 border-t border-[#E5E7EB] flex items-center justify-between text-[11px] text-[#6B7280]">
+          <span class="bg-blue-50 px-2 py-1 rounded border border-blue-200">Clientes: <strong id="sub-clientes-completados" class="text-[#0070C0]">0</strong></span>
+          <span class="bg-blue-50 px-2 py-1 rounded border border-blue-200">Expos: <strong id="sub-expos-completados" class="text-[#0070C0]">0</strong></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== CONTENEDOR DE TABLEROS OPERATIVOS ==================== -->
+  <div id="contenedor-tablas" class="max-w-[1850px] mx-auto px-4 pb-8 w-full flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+
+    <!-- SECCIÓN 1: TABLA CLIENTES (NACIONALES) -->
+    <section id="panel-nacionales" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col w-full">
+      <div class="bg-[#182237] text-white px-4 py-2.5 flex items-center justify-between border-b-2 border-[#C0D838]">
+        <h2 class="text-[12px] font-bold uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-truck-moving text-[#C0D838]"></i> Embarques Clientes (Nacionales)
+        </h2>
+        <span id="badge-total-nac" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">0 envíos</span>
+      </div>
+
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left border-collapse text-[11px]">
+          <thead class="bg-[#100848] text-white uppercase text-[10px] font-bold">
+            <tr>
+              <th class="py-2.5 px-3 text-center w-14">Sem.</th>
+              <th class="py-2.5 px-3">Shipment</th>
+              <th class="py-2.5 px-3">Cliente</th>
+              <th class="py-2.5 px-3">Límite Salida</th>
+              <th class="py-2.5 px-3">Tiempo Rest.</th>
+              <th class="py-2.5 px-3">Picking %</th>
+              <th class="py-2.5 px-3">Folio</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpo-nacionales" class="divide-y divide-[#E5E7EB]">
+            <tr>
+              <td colspan="7" class="py-6 text-center text-slate-400 italic">Cargando datos en vivo desde Google Sheets...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2: TABLA EXPOS / INTRAS -->
+    <section id="panel-expos" class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col w-full">
+      <div class="bg-[#182237] text-white px-4 py-2.5 flex items-center justify-between border-b-2 border-[#C0D838]">
+        <h2 class="text-[12px] font-bold uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-users text-[#C0D838]"></i> EXPOS / INTRAS[cite: 11]
+        </h2>
+        <span id="badge-total-expo" class="text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">0 envíos</span>
+      </div>
+
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left border-collapse text-[11px]">
+          <thead class="bg-[#100848] text-white uppercase text-[10px] font-bold">
+            <tr>
+              <th class="py-2.5 px-3 text-center w-14">Sem.</th>
+              <th class="py-2.5 px-3">Shipment</th>
+              <th class="py-2.5 px-3">Cliente</th>
+              <th class="py-2.5 px-3">Límite Salida</th>
+              <th class="py-2.5 px-3">Picking %</th>
+              <th class="py-2.5 px-3">Tiempo Restante</th>
+              <th class="py-2.5 px-3">Folio</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpo-expos" class="divide-y divide-[#E5E7EB]">
+            <tr>
+              <td colspan="7" class="py-6 text-center text-slate-400 italic">Cargando datos en vivo desde Google Sheets...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Modal Interactivo con Datos Complementarios -->
+  <div id="modal-detalle" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden">
+      <div class="bg-[#182237] text-white px-5 py-3 flex items-center justify-between border-b-2 border-[#C0D838]">
+        <h3 class="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-circle-info text-[#C0D838]"></i> Ficha Operativa: <span id="mdl-shipment" class="font-mono text-white"></span>
+        </h3>
+        <button onclick="cerrarModal()" class="text-slate-300 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      
+      <div class="p-5 text-[12px] space-y-4">
+        <!-- Bloque Logístico -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Cliente</span><strong id="mdl-cliente" class="text-slate-800"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Transportista</span><strong id="mdl-transportista" class="text-slate-800"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Destino</span><strong id="mdl-destino" class="text-slate-800"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Cita Carga</span><strong id="mdl-cita" class="text-slate-800"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Límite Salida</span><strong id="mdl-limite" class="text-slate-800 font-mono"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Folio</span><strong id="mdl-folio" class="text-slate-800 font-mono"></strong></div>
+        </div>
+
+        <!-- Bloque Armado y Restos -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-center">
+          <div>
+            <span class="text-[#6B7280] block text-[10px] uppercase font-bold">Estatus Armado</span>
+            <span id="mdl-armado" class="mt-1 inline-block"></span>
+          </div>
+          <div>
+            <span class="text-[#6B7280] block text-[10px] uppercase font-bold">Restos / Armadas</span>
+            <strong id="mdl-restos-armadas" class="text-slate-800 font-mono mt-1 block"></strong>
+          </div>
+          <div>
+            <span class="text-[#6B7280] block text-[10px] uppercase font-bold">% Restos</span>
+            <strong id="mdl-pct-restos" class="text-slate-800 font-mono mt-1 block"></strong>
+          </div>
+          <div>
+            <span class="text-[#6B7280] block text-[10px] uppercase font-bold">% Tareas</span>
+            <strong id="mdl-pct-tareas" class="text-slate-800 font-mono mt-1 block"></strong>
+          </div>
+        </div>
+
+        <!-- Bloque IZEL y Puntualidad -->
+        <div class="grid grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-center">
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Salida en IZEL</span><strong id="mdl-izel" class="text-slate-800 font-mono"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Puntualidad Cita</span><strong id="mdl-puntualidad" class="text-slate-800 font-mono"></strong></div>
+          <div><span class="text-[#6B7280] block text-[10px] uppercase font-bold">Ejecutados</span><strong id="mdl-ejecutados" class="text-slate-800 font-mono"></strong></div>
+        </div>
+      </div>
+
+      <div class="bg-slate-100 px-5 py-2.5 text-right border-t border-slate-200">
+        <button onclick="cerrarModal()" class="bg-[#182237] text-white text-[11px] font-bold px-4 py-1.5 rounded hover:bg-slate-800 transition">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEpS1XaTEAysiB2WIhKqX7xyyHp32_kJtfYJ76PbRxSME8RqRvb8Evc0dp-7bjSn9MXQ/exec";
+
+    let datosNacionales = [];
+    let datosExpos = [];
+    let kpisOficiales = { criticos: "0", enRiesgo: "0", enTiempo: "0", completados: "0" };
+
+    function dotHtmlSegunSemaforo(sem) {
+      if (sem === "🔴") return '<span class="semaforo-dot dot-rojo" title="Crítico"></span>';
+      if (sem === "🟠") return '<span class="semaforo-dot dot-naranja" title="Atención / Riesgo"></span>';
+      return '<span class="semaforo-dot dot-verde" title="En Tiempo"></span>';
+    }
+
+    function renderNacionales(filtro, filtroFolio) {
+      const tabla = document.getElementById("cuerpo-nacionales");
+      tabla.innerHTML = "";
+      let count = 0;
+
+      datosNacionales.forEach(item => {
+        const busqueda = `${item.shipment} ${item.cliente} ${item.transportista || ''}`.toLowerCase();
+        if (!busqueda.includes(filtro)) return;
+
+        const esConFolio = item.folio.toUpperCase().includes("CON FOLIO") || item.folio.toUpperCase().includes("FOLIO:");
+        if (filtroFolio === "CON FOLIO" && !esConFolio) return;
+        if (filtroFolio === "SIN FOLIO" && esConFolio) return;
+        count++;
+
+        let pickingHtml = `<span class="text-[#6B7280] italic">SIN PICKING</span>`;
+        if (item.picking !== "SIN PICKING" && item.picking !== "") {
+          const num = parseFloat(item.picking.replace("%", "")) || 0;
+          const colorBarra = num >= 95 ? 'bg-[#037A48]' : (num > 0 ? 'bg-[#0070C0]' : 'bg-slate-300');
+          pickingHtml = `
+            <div class="flex items-center gap-1.5">
+              <div class="w-12 bg-[#E5E7EB] h-2 rounded overflow-hidden">
+                <div class="${colorBarra} h-full" style="width: ${num}%"></div>
+              </div>
+              <span class="font-mono font-bold">${item.picking}</span>
+            </div>
+          `;
+        }
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition cursor-pointer";
+        tr.title = "Haz clic para ver la ficha completa";
+        tr.onclick = () => abrirModal(item);
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-center">${dotHtmlSegunSemaforo(item.semaforo)}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-[#182237] hover:underline">${item.shipment}</td>
+          <td class="py-2.5 px-3 font-medium text-slate-800">${item.cliente}</td>
+          <td class="py-2.5 px-3 text-[#6B7280] font-mono text-[10px]">${item.limiteSalida}</td>
+          <td class="py-2.5 px-3 font-mono font-bold ${item.semaforo === '🔴' ? 'text-[#D92D20]' : 'text-slate-700'}">${item.tiempoRestante}</td>
+          <td class="py-2.5 px-3">${pickingHtml}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${esConFolio ? 'bg-[#C0D838]/20 text-[#182237] border border-[#C0D838]/40' : 'bg-[#FEE4E2] text-[#D92D20] border border-rose-200'}">
+              ${item.folio}
+            </span>
+          </td>
+        `;
+        tabla.appendChild(tr);
+      });
+
+      document.getElementById("badge-total-nac").innerText = `${count} envíos`;
+      if (count === 0) {
+        tabla.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 italic">No hay registros que coincidan</td></tr>`;
+      }
+    }
+
+    function renderExpos(filtro, filtroFolio) {
+      const tabla = document.getElementById("cuerpo-expos");
+      tabla.innerHTML = "";
+      let count = 0;
+
+      datosExpos.forEach(item => {
+        const busqueda = `${item.shipment} ${item.cliente} ${item.transportista || ''}`.toLowerCase();
+        if (!busqueda.includes(filtro)) return;
+
+        const esConFolio = item.folio.toUpperCase().includes("CON FOLIO") || item.folio.toUpperCase().includes("FOLIO:");
+        if (filtroFolio === "CON FOLIO" && !esConFolio) return;
+        if (filtroFolio === "SIN FOLIO" && esConFolio) return;
+        count++;
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition cursor-pointer";
+        tr.title = "Haz clic para ver la ficha completa";
+        tr.onclick = () => abrirModal(item);
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-center">${dotHtmlSegunSemaforo(item.semaforo)}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-[#182237] hover:underline">${item.shipment}</td>
+          <td class="py-2.5 px-3 font-medium text-slate-800">${item.cliente}</td>
+          <td class="py-2.5 px-3 text-[#6B7280] font-mono text-[10px]">${item.limiteSalida}</td>
+          <td class="py-2.5 px-3 font-mono">${item.picking}</td>
+          <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${item.tiempoRestante}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${esConFolio ? 'bg-[#C0D838]/20 text-[#182237] border border-[#C0D838]/40' : 'bg-[#FEE4E2] text-[#D92D20] border border-rose-200'}">
+              ${item.folio}
+            </span>
+          </td>
+        `;
+        tabla.appendChild(tr);
+      });
+
+      document.getElementById("badge-total-expo").innerText = `${count} envíos`;
+      if (count === 0) {
+        tabla.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 italic">No hay registros de Expos / Intras</td></tr>`;
+      }
+    }
+
+    function actualizarKpisGlobales() {
+      let subNac = { total: datosNacionales.length, crit: 0, aten: 0, tiempo: 0 };
+      let subExp = { total: datosExpos.length, crit: 0, aten: 0, tiempo: 0 };
+
+      datosNacionales.forEach(i => {
+        if (i.semaforo === "🔴") subNac.crit++;
+        else if (i.semaforo === "🟠") subNac.aten++;
+        else subNac.tiempo++;
+      });
+
+      datosExpos.forEach(i => {
+        if (i.semaforo === "🔴") subExp.crit++;
+        else if (i.semaforo === "🟠") subExp.aten++;
+        else subExp.tiempo++;
+      });
+
+      document.getElementById("kpi-total-global").innerText = subNac.total + subExp.total;
+      document.getElementById("kpi-total-criticos").innerText = kpisOficiales.criticos || (subNac.crit + subExp.crit);
+      document.getElementById("kpi-total-atencion").innerText = kpisOficiales.enRiesgo || (subNac.aten + subExp.aten);
+      document.getElementById("kpi-total-tiempo").innerText = kpisOficiales.enTiempo || (subNac.tiempo + subExp.tiempo);
+      document.getElementById("kpi-total-completados").innerText = kpisOficiales.completados || "0";
+
+      document.getElementById("sub-clientes-total").innerText = subNac.total;
+      document.getElementById("sub-clientes-criticos").innerText = subNac.crit;
+      document.getElementById("sub-clientes-atencion").innerText = subNac.aten;
+      document.getElementById("sub-clientes-tiempo").innerText = subNac.tiempo;
+      document.getElementById("sub-clientes-completados").innerText = "--";
+
+      document.getElementById("sub-expos-total").innerText = subExp.total;
+      document.getElementById("sub-expos-criticos").innerText = subExp.crit;
+      document.getElementById("sub-expos-atencion").innerText = subExp.aten;
+      document.getElementById("sub-expos-tiempo").innerText = subExp.tiempo;
+      document.getElementById("sub-expos-completados").innerText = "--";
+    }
+
+    function renderTodo() {
+      const filtro = document.getElementById("filtro-texto").value.toLowerCase();
+      const filtroFolio = document.getElementById("filtro-folio").value;
+      
+      actualizarKpisGlobales();
+      renderNacionales(filtro, filtroFolio);
+      renderExpos(filtro, filtroFolio);
+      document.getElementById("reloj-sistema").innerText = new Date().toLocaleTimeString('es-MX');
+    }
+
+    function abrirModal(item) {
+      document.getElementById("mdl-shipment").innerText = item.shipment;
+      document.getElementById("mdl-cliente").innerText = item.cliente || "--";
+      document.getElementById("mdl-transportista").innerText = item.transportista || "--";
+      document.getElementById("mdl-destino").innerText = item.destino || "--";
+      document.getElementById("mdl-cita").innerText = item.citaCarga || "--";
+      document.getElementById("mdl-limite").innerText = item.limiteSalida || "--";
+      document.getElementById("mdl-folio").innerText = item.folio || "SIN FOLIO";
+      
+      const armado = item.estatusArmado || "--";
+      let badgeArmado = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-700">${armado}</span>`;
+      if (armado.includes("COMPLETO")) {
+        badgeArmado = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-[#037A48] border border-emerald-300">🟢 ${armado}</span>`;
+      } else if (armado.includes("PENDIENTE") || armado.includes("EN PROCESO")) {
+        badgeArmado = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-[#E07A00] border border-amber-300">🟠 ${armado}</span>`;
+      } else if (armado.includes("CRÍTICO")) {
+        badgeArmado = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-[#D92D20] border border-rose-300">🔴 ${armado}</span>`;
+      }
+      document.getElementById("mdl-armado").innerHTML = badgeArmado;
+
+      document.getElementById("mdl-restos-armadas").innerText = (item.armadas || item.totalRestos) ? `${item.armadas || 0} / ${item.totalRestos || 0}` : "--";
+      document.getElementById("mdl-pct-restos").innerText = item.pctRestos ? `${item.pctRestos}%` : "--";
+      document.getElementById("mdl-pct-tareas").innerText = item.pctTareas ? `${item.pctTareas}%` : "--";
+
+      document.getElementById("mdl-izel").innerText = item.salidaIzel || "Sin Salida";
+      document.getElementById("mdl-puntualidad").innerText = item.puntualidadCita || "--";
+      document.getElementById("mdl-ejecutados").innerText = item.ejecutados || "--";
+      
+      document.getElementById("modal-detalle").classList.remove("hidden");
+    }
+
+    function cerrarModal() {
+      document.getElementById("modal-detalle").classList.add("hidden");
+    }
+
+    async function cargarDatos(forzarActualizacion = false) {
+      const msg = document.getElementById("mensaje-estado-carga");
+      const icon = document.getElementById("icono-sync");
+      
+      try {
+        icon.classList.add("fa-spin");
+        msg.innerText = forzarActualizacion ? "Calculando fórmulas en Google Sheets..." : "Sincronizando...";
+        
+        const urlPeticion = forzarActualizacion 
+          ? `${APPS_SCRIPT_URL}?vista=monitoreo&accion=actualizar`
+          : `${APPS_SCRIPT_URL}?vista=monitoreo`;
+
+        const respuesta = await fetch(urlPeticion);
+        const json = await respuesta.json();
+
+        if (json.embarquesCliente) datosNacionales = json.embarquesCliente;
+        if (json.exposIntras) datosExpos = json.exposIntras;
+        if (json.kpisOficiales) kpisOficiales = json.kpisOficiales;
+
+        msg.innerText = "Sincronizado con DASHBOARD";
+        setTimeout(() => { msg.innerText = ""; }, 2500);
+        renderTodo();
+      } catch (err) {
+        console.error("Error al obtener datos:", err);
+        msg.innerText = "Error al conectar con Sheets.";
+      } finally {
+        icon.classList.remove("fa-spin");
+      }
+    }
+
+    // Función para subir directamente el archivo CSV desde la interfaz
+    function subirArchivoCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const msg = document.getElementById("mensaje-estado-carga");
+      const icon = document.getElementById("icono-sync");
+      icon.classList.add("fa-spin");
+      msg.innerText = `Subiendo y procesando ${file.name}...`;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const contenidoCsv = e.target.result;
+        try {
+          const resp = await fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            body: contenidoCsv,
+            headers: { "Content-Type": "text/plain;charset=utf-8" }
+          });
+          const resJson = await resp.json();
+          if (resJson.success) {
+            msg.innerText = "¡CSV Procesado y Semáforos Actualizados!";
+            cargarDatos(false);
+          } else {
+            msg.innerText = "Aviso: " + resJson.message;
+          }
+        } catch (err) {
+          console.error(err);
+          msg.innerText = "Error al enviar CSV a Apps Script.";
+        } finally {
+          icon.classList.remove("fa-spin");
+          event.target.value = "";
+          setTimeout(() => { msg.innerText = ""; }, 4000);
+        }
+      };
+      reader.readAsText(file, "ISO-8859-1");
+    }
+
+    function cambiarVista(modo) {
+      const pNac = document.getElementById("panel-nacionales");
+      const pExp = document.getElementById("panel-expos");
+      const cont = document.getElementById("contenedor-tablas");
+      
+      const bAmbos = document.getElementById("btn-tab-ambos");
+      const bNac = document.getElementById("btn-tab-nacionales");
+      const bExp = document.getElementById("btn-tab-expos");
+
+      [bAmbos, bNac, bExp].forEach(b => {
+        b.className = "px-2.5 py-1 rounded font-semibold text-[11px] text-slate-300 hover:text-white transition";
+      });
+
+      if (modo === 'ambos') {
+        cont.className = "max-w-[1850px] mx-auto px-4 pb-8 w-full flex-1 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start";
+        pNac.classList.remove("hidden");
+        pExp.classList.remove("hidden");
+        bAmbos.className = "px-2.5 py-1 rounded font-semibold text-[11px] bg-[#C0D838] text-[#182237]";
+      } else if (modo === 'nacionales') {
+        cont.className = "max-w-[1850px] mx-auto px-4 pb-8 w-full flex-1 flex flex-col gap-6 items-start";
+        pNac.classList.remove("hidden");
+        pExp.classList.add("hidden");
+        bNac.className = "px-2.5 py-1 rounded font-semibold text-[11px] bg-[#C0D838] text-[#182237]";
+      } else if (modo === 'expos') {
+        cont.className = "max-w-[1850px] mx-auto px-4 pb-8 w-full flex-1 flex flex-col gap-6 items-start";
+        pNac.classList.add("hidden");
+        pExp.classList.remove("hidden");
+        bExp.className = "px-2.5 py-1 rounded font-semibold text-[11px] bg-[#C0D838] text-[#182237]";
+      }
+    }
+
+    document.getElementById("filtro-texto").addEventListener("input", renderTodo);
+    document.getElementById("filtro-folio").addEventListener("change", renderTodo);
+
+    setInterval(() => {
+      document.getElementById("reloj-sistema").innerText = new Date().toLocaleTimeString('es-MX');
+      renderTodo();
+    }, 1000);
+
+    setInterval(() => cargarDatos(false), 60000);
+
+    cargarDatos(false);
+  </script>
+</body>
+</html>
