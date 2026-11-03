@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN - Nexus Stock | Balanceo Inteligente Interbodegas</title>
+  <!-- Google Fonts: Montserrat (Tipografía Sans-Serif Geométrica Normativa Traxión) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (xlsx) for Excel parsing and exporting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="../traxion-sync.js"></script>
+  <!-- Chart.js for interactive analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'sans-serif'],
+          },
+          colors: {
+            traxion: {
+              navy: '#182237',
+              deep: '#100848',
+              lime: '#C0D838',
+              bg: '#F4F6F8',
+              border: '#E5E7EB',
+              textPrimary: '#1D2939',
+              textSecondary: '#6B7280',
+              critText: '#D92D20',
+              critBg: '#FEE4E2',
+              warnText: '#E07A00',
+              warnBg: '#FEF0C7',
+              okText: '#037A48',
+              okBg: '#D1FADF',
+              blueAction: '#0070C0'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #F4F6F8;
+      color: #1D2939;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #F4F6F8;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        color: black !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+  <!-- Franja Superior de Acento Institucional Traxión (#C0D838) -->
+  <div class="h-1.5 w-full bg-[#C0D838]"></div>
+
+  <!-- Header Institucional Traxión (#182237) -->
+  <header class="bg-[#182237] text-white sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <!-- Logo Traxión Oficial -->
+        <div class="flex flex-col border-r border-slate-600 pr-4">
+          <span class="text-xl font-extrabold tracking-widest leading-none text-white">TRAXION</span>
+          <span class="text-[8px] tracking-[0.25em] text-[#C0D838] uppercase font-bold mt-0.5">VIDA EN MOVIMIENTO</span>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="font-bold text-[20px] text-white leading-none uppercase">Nexus Stock</h1>
+            <span class="text-[10px] font-extrabold uppercase tracking-wider bg-[#C0D838] text-[#182237] px-2 py-0.5 rounded">Pro v3.2</span>
+          </div>
+          <div class="flex items-center gap-2 text-[12px] text-slate-300 mt-1">
+            <span>Tablero de Rebalanceo Interbodegas y Flujo Operativo</span>
+            <span>•</span>
+            <span>Actualizado: <b id="lbl-last-update" class="text-[#C0D838]">Pendiente</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Action Items -->
+      <div class="flex items-center space-x-2 sm:space-x-4">
+        <button id="btn-load-demo" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#100848] hover:bg-slate-900 text-white border border-slate-600 text-xs font-bold rounded-lg transition-all shadow-sm">
+          <i data-lucide="play-circle" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>Cargar Datos Demo</span>
+        </button>
+
+        <button id="btn-open-transfers" class="relative inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#C0D838] hover:bg-[#b5cc30] text-[#182237] text-xs font-extrabold rounded-lg transition-all shadow-sm">
+          <i data-lucide="truck" class="w-4 h-4"></i>
+          <span>Plan de Transferencias</span>
+          <span id="transfer-badge" class="ml-1 bg-[#182237] text-[#C0D838] text-[10px] font-bold rounded-full h-4 w-4 inline-flex items-center justify-center hidden">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
+
+    <!-- Upload & File Status Bar -->
+    <section class="bg-white rounded-xl p-5 border border-[#E5E7EB] shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#E5E7EB]">
+        <div>
+          <h2 class="text-[13px] font-bold text-[#182237] uppercase tracking-wider flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#C0D838]"></span>
+            Gestión de Archivos de Inventario y Salidas
+          </h2>
+          <p class="text-[12px] text-[#6B7280]">Importa tus archivos Excel (.xlsx/.csv) generados por SAP / WMS para el balanceo operativo.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F4F6F8] text-[#1D2939] border border-[#E5E7EB]" id="status-stock">
+            <i data-lucide="database" class="w-3.5 h-3.5 text-[#0070C0]"></i> Stock: <b class="ml-1">Sin cargar</b>
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F4F6F8] text-[#1D2939] border border-[#E5E7EB]" id="status-demand">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5 text-[#037A48]"></i> Salidas: <b class="ml-1">0 archivos</b>
+          </span>
+          <button id="btn-clear-data" class="px-2.5 py-1 text-[#D92D20] hover:bg-[#FEE4E2] font-bold rounded transition hidden">
+            Limpiar datos
+          </button>
+        </div>
+      </div>
+
+      <!-- Drag & Drop Zone Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <!-- 1. Stock / Interbodegas File Input -->
+        <div id="drop-stock" class="border-2 border-dashed border-[#CBD5E1] hover:border-[#0070C0] rounded-xl p-4 text-center cursor-pointer transition-colors bg-[#F4F6F8]/50 hover:bg-white group">
+          <input type="file" id="file-stock" accept=".xlsx, .xls, .csv" class="hidden" />
+          <div class="flex flex-col items-center">
+            <div class="p-2.5 bg-[#E0F2FE] text-[#0070C0] rounded-full group-hover:scale-105 transition-transform">
+              <i data-lucide="layers" class="w-5 h-5"></i>
+            </div>
+            <p class="text-xs font-bold mt-2 text-[#182237]">1. Cargar Inventario Interbodegas</p>
+            <p class="text-[11px] text-[#6B7280]">Archivo <span class="font-mono text-[#0070C0] font-semibold">INTERBODEGAS.xlsx</span> (MX20, MX21, MX32, MX33)</p>
+            <span class="mt-2 text-[10px] text-[#6B7280] bg-white border border-[#CBD5E1] px-2 py-0.5 rounded">Arrastra o haz clic aquí</span>
+          </div>
+        </div>
+
+        <!-- 2. Demands / Salidas Multiple File Input -->
+        <div id="drop-demand" class="border-2 border-dashed border-[#CBD5E1] hover:border-[#037A48] rounded-xl p-4 text-center cursor-pointer transition-colors bg-[#F4F6F8]/50 hover:bg-white group">
+          <input type="file" id="file-demand" accept=".xlsx, .xls, .csv" multiple class="hidden" />
+          <div class="flex flex-col items-center">
+            <div class="p-2.5 bg-[#D1FADF] text-[#037A48] rounded-full group-hover:scale-105 transition-transform">
+              <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+            </div>
+            <p class="text-xs font-bold mt-2 text-[#182237]">2. Cargar Salidas de Bodega</p>
+            <p class="text-[11px] text-[#6B7280]">Uno o varios archivos: <span class="font-mono text-[#037A48] font-semibold">MX32 S.xlsx, MX21 S, etc.</span></p>
+            <span class="mt-2 text-[10px] text-[#6B7280] bg-white border border-[#CBD5E1] px-2 py-0.5 rounded">Arrastra o haz clic para agregar</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Control Center & Policy Parameters -->
+    <section class="bg-white rounded-xl p-4 border border-[#E5E7EB] shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <!-- Target Plant Selector -->
+        <div class="flex items-center space-x-2">
+          <label class="text-[12px] font-bold uppercase text-[#182237] flex items-center gap-1.5">
+            <i data-lucide="building-2" class="w-4 h-4 text-[#0070C0]"></i> Bodega de Análisis Focal:
+          </label>
+          <select id="select-plant" class="bg-[#F4F6F8] border border-[#CBD5E1] text-[12px] font-bold text-[#182237] rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-[#0070C0] outline-none">
+            <option value="ALL">🌐 Todas las Bodegas Consolidadas</option>
+            <option value="MX32" selected>📍 MX32 (Bodega Operativa)</option>
+            <option value="MX21">📍 MX21</option>
+            <option value="MX20">📍 MX20</option>
+            <option value="MX33">📍 MX33 (Centro Primario)</option>
+          </select>
+        </div>
+
+        <!-- Inventory Policy Inputs (Normativa Traxión) -->
+        <div class="flex flex-wrap items-center gap-3 text-xs">
+          <!-- Critical Days (#D92D20) -->
+          <div class="flex items-center space-x-1.5 bg-[#F4F6F8] px-2.5 py-1.5 rounded-lg border border-[#E5E7EB]">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#D92D20]"></span>
+            <span class="text-[#6B7280] font-medium">Déficit &lt;</span>
+            <input type="number" id="input-crit-days" value="15" min="1" max="60" class="w-12 bg-transparent font-bold text-center border-b border-[#D92D20] focus:outline-none text-[#D92D20]">
+            <span class="text-[#6B7280]">días</span>
+          </div>
+
+          <!-- Healthy Days Target (#037A48) -->
+          <div class="flex items-center space-x-1.5 bg-[#F4F6F8] px-2.5 py-1.5 rounded-lg border border-[#E5E7EB]">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#037A48]"></span>
+            <span class="text-[#6B7280] font-medium">Objetivo:</span>
+            <input type="number" id="input-target-days" value="45" min="15" max="180" class="w-12 bg-transparent font-bold text-center border-b border-[#037A48] focus:outline-none text-[#037A48]">
+            <span class="text-[#6B7280]">días</span>
+          </div>
+
+          <!-- Overstock Days (#E07A00) -->
+          <div class="flex items-center space-x-1.5 bg-[#F4F6F8] px-2.5 py-1.5 rounded-lg border border-[#E5E7EB]">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#E07A00]"></span>
+            <span class="text-[#6B7280] font-medium">Exceso &gt;</span>
+            <input type="number" id="input-overstock-days" value="90" min="45" max="360" class="w-12 bg-transparent font-bold text-center border-b border-[#E07A00] focus:outline-none text-[#E07A00]">
+            <span class="text-[#6B7280]">días</span>
+          </div>
+
+          <!-- Demand horizon in months -->
+          <div class="flex items-center space-x-1.5 bg-[#F4F6F8] px-2.5 py-1.5 rounded-lg border border-[#E5E7EB]">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-[#0070C0]"></i>
+            <span class="text-[#6B7280] font-medium">Horizonte:</span>
+            <input type="number" id="input-horizon-months" value="9" min="1" max="24" class="w-10 bg-transparent font-bold text-center border-b border-[#0070C0] focus:outline-none text-[#0070C0]">
+            <span class="text-[#6B7280]">meses</span>
+          </div>
+
+          <button id="btn-apply-policy" class="bg-[#182237] hover:bg-[#100848] text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recalcular
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI Summary Cards (Normativa: Número en 30px Bold + Íconos en Círculos) -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <!-- Total SKUs -->
+      <div class="bg-white p-3.5 rounded-xl border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase text-[#6B7280] tracking-wider">SKUs Analizados</span>
+          <span class="w-7 h-7 rounded-full bg-[#F4F6F8] text-[#182237] flex items-center justify-center"><i data-lucide="hash" class="w-3.5 h-3.5"></i></span>
+        </div>
+        <div class="flex items-baseline justify-between mt-2">
+          <span id="kpi-skus" class="text-[30px] font-bold text-[#182237] leading-none">0</span>
+        </div>
+        <span class="text-[10px] text-[#6B7280] mt-1" id="kpi-focus-count">En catálogo activo</span>
+      </div>
+
+      <!-- Urgente Recibir (#D92D20) -->
+      <div class="bg-white p-3.5 rounded-xl border-l-4 border-l-[#D92D20] border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase text-[#D92D20] tracking-wider">Recibir Urgente</span>
+          <span class="w-7 h-7 rounded-full bg-[#FEE4E2] text-[#D92D20] flex items-center justify-center"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i></span>
+        </div>
+        <div class="flex items-baseline justify-between mt-2">
+          <span id="kpi-receive-skus" class="text-[30px] font-bold text-[#D92D20] leading-none">0</span>
+          <span class="text-xs font-bold text-[#D92D20]" id="kpi-receive-pct">0%</span>
+        </div>
+        <span class="text-[10px] text-[#6B7280] mt-1">Cobertura &lt; 15 días</span>
+      </div>
+
+      <!-- Enviar / Sobrestock (#E07A00) -->
+      <div class="bg-white p-3.5 rounded-xl border-l-4 border-l-[#E07A00] border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase text-[#E07A00] tracking-wider">Enviar / Ceder</span>
+          <span class="w-7 h-7 rounded-full bg-[#FEF0C7] text-[#E07A00] flex items-center justify-center"><i data-lucide="package-minus" class="w-3.5 h-3.5"></i></span>
+        </div>
+        <div class="flex items-baseline justify-between mt-2">
+          <span id="kpi-send-skus" class="text-[30px] font-bold text-[#E07A00] leading-none">0</span>
+          <span class="text-xs font-bold text-[#E07A00]" id="kpi-send-pct">0%</span>
+        </div>
+        <span class="text-[10px] text-[#6B7280] mt-1">Exceso o Sin Demanda</span>
+      </div>
+
+      <!-- Saludables / Óptimos (#037A48) -->
+      <div class="bg-white p-3.5 rounded-xl border-l-4 border-l-[#037A48] border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase text-[#037A48] tracking-wider">En Equilibrio</span>
+          <span class="w-7 h-7 rounded-full bg-[#D1FADF] text-[#037A48] flex items-center justify-center"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></span>
+        </div>
+        <div class="flex items-baseline justify-between mt-2">
+          <span id="kpi-optimal-skus" class="text-[30px] font-bold text-[#037A48] leading-none">0</span>
+          <span class="text-xs font-bold text-[#037A48]" id="kpi-optimal-pct">0%</span>
+        </div>
+        <span class="text-[10px] text-[#6B7280] mt-1">15 - 90 días de stock</span>
+      </div>
+
+      <!-- Calidad e Inspección (QI/BL) (#182237) -->
+      <div class="bg-white p-3.5 rounded-xl border-l-4 border-l-[#182237] border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase text-[#182237] tracking-wider">Retenido QI / BL</span>
+          <span class="w-7 h-7 rounded-full bg-[#F4F6F8] text-[#182237] flex items-center justify-center"><i data-lucide="shield-alert" class="w-3.5 h-3.5"></i></span>
+        </div>
+        <div class="flex items-baseline justify-between mt-2">
+          <span id="kpi-qibl-pallets" class="text-[30px] font-bold text-[#182237] leading-none">0</span>
+          <span class="text-xs font-semibold text-[#6B7280]">Plts</span>
+        </div>
+        <span class="text-[10px] text-[#6B7280] mt-1" id="kpi-qibl-val">$0 MXN</span>
+      </div>
+
+      <!-- Pallets sugeridos para transferir (#0070C0) -->
+      <div class="bg-white p-3.5 rounded-xl border-l-4 border-l-[#0070C0] border border-[#E5E7EB] shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase text-[#0070C0] tracking-wider">Transferencias</span>
+          <span class="w-7 h-7 rounded-full bg-[#E0F2FE] text-[#0070C0] flex items-center justify-center"><i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i></span>
+        </div>
+        <div class="flex items-baseline justify-between mt-2">
+          <span id="kpi-transfer-pallets" class="text-[30px] font-bold text-[#0070C0] leading-none">0</span>
+          <span class="text-xs font-semibold text-[#0070C0]">Tarimas</span>
+        </div>
+        <span class="text-[10px] text-[#6B7280] mt-1" id="kpi-transfer-val">$0 MXN movilizable</span>
+      </div>
+    </section>
+
+    <!-- Visual Dashboard (Charts) -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <!-- Chart 1: Quadrant Distribution -->
+      <div class="bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-[13px] font-bold uppercase tracking-wider text-[#182237] flex items-center gap-1.5">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-[#0070C0]"></i> Distribución Operativa
+          </h3>
+          <span class="text-[10px] text-[#6B7280]">Por estado de cobertura</span>
+        </div>
+        <div class="relative h-48 flex items-center justify-center">
+          <canvas id="chart-quadrants"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Top Stock Transfer Candidates -->
+      <div class="bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-sm lg:col-span-2">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-[13px] font-bold uppercase tracking-wider text-[#182237] flex items-center gap-1.5">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-[#0070C0]"></i> Top 8 SKUs Críticos a Reabastecer en <span id="chart-plant-label" class="text-[#0070C0]">MX32</span>
+          </h3>
+          <span class="text-[10px] text-[#6B7280]">Demanda Mensual vs Stock Disponible</span>
+        </div>
+        <div class="relative h-48">
+          <canvas id="chart-top-skus"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Data Table & Filters -->
+    <section class="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col">
+      <!-- Table Header Toolbar -->
+      <div class="p-4 border-b border-[#E5E7EB] flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#F4F6F8]">
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Quadrant Tab Filters -->
+          <button data-filter="ALL" class="tab-filter active px-3 py-1.5 text-xs font-bold uppercase rounded-lg bg-[#182237] text-white shadow-sm transition">
+            Todos (<span id="count-all">0</span>)
+          </button>
+          <button data-filter="RECEIVE" class="tab-filter px-3 py-1.5 text-xs font-bold uppercase rounded-lg bg-white text-[#D92D20] border border-[#E5E7EB] hover:bg-[#FEE4E2] transition">
+            🚨 Recibir Urgente (<span id="count-receive">0</span>)
+          </button>
+          <button data-filter="SEND" class="tab-filter px-3 py-1.5 text-xs font-bold uppercase rounded-lg bg-white text-[#E07A00] border border-[#E5E7EB] hover:bg-[#FEF0C7] transition">
+            📦 Enviar / Sobrestock (<span id="count-send">0</span>)
+          </button>
+          <button data-filter="OPTIMAL" class="tab-filter px-3 py-1.5 text-xs font-bold uppercase rounded-lg bg-white text-[#037A48] border border-[#E5E7EB] hover:bg-[#D1FADF] transition">
+            ✅ Óptimos (<span id="count-optimal">0</span>)
+          </button>
+          <button data-filter="QUALITY" class="tab-filter px-3 py-1.5 text-xs font-bold uppercase rounded-lg bg-white text-[#182237] border border-[#E5E7EB] hover:bg-slate-200 transition">
+            🛡️ Calidad (QI/BL) (<span id="count-quality">0</span>)
+          </button>
+        </div>
+
+        <!-- Search and Export Controls -->
+        <div class="flex items-center space-x-2">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 absolute left-2.5 top-2.5 text-[#6B7280]"></i>
+            <input type="text" id="table-search" placeholder="Buscar SKU, descripción o categoría..." class="pl-8 pr-3 py-1.5 text-xs rounded-lg bg-white border border-[#CBD5E1] text-[#1D2939] focus:outline-none focus:ring-2 focus:ring-[#0070C0] w-52 md:w-64">
+          </div>
+          
+          <select id="filter-focus" class="text-xs bg-white border border-[#CBD5E1] text-[#1D2939] rounded-lg px-2 py-1.5 focus:outline-none">
+            <option value="ALL">Todas las Categorías</option>
+          </select>
+
+          <button id="btn-export-table" class="px-2.5 py-1.5 bg-[#037A48] hover:bg-[#025c36] text-white text-xs font-bold uppercase rounded-lg flex items-center gap-1 shadow-sm transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Table -->
+      <div class="overflow-x-auto custom-scrollbar flex-1">
+        <table class="w-full text-left border-collapse text-[11px]">
+          <thead>
+            <tr class="bg-[#182237] text-white uppercase font-bold text-[10px] tracking-wider select-none">
+              <th class="py-3 px-3">Estado</th>
+              <th class="py-3 px-3 cursor-pointer hover:text-[#C0D838]" data-sort="material">Material (SKU) <span class="sort-icon">↕</span></th>
+              <th class="py-3 px-3 cursor-pointer hover:text-[#C0D838]" data-sort="desc">Descripción</th>
+              <th class="py-3 px-3">Focus Factory</th>
+              <th class="py-3 px-3 text-right cursor-pointer hover:text-[#C0D838]" data-sort="demand">Demanda Mensual <span class="sort-icon">↕</span></th>
+              <th class="py-3 px-3 text-right cursor-pointer hover:text-[#C0D838]" data-sort="stock">Stock Focal (UR) <span class="sort-icon">↕</span></th>
+              <th class="py-3 px-3 text-center cursor-pointer hover:text-[#C0D838]" data-sort="coverage">Cobertura <span class="sort-icon">↕</span></th>
+              <th class="py-3 px-3 text-center">Disponibilidad en Red</th>
+              <th class="py-3 px-3 text-center">Acción / Transferencia Recomendada</th>
+            </tr>
+          </thead>
+          <tbody id="table-body" class="divide-y divide-[#E5E7EB] font-medium">
+            <tr>
+              <td colspan="9" class="py-12 text-center text-[#6B7280]">
+                <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+                <p>Carga el archivo <span class="font-semibold text-[#182237]">INTERBODEGAS.xlsx</span> y archivos de salidas, o haz clic en <span class="font-bold text-[#037A48]">Cargar Datos Demo</span>.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table Pagination Footer -->
+      <div class="p-3 border-t border-[#E5E7EB] flex items-center justify-between text-xs text-[#6B7280] bg-[#F4F6F8]">
+        <div>
+          Mostrando <span id="page-start" class="font-bold text-[#182237]">0</span> - 
+          <span id="page-end" class="font-bold text-[#182237]">0</span> de 
+          <span id="page-total" class="font-bold text-[#182237]">0</span> SKUs
+        </div>
+        <div class="flex items-center space-x-2">
+          <button id="btn-prev-page" class="px-2.5 py-1 bg-white border border-[#CBD5E1] rounded text-[#182237] hover:bg-slate-100 disabled:opacity-40 font-medium" disabled>
+            Anterior
+          </button>
+          <span id="page-current" class="font-bold px-2 text-[#182237]">1</span>
+          <button id="btn-next-page" class="px-2.5 py-1 bg-white border border-[#CBD5E1] rounded text-[#182237] hover:bg-slate-100 disabled:opacity-40 font-medium" disabled>
+            Siguiente
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: Transfer Order Dispatch Plan & Picking List -->
+  <div id="modal-transfers" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#E5E7EB]">
+      
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-[#E5E7EB] bg-[#182237] text-white rounded-t-2xl flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="p-2 bg-[#100848] text-[#C0D838] rounded-xl">
+            <i data-lucide="clipboard-list" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-[14px] text-white uppercase tracking-wide">Plan de Despacho y Órdenes de Transferencia Sugeridas</h3>
+            <p class="text-xs text-slate-300">Rebalanceo interbodegas para equilibrar el nivel de servicio y mitigar quiebres de inventario.</p>
+          </div>
+        </div>
+        <button id="btn-close-modal" class="text-slate-300 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Content / Picking list -->
+      <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-4" id="print-area">
+        <!-- Print Header -->
+        <div class="hidden print:block mb-4 border-b pb-2">
+          <h2 class="text-xl font-bold">ORDEN DE TRASPASO INTERBODEGAS / HOJA DE PICKING</h2>
+          <p class="text-sm">Generado automáticamente por Nexus Stock | Fecha: <span id="print-date"></span></p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="bg-[#F4F6F8] p-3 rounded-lg border border-[#E5E7EB] text-xs">
+            <span class="text-[#6B7280] block font-bold uppercase">Líneas de Traspaso</span>
+            <span id="transfer-count-lines" class="text-[20px] font-bold text-[#182237]">0</span>
+          </div>
+          <div class="bg-[#F4F6F8] p-3 rounded-lg border border-[#E5E7EB] text-xs">
+            <span class="text-[#6B7280] block font-bold uppercase">Volumen Total Recomendado</span>
+            <span id="transfer-total-units" class="text-[18px] font-bold text-[#0070C0]">0 unidades</span>
+            <span id="transfer-total-pallets" class="text-xs text-[#6B7280] block">0 pallets</span>
+          </div>
+          <div class="bg-[#F4F6F8] p-3 rounded-lg border border-[#E5E7EB] text-xs">
+            <span class="text-[#6B7280] block font-bold uppercase">Valor Estimado de Despacho</span>
+            <span id="transfer-total-val" class="text-[18px] font-bold text-[#037A48]">$0.00 MXN</span>
+          </div>
+        </div>
+
+        <div class="border rounded-xl overflow-hidden border-[#E5E7EB]">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#182237] text-white font-bold uppercase text-[10px] tracking-wider border-b">
+                <th class="py-2.5 px-3">Origen</th>
+                <th class="py-2.5 px-3">Destino</th>
+                <th class="py-2.5 px-3">SKU</th>
+                <th class="py-2.5 px-3">Descripción</th>
+                <th class="py-2.5 px-3 text-right">Cant. Sugerida (BUM)</th>
+                <th class="py-2.5 px-3 text-right">Tarimas Estimadas</th>
+                <th class="py-2.5 px-3 text-center">Justificación</th>
+                <th class="py-2.5 px-3 text-center no-print">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="transfer-plan-body" class="divide-y divide-[#E5E7EB]">
+              <tr>
+                <td colspan="8" class="text-center py-8 text-[#6B7280]">No hay líneas de traspaso generadas aún.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-[#E5E7EB] flex flex-wrap items-center justify-between gap-3 bg-[#F4F6F8] rounded-b-2xl no-print">
+        <span class="text-xs text-[#6B7280]">Las transferencias respetan stock disponible libre de utilización (UR).</span>
+        <div class="flex items-center space-x-2">
+          <button id="btn-print-picking" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-[#182237] text-xs font-bold uppercase rounded-lg flex items-center gap-1.5 transition">
+            <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Hoja de Picking
+          </button>
+          <button id="btn-export-transfers" class="px-3 py-1.5 bg-[#037A48] hover:bg-[#025c36] text-white text-xs font-bold uppercase rounded-lg flex items-center gap-1.5 shadow-sm transition">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Descargar Excel de Traspasos
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-24 opacity-0 transition-all duration-300 max-w-sm w-full bg-white border border-[#E5E7EB] shadow-xl rounded-xl p-4 flex items-start space-x-3 pointer-events-none">
+    <div id="toast-icon" class="p-1.5 rounded-lg bg-[#E0F2FE] text-[#0070C0]">
+      <i data-lucide="info" class="w-4 h-4"></i>
+    </div>
+    <div class="flex-1">
+      <p id="toast-title" class="text-xs font-bold text-[#182237]">Notificación</p>
+      <p id="toast-message" class="text-[11px] text-[#6B7280] mt-0.5">Mensaje del sistema</p>
+    </div>
+  </div>
+
+  <!-- Pie institucional Traxión con trazabilidad normativa (4.7 y 4.8) -->
+  <footer class="bg-[#182237] text-slate-400 py-3 text-[11px] border-t border-slate-700 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <div>
+        <span>Procedimiento: <b>TSE-09-SIGEO-PR- Tableros de Control Operativo Traxión</b></span>
+      </div>
+      <div>
+        <span>Confidencial • Uso Interno Operativo Traxión & Subsidiarias</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic (Completa e Intacta) -->
+  <script>
+    const AppState = {
+      rawStockRows: [],
+      rawDemandRows: [],
+      materialsMap: {},
+      focalPlant: 'MX32',
+      focusFactoryList: new Set(),
+      policy: {
+        critDays: 15,
+        targetDays: 45,
+        overstockDays: 90,
+        horizonMonths: 9
+      },
+      currentFilter: 'ALL',
+      currentFocusFilter: 'ALL',
+      searchQuery: '',
+      sortColumn: 'demand',
+      sortDirection: 'desc',
+      pagination: {
+        page: 1,
+        pageSize: 15
+      },
+      recommendedTransfers: [],
+      chartInstances: {}
+    };
+
+    // Realistic Dataset based on Colgate-Palmolive Interbodegas & MX32 Demands
+    const DEMO_INVENTORY = [
+      { Plant: "MX32", Material: "61021235", "Material Description": "BS IR SPR ORIGINAL 4OZ 20BAR CLB", Status: "UR", "BUM Quantity": 50, Pallets: 0.8, "Total value": 1850, "Focus factory": "Soaps" },
+      { Plant: "MX21", Material: "61021235", "Material Description": "BS IR SPR ORIGINAL 4OZ 20BAR CLB", Status: "UR", "BUM Quantity": 10150, Pallets: 162.4, "Total value": 375550, "Focus factory": "Soaps" },
+      { Plant: "MX33", Material: "61021235", "Material Description": "BS IR SPR ORIGINAL 4OZ 20BAR CLB", Status: "UR", "BUM Quantity": 250, Pallets: 4.0, "Total value": 9250, "Focus factory": "Soaps" },
+
+      { Plant: "MX32", Material: "61020619", "Material Description": "ISS ORIG 4.5Z PL SP 20BAR", Status: "UR", "BUM Quantity": 0, Pallets: 0, "Total value": 0, "Focus factory": "Soaps" },
+      { Plant: "MX21", Material: "61020619", "Material Description": "ISS ORIG 4.5Z PL SP 20BAR", Status: "UR", "BUM Quantity": 9200, Pallets: 147.2, "Total value": 349600, "Focus factory": "Soaps" },
+      { Plant: "MX20", Material: "61020619", "Material Description": "ISS ORIG 4.5Z PL SP 20BAR", Status: "UR", "BUM Quantity": 1200, Pallets: 19.2, "Total value": 45600, "Focus factory": "Soaps" },
+
+      { Plant: "MX32", Material: "61051475", "Material Description": "SUAV BASE FIELD FLOWERS 13.5OZ CS SP", Status: "UR", "BUM Quantity": 70, Pallets: 1.1, "Total value": 1960, "Focus factory": "Home Care" },
+      { Plant: "MX21", Material: "61051475", "Material Description": "SUAV BASE FIELD FLOWERS 13.5OZ CS SP", Status: "UR", "BUM Quantity": 1177, Pallets: 18.8, "Total value": 32956, "Focus factory": "Home Care" },
+      { Plant: "MX33", Material: "61051475", "Material Description": "SUAV BASE FIELD FLOWERS 13.5OZ CS SP", Status: "UR", "BUM Quantity": 12500, Pallets: 200, "Total value": 350000, "Focus factory": "Home Care" },
+
+      { Plant: "MX32", Material: "151088", "Material Description": "CTP ANTICAVITY PST TP 6Z CS SP", Status: "UR", "BUM Quantity": 116, Pallets: 1.9, "Total value": 4060, "Focus factory": "Oral Care" },
+      { Plant: "MX21", Material: "151088", "Material Description": "CTP ANTICAVITY PST TP 6Z CS SP", Status: "UR", "BUM Quantity": 2521, Pallets: 42.0, "Total value": 88235, "Focus factory": "Oral Care" },
+      { Plant: "MX33", Material: "151088", "Material Description": "CTP ANTICAVITY PST TP 6Z CS SP", Status: "UR", "BUM Quantity": 45000, Pallets: 750.0, "Total value": 1575000, "Focus factory": "Oral Care" },
+
+      { Plant: "MX32", Material: "61034402", "Material Description": "SUAVITEL CMPL 46F CS SP FIELD FLOWERS", Status: "UR", "BUM Quantity": 75, Pallets: 1.2, "Total value": 3375, "Focus factory": "Home Care" },
+      { Plant: "MX21", Material: "61034402", "Material Description": "SUAVITEL CMPL 46F CS SP FIELD FLOWERS", Status: "UR", "BUM Quantity": 748, Pallets: 12.0, "Total value": 33660, "Focus factory": "Home Care" },
+      { Plant: "MX33", Material: "61034402", "Material Description": "SUAVITEL CMPL 46F CS SP FIELD FLOWERS", Status: "UR", "BUM Quantity": 21000, Pallets: 336, "Total value": 945000, "Focus factory": "Home Care" },
+
+      { Plant: "MX32", Material: "61055639", "Material Description": "Colgate Kids TP Smiles Harry Potter 75", Status: "UR", "BUM Quantity": 17217, Pallets: 275.4, "Total value": 654246, "Focus factory": "Oral Care" },
+      { Plant: "MX33", Material: "61055639", "Material Description": "Colgate Kids TP Smiles Harry Potter 75", Status: "UR", "BUM Quantity": 56316, Pallets: 901.0, "Total value": 2140008, "Focus factory": "Oral Care" },
+      { Plant: "MX21", Material: "61055639", "Material Description": "Colgate Kids TP Smiles Harry Potter 75", Status: "UR", "BUM Quantity": 4803, Pallets: 76.8, "Total value": 182514, "Focus factory": "Oral Care" },
+
+      { Plant: "MX32", Material: "US06958A", "Material Description": "ISBW 20F CS SP ORIGINAL CLEAN 4CT", Status: "UR", "BUM Quantity": 2663, Pallets: 42.6, "Total value": 133150, "Focus factory": "Personal Care" },
+      { Plant: "MX33", Material: "US06958A", "Material Description": "ISBW 20F CS SP ORIGINAL CLEAN 4CT", Status: "UR", "BUM Quantity": 24420, Pallets: 390.7, "Total value": 1221000, "Focus factory": "Personal Care" },
+
+      // Overstock or Dead Stock in MX32 to Send
+      { Plant: "MX32", Material: "61000406", "Material Description": "TP COLGATE OpticWhite Renewal 3% 85g WIP", Status: "UR", "BUM Quantity": 21888, Pallets: 350.2, "Total value": 1094400, "Focus factory": "Oral Care" },
+      { Plant: "MX33", Material: "61000406", "Material Description": "TP COLGATE OpticWhite Renewal 3% 85g WIP", Status: "UR", "BUM Quantity": 5000, Pallets: 80, "Total value": 250000, "Focus factory": "Oral Care" },
+
+      { Plant: "MX32", Material: "61000980", "Material Description": "TP CLGT OW Rnwl 3% Vibrant Clean 85g WIP", Status: "UR", "BUM Quantity": 16736, Pallets: 267.8, "Total value": 836800, "Focus factory": "Oral Care" },
+      { Plant: "MX32", Material: "61033841", "Material Description": "HD AXION Lemon 220ml", Status: "UR", "BUM Quantity": 11888, Pallets: 190.2, "Total value": 261536, "Focus factory": "Home Care" },
+      { Plant: "MX32", Material: "MX06285A", "Material Description": "Cl FABULOSO Lemon 16.9OZ 500ML", Status: "UR", "BUM Quantity": 6399, Pallets: 102.3, "Total value": 127980, "Focus factory": "Home Care" },
+      { Plant: "MX32", Material: "MX04532A", "Material Description": "Deo MSS Stainguard Spray 91gr", Status: "UR", "BUM Quantity": 6192, Pallets: 99.0, "Total value": 278640, "Focus factory": "Personal Care" },
+
+      // Quality Inspection (QI) / Blocked (BL) items in MX32
+      { Plant: "MX32", Material: "61056981", "Material Description": "TP O/WHITE PRO SERIES VIVIDLYFR IMP 80G", Status: "QI", "BUM Quantity": 12900, Pallets: 206.4, "Total value": 645000, "Focus factory": "Oral Care" },
+      { Plant: "MX32", Material: "61057103", "Material Description": "TP COLGATE OW STAIN SHIELD IMP 80g X24", Status: "BL", "BUM Quantity": 7811, Pallets: 124.9, "Total value": 390550, "Focus factory": "Oral Care" },
+
+      // Pallets
+      { Plant: "MX32", Material: "HMXTAR04", "Material Description": "Tarima Azul Chep", Status: "UR", "BUM Quantity": 14689, Pallets: 14689, "Total value": 5875600, "Focus factory": "Operational" },
+      { Plant: "MX33", Material: "HMXTAR04", "Material Description": "Tarima Azul Chep", Status: "UR", "BUM Quantity": 153415, Pallets: 153415, "Total value": 61366000, "Focus factory": "Operational" }
+    ];
+
+    const DEMO_DEMANDS = [
+      { Plant: "MX32", Material: "61021235", Quantity: 495999 },
+      { Plant: "MX32", Material: "61020619", Quantity: 387900 },
+      { Plant: "MX32", Material: "61051475", Quantity: 386559 },
+      { Plant: "MX32", Material: "151088",   Quantity: 376056 },
+      { Plant: "MX32", Material: "61034402", Quantity: 343197 },
+      { Plant: "MX32", Material: "61055639", Quantity: 315783 },
+      { Plant: "MX32", Material: "US06958A", Quantity: 297675 },
+      { Plant: "MX32", Material: "HMXTAR04", Quantity: 298062 },
+      { Plant: "MX32", Material: "61033841", Quantity: 21789 },
+      { Plant: "MX32", Material: "MX06285A", Quantity: 6228 },
+      { Plant: "MX32", Material: "MX04532A", Quantity: 16875 },
+      { Plant: "MX32", Material: "61000406", Quantity: 0 },
+      { Plant: "MX32", Material: "61000980", Quantity: 0 },
+      { Plant: "MX32", Material: "61056981", Quantity: 0 },
+      { Plant: "MX32", Material: "61057103", Quantity: 0 }
+    ];
+
+    function showToast(title, message, iconType = 'info') {
+      const toast = document.getElementById('toast');
+      const titleEl = document.getElementById('toast-title');
+      const msgEl = document.getElementById('toast-message');
+      const iconEl = document.getElementById('toast-icon');
+
+      titleEl.innerText = title;
+      msgEl.innerText = message;
+
+      if (iconType === 'success') {
+        iconEl.className = 'p-1.5 rounded-lg bg-[#D1FADF] text-[#037A48]';
+        iconEl.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+      } else if (iconType === 'warning') {
+        iconEl.className = 'p-1.5 rounded-lg bg-[#FEF0C7] text-[#E07A00]';
+        iconEl.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4"></i>';
+      } else {
+        iconEl.className = 'p-1.5 rounded-lg bg-[#E0F2FE] text-[#0070C0]';
+        iconEl.innerHTML = '<i data-lucide="info" class="w-4 h-4"></i>';
+      }
+      lucide.createIcons();
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3500);
+    }
+
+    function normalizeKey(str) {
+      return String(str || '').toLowerCase().trim().replace(/[\s_\-\/\.]/g, '');
+    }
+
+    function extractRowVal(row, candidates) {
+      const keys = Object.keys(row);
+      for (const cand of candidates) {
+        const normCand = normalizeKey(cand);
+        const found = keys.find(k => normalizeKey(k) === normCand);
+        if (found !== undefined && row[found] !== undefined && row[found] !== null) {
+          return row[found];
+        }
+      }
+      return null;
+    }
+
+    function processStockRows(rows) {
+      AppState.rawStockRows = rows;
+      rebuildMaterialIndex();
+      updateStatusBadge();
+      showToast('Inventario Cargado', `${rows.length.toLocaleString()} registros de existencias procesados.`, 'success');
+    }
+
+    function processDemandRows(rows, append = true) {
+      if (!append) {
+        AppState.rawDemandRows = rows;
+      } else {
+        AppState.rawDemandRows = AppState.rawDemandRows.concat(rows);
+      }
+      rebuildMaterialIndex();
+      updateStatusBadge();
+      showToast('Salidas Procesadas', `${rows.length.toLocaleString()} transacciones integradas.`, 'success');
+    }
+
+    function rebuildMaterialIndex() {
+      const matMap = {};
+      AppState.focusFactoryList.clear();
+
+      for (const row of AppState.rawStockRows) {
+        const mat = String(extractRowVal(row, ['Material', 'SKU', 'Articulo', 'Codigo']) || '').trim();
+        if (!mat) continue;
+
+        const plant = String(extractRowVal(row, ['Plant', 'Centro', 'Bodega', 'Almacen']) || 'MX32').toUpperCase().trim();
+        const desc = String(extractRowVal(row, ['Material Description', 'Descripcion', 'Description', 'Desc']) || 'SKU ' + mat);
+        const status = String(extractRowVal(row, ['Status', 'Estado', 'Stock Type', 'Tipo Stock']) || 'UR').toUpperCase().trim();
+        const qty = parseFloat(extractRowVal(row, ['BUM Quantity', 'Quantity', 'Cantidad', 'Libre utilizacion', 'Stock UR']) || 0) || 0;
+        const pallets = parseFloat(extractRowVal(row, ['Pallets', 'Tarimas', 'Pallet']) || 0) || (qty > 0 ? qty / 64 : 0);
+        const val = parseFloat(extractRowVal(row, ['Total value', 'Valor total', 'Valor', 'Val']) || 0) || 0;
+        const focus = String(extractRowVal(row, ['Focus factory', 'Categoria', 'Family', 'Categoria']) || 'General').trim();
+
+        if (focus) AppState.focusFactoryList.add(focus);
+
+        if (!matMap[mat]) {
+          matMap[mat] = {
+            material: mat,
+            description: desc,
+            focusFactory: focus,
+            unitCost: qty > 0 ? (val / qty) : 50,
+            palletsPerUnit: qty > 0 ? (pallets / qty) : 0.016,
+            stocksByPlant: {
+              MX32: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 },
+              MX21: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 },
+              MX20: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 },
+              MX33: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 }
+            },
+            demandsByPlant: {
+              MX32: 0, MX21: 0, MX20: 0, MX33: 0
+            }
+          };
+        }
+
+        if (!matMap[mat].stocksByPlant[plant]) {
+          matMap[mat].stocksByPlant[plant] = { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 };
+        }
+
+        if (status.includes('QI') || status.includes('INSP')) {
+          matMap[mat].stocksByPlant[plant].qi += qty;
+        } else if (status.includes('BL') || status.includes('BLOQ')) {
+          matMap[mat].stocksByPlant[plant].bl += qty;
+        } else {
+          matMap[mat].stocksByPlant[plant].ur += qty;
+        }
+
+        matMap[mat].stocksByPlant[plant].pallets += pallets;
+        matMap[mat].stocksByPlant[plant].val += val;
+      }
+
+      const horizon = Math.max(1, AppState.policy.horizonMonths);
+      for (const row of AppState.rawDemandRows) {
+        const mat = String(extractRowVal(row, ['Material', 'SKU', 'Articulo', 'Codigo']) || '').trim();
+        if (!mat) continue;
+
+        const plant = String(extractRowVal(row, ['Plant', 'Centro', 'Bodega', 'Almacen']) || 'MX32').toUpperCase().trim();
+        let qty = Math.abs(parseFloat(extractRowVal(row, ['Quantity', 'Cantidad', 'BUM Quantity', 'Salida']) || 0));
+
+        if (!matMap[mat]) {
+          const desc = String(extractRowVal(row, ['Material Description', 'Descripcion']) || 'SKU ' + mat);
+          matMap[mat] = {
+            material: mat,
+            description: desc,
+            focusFactory: 'General',
+            unitCost: 50,
+            palletsPerUnit: 0.016,
+            stocksByPlant: {
+              MX32: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 },
+              MX21: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 },
+              MX20: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 },
+              MX33: { ur: 0, qi: 0, bl: 0, pallets: 0, val: 0 }
+            },
+            demandsByPlant: {
+              MX32: 0, MX21: 0, MX20: 0, MX33: 0
+            }
+          };
+        }
+
+        if (!matMap[mat].demandsByPlant[plant]) {
+          matMap[mat].demandsByPlant[plant] = 0;
+        }
+        matMap[mat].demandsByPlant[plant] += qty;
+      }
+
+      const focal = AppState.focalPlant;
+      const critDays = AppState.policy.critDays;
+      const targetDays = AppState.policy.targetDays;
+      const overstockDays = AppState.policy.overstockDays;
+
+      AppState.recommendedTransfers = [];
+
+      for (const mat in matMap) {
+        const item = matMap[mat];
+        let focalMonthlyDemand = 0;
+        let focalURStock = 0;
+        let focalQIStock = 0;
+        let focalBLStock = 0;
+
+        if (focal === 'ALL') {
+          for (const p in item.demandsByPlant) focalMonthlyDemand += item.demandsByPlant[p] / horizon;
+          for (const p in item.stocksByPlant) {
+            focalURStock += item.stocksByPlant[p].ur;
+            focalQIStock += item.stocksByPlant[p].qi;
+            focalBLStock += item.stocksByPlant[p].bl;
+          }
+        } else {
+          focalMonthlyDemand = (item.demandsByPlant[focal] || 0) / horizon;
+          if (item.stocksByPlant[focal]) {
+            focalURStock = item.stocksByPlant[focal].ur;
+            focalQIStock = item.stocksByPlant[focal].qi;
+            focalBLStock = item.stocksByPlant[focal].bl;
+          }
+        }
+
+        const focalDailyDemand = focalMonthlyDemand / 30;
+        const coverageDays = focalDailyDemand > 0 ? (focalURStock / focalDailyDemand) : (focalURStock > 0 ? 999 : 0);
+        const coverageMonths = coverageDays / 30;
+
+        item.monthlyDemand = focalMonthlyDemand;
+        item.dailyDemand = focalDailyDemand;
+        item.currentStockUR = focalURStock;
+        item.currentStockQI = focalQIStock;
+        item.currentStockBL = focalBLStock;
+        item.coverageDays = coverageDays;
+        item.coverageMonths = coverageMonths;
+
+        let quadrant = 'OPTIMAL';
+        let suggestedAction = 'Nivel Óptimo';
+        let suggestedTransfer = null;
+
+        if (focalMonthlyDemand > 0 && coverageDays < critDays) {
+          quadrant = 'RECEIVE';
+          suggestedAction = `Déficit Crítico (${coverageDays < 1 ? 'Sin Stock' : Math.round(coverageDays) + 'd'})`;
+
+          let bestDonor = null;
+          let maxDonorAvailable = 0;
+
+          const candidatePlants = ['MX33', 'MX21', 'MX20', 'MX32'].filter(p => p !== focal);
+          for (const plant of candidatePlants) {
+            const donorUR = item.stocksByPlant[plant]?.ur || 0;
+            const donorMonthlyDemand = (item.demandsByPlant[plant] || 0) / horizon;
+            const donorSafeStock = (donorMonthlyDemand / 30) * targetDays;
+            const surplus = donorUR - donorSafeStock;
+
+            if (surplus > maxDonorAvailable) {
+              maxDonorAvailable = surplus;
+              bestDonor = plant;
+            }
+          }
+
+          if (!bestDonor || maxDonorAvailable <= 0) {
+            for (const plant of candidatePlants) {
+              const donorUR = item.stocksByPlant[plant]?.ur || 0;
+              if (donorUR > maxDonorAvailable && donorUR > 50) {
+                maxDonorAvailable = donorUR;
+                bestDonor = plant;
+              }
+            }
+          }
+
+          if (bestDonor && maxDonorAvailable > 0) {
+            const deficitQty = Math.round(Math.max(0, (focalDailyDemand * targetDays) - focalURStock));
+            const transferQty = Math.min(deficitQty, Math.round(maxDonorAvailable));
+
+            if (transferQty > 0) {
+              const estPallets = Number((transferQty * item.palletsPerUnit).toFixed(1));
+              suggestedTransfer = {
+                sku: item.material,
+                desc: item.description,
+                from: bestDonor,
+                to: focal === 'ALL' ? 'MX32' : focal,
+                qty: transferQty,
+                pallets: estPallets,
+                unitVal: item.unitCost,
+                totalVal: transferQty * item.unitCost,
+                reason: `Cubrir déficit urgente (cobertura actual ${coverageDays.toFixed(1)} días)`
+              };
+              suggestedAction = `Recibir de ${bestDonor}: ${transferQty.toLocaleString()} uds`;
+            }
+          }
+
+        } else if (coverageDays > overstockDays || (focalURStock > 500 && focalMonthlyDemand === 0)) {
+          quadrant = 'SEND';
+          suggestedAction = focalMonthlyDemand === 0 ? 'Stock Sin Demanda' : `Exceso (${coverageMonths.toFixed(1)} meses)`;
+
+          let targetPlant = 'MX33';
+          if (focal === 'MX33') targetPlant = 'MX21';
+
+          const surplusQty = Math.round(focalMonthlyDemand > 0 ? Math.max(0, focalURStock - (focalDailyDemand * targetDays)) : focalURStock);
+          if (surplusQty > 0) {
+            const estPallets = Number((surplusQty * item.palletsPerUnit).toFixed(1));
+            suggestedTransfer = {
+              sku: item.material,
+              desc: item.description,
+              from: focal === 'ALL' ? 'MX32' : focal,
+              to: targetPlant,
+              qty: surplusQty,
+              pallets: estPallets,
+              unitVal: item.unitCost,
+              totalVal: surplusQty * item.unitCost,
+              reason: focalMonthlyDemand === 0 ? 'Reubicar material sin salidas' : `Reducir sobrestock > ${overstockDays} días`
+            };
+          }
+        }
+
+        item.quadrant = quadrant;
+        item.suggestedAction = suggestedAction;
+        item.suggestedTransfer = suggestedTransfer;
+
+        if (suggestedTransfer) {
+          AppState.recommendedTransfers.push(suggestedTransfer);
+        }
+      }
+
+      AppState.materialsMap = matMap;
+      populateFocusCategories();
+      renderDashboard();
+    }
+
+    function populateFocusCategories() {
+      const select = document.getElementById('filter-focus');
+      const current = select.value;
+      select.innerHTML = '<option value="ALL">Todas las Categorías</option>';
+      const sorted = Array.from(AppState.focusFactoryList).sort();
+      for (const cat of sorted) {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        if (cat === current) opt.selected = true;
+        select.appendChild(opt);
+      }
+    }
+
+    function updateStatusBadge() {
+      const stockBadge = document.getElementById('status-stock');
+      const demandBadge = document.getElementById('status-demand');
+      const clearBtn = document.getElementById('btn-clear-data');
+
+      if (AppState.rawStockRows.length > 0) {
+        stockBadge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5 text-[#0070C0]"></i> Stock: <b class="ml-1 text-[#182237]">${AppState.rawStockRows.length.toLocaleString()} regs</b>`;
+      } else {
+        stockBadge.innerHTML = `<i data-lucide="database" class="w-3.5 h-3.5 text-[#0070C0]"></i> Stock: <b class="ml-1">Sin cargar</b>`;
+      }
+
+      if (AppState.rawDemandRows.length > 0) {
+        demandBadge.innerHTML = `<i data-lucide="trending-up" class="w-3.5 h-3.5 text-[#037A48]"></i> Salidas: <b class="ml-1 text-[#182237]">${AppState.rawDemandRows.length.toLocaleString()} transacc.</b>`;
+      } else {
+        demandBadge.innerHTML = `<i data-lucide="trending-up" class="w-3.5 h-3.5 text-[#037A48]"></i> Salidas: <b class="ml-1">0 transacciones</b>`;
+      }
+
+      if (AppState.rawStockRows.length > 0 || AppState.rawDemandRows.length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+
+      document.getElementById('lbl-last-update').innerText = new Date().toLocaleDateString('es-MX', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      }).toUpperCase();
+
+      lucide.createIcons();
+    }
+
+    function renderDashboard() {
+      const items = Object.values(AppState.materialsMap);
+      const totalSkus = items.length;
+
+      let countReceive = 0;
+      let countSend = 0;
+      let countOptimal = 0;
+      let countQuality = 0;
+      let totalQIBLPallets = 0;
+      let totalQIBLVal = 0;
+
+      for (const item of items) {
+        if (item.quadrant === 'RECEIVE') countReceive++;
+        else if (item.quadrant === 'SEND') countSend++;
+        else countOptimal++;
+
+        if (item.currentStockQI > 0 || item.currentStockBL > 0) {
+          countQuality++;
+          const plts = (item.currentStockQI + item.currentStockBL) * item.palletsPerUnit;
+          const val = (item.currentStockQI + item.currentStockBL) * item.unitCost;
+          totalQIBLPallets += plts;
+          totalQIBLVal += val;
+        }
+      }
+
+      let totalTransferUnits = 0;
+      let totalTransferPallets = 0;
+      let totalTransferValue = 0;
+
+      for (const t of AppState.recommendedTransfers) {
+        totalTransferUnits += t.qty;
+        totalTransferPallets += t.pallets;
+        totalTransferValue += t.totalVal;
+      }
+
+      document.getElementById('kpi-skus').innerText = totalSkus.toLocaleString();
+      document.getElementById('kpi-receive-skus').innerText = countReceive.toLocaleString();
+      document.getElementById('kpi-receive-pct').innerText = totalSkus ? `${((countReceive / totalSkus) * 100).toFixed(0)}%` : '0%';
+      document.getElementById('kpi-send-skus').innerText = countSend.toLocaleString();
+      document.getElementById('kpi-send-pct').innerText = totalSkus ? `${((countSend / totalSkus) * 100).toFixed(0)}%` : '0%';
+      document.getElementById('kpi-optimal-skus').innerText = countOptimal.toLocaleString();
+      document.getElementById('kpi-optimal-pct').innerText = totalSkus ? `${((countOptimal / totalSkus) * 100).toFixed(0)}%` : '0%';
+
+      document.getElementById('kpi-qibl-pallets').innerText = Math.round(totalQIBLPallets).toLocaleString();
+      document.getElementById('kpi-qibl-val').innerText = `$${(totalQIBLVal / 1000000).toFixed(1)}M MXN retenido`;
+
+      document.getElementById('kpi-transfer-pallets').innerText = Math.round(totalTransferPallets).toLocaleString();
+      document.getElementById('kpi-transfer-val').innerText = `$${(totalTransferValue / 1000000).toFixed(1)}M MXN valor`;
+
+      const transferBadge = document.getElementById('transfer-badge');
+      if (AppState.recommendedTransfers.length > 0) {
+        transferBadge.innerText = AppState.recommendedTransfers.length;
+        transferBadge.classList.remove('hidden');
+      } else {
+        transferBadge.classList.add('hidden');
+      }
+
+      document.getElementById('count-all').innerText = totalSkus;
+      document.getElementById('count-receive').innerText = countReceive;
+      document.getElementById('count-send').innerText = countSend;
+      document.getElementById('count-optimal').innerText = countOptimal;
+      document.getElementById('count-quality').innerText = countQuality;
+
+      document.getElementById('chart-plant-label').innerText = AppState.focalPlant;
+
+      renderCharts(countReceive, countSend, countOptimal, countQuality);
+      renderTable();
+    }
+
+    function renderCharts(receive, send, optimal, quality) {
+      const textColor = '#6B7280';
+
+      // 1. Doughnut Chart: Quadrants (Paleta Oficial Traxión)
+      const ctxQuad = document.getElementById('chart-quadrants').getContext('2d');
+      if (AppState.chartInstances.quadrants) AppState.chartInstances.quadrants.destroy();
+
+      AppState.chartInstances.quadrants = new Chart(ctxQuad, {
+        type: 'doughnut',
+        data: {
+          labels: ['🚨 Déficit (<15d)', '📦 Sobrestock (>90d)', '✅ En Rango Óptimo', '🛡️ Retenido (QI/BL)'],
+          datasets: [{
+            data: [receive, send, optimal, quality],
+            backgroundColor: ['#D92D20', '#E07A00', '#037A48', '#182237'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 10, font: { size: 10, family: 'Montserrat' }, color: textColor }
+            }
+          },
+          cutout: '70%'
+        }
+      });
+
+      // 2. Bar Chart: Top Critical SKUs to Rebalance
+      const ctxTop = document.getElementById('chart-top-skus').getContext('2d');
+      if (AppState.chartInstances.topSkus) AppState.chartInstances.topSkus.destroy();
+
+      const topCritical = Object.values(AppState.materialsMap)
+        .filter(i => i.quadrant === 'RECEIVE')
+        .sort((a, b) => b.monthlyDemand - a.monthlyDemand)
+        .slice(0, 8);
+
+      const labels = topCritical.map(i => i.material.slice(-7));
+      const demandData = topCritical.map(i => Math.round(i.monthlyDemand));
+      const stockData = topCritical.map(i => Math.round(i.currentStockUR));
+
+      AppState.chartInstances.topSkus = new Chart(ctxTop, {
+        type: 'bar',
+        data: {
+          labels: labels.length ? labels : ['Sin datos'],
+          datasets: [
+            {
+              label: 'Demanda Mensual (Salidas)',
+              data: demandData.length ? demandData : [0],
+              backgroundColor: '#182237',
+              borderRadius: 4
+            },
+            {
+              label: 'Stock Actual Disponible (UR)',
+              data: stockData.length ? stockData : [0],
+              backgroundColor: '#D92D20',
+              borderRadius: 4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: textColor, font: { size: 10, family: 'Montserrat' } }, grid: { display: false } },
+            y: { ticks: { color: textColor, font: { size: 10, family: 'Montserrat' } }, grid: { color: '#E5E7EB' } }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10, family: 'Montserrat' }, color: textColor } }
+          }
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('table-body');
+      let items = Object.values(AppState.materialsMap);
+
+      if (AppState.currentFilter === 'RECEIVE') {
+        items = items.filter(i => i.quadrant === 'RECEIVE');
+      } else if (AppState.currentFilter === 'SEND') {
+        items = items.filter(i => i.quadrant === 'SEND');
+      } else if (AppState.currentFilter === 'OPTIMAL') {
+        items = items.filter(i => i.quadrant === 'OPTIMAL');
+      } else if (AppState.currentFilter === 'QUALITY') {
+        items = items.filter(i => (i.currentStockQI > 0 || i.currentStockBL > 0));
+      }
+
+      if (AppState.currentFocusFilter !== 'ALL') {
+        items = items.filter(i => i.focusFactory === AppState.currentFocusFilter);
+      }
+
+      if (AppState.searchQuery.trim() !== '') {
+        const q = AppState.searchQuery.toLowerCase();
+        items = items.filter(i => 
+          i.material.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.focusFactory.toLowerCase().includes(q)
+        );
+      }
+
+      const col = AppState.sortColumn;
+      const dir = AppState.sortDirection === 'asc' ? 1 : -1;
+
+      items.sort((a, b) => {
+        if (col === 'material') return a.material.localeCompare(b.material) * dir;
+        if (col === 'desc') return a.description.localeCompare(b.description) * dir;
+        if (col === 'demand') return (a.monthlyDemand - b.monthlyDemand) * dir;
+        if (col === 'stock') return (a.currentStockUR - b.currentStockUR) * dir;
+        if (col === 'coverage') return (a.coverageDays - b.coverageDays) * dir;
+        return 0;
+      });
+
+      const totalFiltered = items.length;
+      const pageSize = AppState.pagination.pageSize;
+      const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+
+      if (AppState.pagination.page > totalPages) AppState.pagination.page = totalPages;
+      const currentPage = AppState.pagination.page;
+
+      const startIndex = (currentPage - 1) * pageSize;
+      const pageItems = items.slice(startIndex, startIndex + pageSize);
+
+      document.getElementById('page-start').innerText = totalFiltered === 0 ? '0' : (startIndex + 1);
+      document.getElementById('page-end').innerText = Math.min(startIndex + pageSize, totalFiltered);
+      document.getElementById('page-total').innerText = totalFiltered;
+      document.getElementById('page-current').innerText = `${currentPage} / ${totalPages}`;
+
+      document.getElementById('btn-prev-page').disabled = currentPage <= 1;
+      document.getElementById('btn-next-page').disabled = currentPage >= totalPages;
+
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" class="py-10 text-center text-[#6B7280]">
+              No se encontraron materiales que coincidan con los filtros aplicados.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let html = '';
+      for (const item of pageItems) {
+        let badge = '';
+        if (item.quadrant === 'RECEIVE') {
+          badge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#FEE4E2] text-[#D92D20]"><i data-lucide="arrow-down-left" class="w-3 h-3"></i> RECIBIR</span>`;
+        } else if (item.quadrant === 'SEND') {
+          badge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#FEF0C7] text-[#E07A00]"><i data-lucide="arrow-up-right" class="w-3 h-3"></i> ENVIAR</span>`;
+        } else {
+          badge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[#D1FADF] text-[#037A48]"><i data-lucide="check" class="w-3 h-3"></i> ÓPTIMO</span>`;
+        }
+
+        let coverageText = '';
+        let coverageClass = '';
+        if (item.monthlyDemand === 0 && item.currentStockUR > 0) {
+          coverageText = 'Sin salidas';
+          coverageClass = 'text-[#E07A00] bg-[#FEF0C7] px-2 py-0.5 rounded font-bold';
+        } else if (item.coverageDays < 1) {
+          coverageText = 'Agotado (0 d)';
+          coverageClass = 'text-[#D92D20] bg-[#FEE4E2] font-bold px-2 py-0.5 rounded';
+        } else if (item.coverageDays < AppState.policy.critDays) {
+          coverageText = `${item.coverageDays.toFixed(1)} días`;
+          coverageClass = 'text-[#D92D20] font-bold';
+        } else if (item.coverageDays > AppState.policy.overstockDays) {
+          coverageText = `${item.coverageMonths.toFixed(1)} meses`;
+          coverageClass = 'text-[#E07A00] font-bold';
+        } else {
+          coverageText = `${item.coverageDays.toFixed(0)} días`;
+          coverageClass = 'text-[#037A48] font-bold';
+        }
+
+        const plants = ['MX33', 'MX21', 'MX20', 'MX32'];
+        const stockPills = plants.map(p => {
+          const s = item.stocksByPlant[p]?.ur || 0;
+          const isFocal = (p === AppState.focalPlant);
+          return `<span class="px-1.5 py-0.5 rounded text-[10px] ${isFocal ? 'font-bold border border-[#C0D838] bg-[#182237] text-white' : 'bg-[#F4F6F8] text-[#1D2939]'}">
+            ${p}: <b>${s >= 1000 ? (s/1000).toFixed(1) + 'k' : Math.round(s)}</b>
+          </span>`;
+        }).join(' ');
+
+        let actionCol = '';
+        if (item.suggestedTransfer) {
+          actionCol = `
+            <button onclick="window.addManualTransfer('${item.material}')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#E0F2FE] hover:bg-[#bae6fd] text-[#0070C0] font-bold text-[11px] transition">
+              <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+              <span>${item.suggestedAction}</span>
+            </button>
+          `;
+        } else {
+          actionCol = `<span class="text-[#6B7280] text-[11px]">${item.suggestedAction}</span>`;
+        }
+
+        html += `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="py-2.5 px-3 whitespace-nowrap">${badge}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-[#182237]">${item.material}</td>
+            <td class="py-2.5 px-3 max-w-xs truncate" title="${item.description}">${item.description}</td>
+            <td class="py-2.5 px-3 text-[#6B7280] whitespace-nowrap">${item.focusFactory}</td>
+            <td class="py-2.5 px-3 text-right font-medium">${Math.round(item.monthlyDemand).toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right font-bold text-[#182237]">${Math.round(item.currentStockUR).toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap"><span class="${coverageClass}">${coverageText}</span></td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap"><div class="flex items-center justify-center gap-1">${stockPills}</div></td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">${actionCol}</td>
+          </tr>
+        `;
+      }
+
+      tbody.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function renderTransferModal() {
+      const modal = document.getElementById('modal-transfers');
+      const tbody = document.getElementById('transfer-plan-body');
+      const transfers = AppState.recommendedTransfers;
+
+      let totalUnits = 0;
+      let totalPallets = 0;
+      let totalValue = 0;
+
+      for (const t of transfers) {
+        totalUnits += t.qty;
+        totalPallets += t.pallets;
+        totalValue += t.totalVal;
+      }
+
+      document.getElementById('transfer-count-lines').innerText = transfers.length;
+      document.getElementById('transfer-total-units').innerText = `${Math.round(totalUnits).toLocaleString()} unidades`;
+      document.getElementById('transfer-total-pallets').innerText = `${Math.round(totalPallets).toLocaleString()} tarimas`;
+      document.getElementById('transfer-total-val').innerText = `$${(totalValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN`;
+      document.getElementById('print-date').innerText = new Date().toLocaleString();
+
+      if (transfers.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-8 text-[#6B7280]">
+              No hay transferencias pendientes. Todos los inventarios están en rango de cobertura saludable.
+            </td>
+          </tr>
+        `;
+      } else {
+        let html = '';
+        transfers.forEach((t, index) => {
+          html += `
+            <tr class="hover:bg-slate-50">
+              <td class="py-2.5 px-3 font-bold text-[#182237]">${t.from}</td>
+              <td class="py-2.5 px-3 font-bold text-[#0070C0]">${t.to}</td>
+              <td class="py-2.5 px-3 font-mono font-semibold">${t.sku}</td>
+              <td class="py-2.5 px-3 max-w-xs truncate" title="${t.desc}">${t.desc}</td>
+              <td class="py-2.5 px-3 text-right font-bold text-[#182237]">${t.qty.toLocaleString()}</td>
+              <td class="py-2.5 px-3 text-right text-[#6B7280]">${t.pallets.toFixed(1)}</td>
+              <td class="py-2.5 px-3 text-center text-[11px] text-[#6B7280]">${t.reason}</td>
+              <td class="py-2.5 px-3 text-center no-print">
+                <button onclick="window.removeTransferLine(${index})" class="text-[#D92D20] hover:text-red-700 p-1" title="Eliminar línea">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = html;
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function exportMainTableToExcel() {
+      const items = Object.values(AppState.materialsMap);
+      if (items.length === 0) {
+        showToast('Sin datos', 'Carga datos antes de exportar.', 'warning');
+        return;
+      }
+
+      const rows = items.map(i => ({
+        "Material (SKU)": i.material,
+        "Descripción": i.description,
+        "Focus Factory": i.focusFactory,
+        "Bodega Focal": AppState.focalPlant,
+        "Demanda Promedio Mensual": Math.round(i.monthlyDemand),
+        "Stock UR Focal": Math.round(i.currentStockUR),
+        "Stock QI Focal": Math.round(i.currentStockQI),
+        "Stock BL Focal": Math.round(i.currentStockBL),
+        "Cobertura Días": i.coverageDays > 900 ? 'Sin salidas' : Number(i.coverageDays.toFixed(1)),
+        "Cuadrante Operativo": i.quadrant,
+        "Acción Recomendada": i.suggestedAction,
+        "Stock MX32 (UR)": i.stocksByPlant['MX32']?.ur || 0,
+        "Stock MX21 (UR)": i.stocksByPlant['MX21']?.ur || 0,
+        "Stock MX20 (UR)": i.stocksByPlant['MX20']?.ur || 0,
+        "Stock MX33 (UR)": i.stocksByPlant['MX33']?.ur || 0
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Balanceo_Inventario");
+      XLSX.writeFile(wb, `TRAXION_NexusStock_Balanceo_${AppState.focalPlant}_${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast('Exportación Exitosa', 'Archivo de balance descargado.', 'success');
+    }
+
+    function exportTransfersToExcel() {
+      if (AppState.recommendedTransfers.length === 0) {
+        showToast('Sin transferencias', 'No hay órdenes de transferencia sugeridas.', 'warning');
+        return;
+      }
+
+      const rows = AppState.recommendedTransfers.map((t, idx) => ({
+        "Orden No": `TR-${1000 + idx}`,
+        "Bodega Origen": t.from,
+        "Bodega Destino": t.to,
+        "Material (SKU)": t.sku,
+        "Descripción": t.desc,
+        "Cantidad Sugerida (BUM)": t.qty,
+        "Tarimas (Pallets)": t.pallets,
+        "Valor Estimado (MXN)": Number(t.totalVal.toFixed(2)),
+        "Justificación Operativa": t.reason
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Ordenes_Traspaso");
+      XLSX.writeFile(wb, `TRAXION_Ordenes_Transferencia_${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast('Traspasos Descargados', 'Excel listo para coordinar con almacenes.', 'success');
+    }
+
+    window.removeTransferLine = function(index) {
+      AppState.recommendedTransfers.splice(index, 1);
+      renderDashboard();
+      renderTransferModal();
+    };
+
+    window.addManualTransfer = function(materialId) {
+      renderTransferModal();
+    };
+
+    function parseUploadedFile(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+          callback(json);
+        } catch (err) {
+          console.error(err);
+          showToast('Error de Lectura', `No se pudo procesar ${file.name}: formato no válido.`, 'warning');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Attach Event Listeners on DOM Ready
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      // Drag & Drop Stock
+      const dropStock = document.getElementById('drop-stock');
+      const fileStock = document.getElementById('file-stock');
+
+      dropStock.addEventListener('click', () => fileStock.click());
+      dropStock.addEventListener('dragover', (e) => { e.preventDefault(); dropStock.classList.add('border-[#0070C0]'); });
+      dropStock.addEventListener('dragleave', () => dropStock.classList.remove('border-[#0070C0]'));
+      dropStock.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropStock.classList.remove('border-[#0070C0]');
+        if (e.dataTransfer.files.length > 0) {
+          parseUploadedFile(e.dataTransfer.files[0], processStockRows);
+        }
+      });
+      fileStock.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) parseUploadedFile(e.target.files[0], processStockRows);
+      });
+
+      // Drag & Drop Demands (Multiple)
+      const dropDemand = document.getElementById('drop-demand');
+      const fileDemand = document.getElementById('file-demand');
+
+      dropDemand.addEventListener('click', () => fileDemand.click());
+      dropDemand.addEventListener('dragover', (e) => { e.preventDefault(); dropDemand.classList.add('border-[#037A48]'); });
+      dropDemand.addEventListener('dragleave', () => dropDemand.classList.remove('border-[#037A48]'));
+      dropDemand.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropDemand.classList.remove('border-[#037A48]');
+        if (e.dataTransfer.files.length > 0) {
+          Array.from(e.dataTransfer.files).forEach(f => parseUploadedFile(f, r => processDemandRows(r, true)));
+        }
+      });
+      fileDemand.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          Array.from(e.target.files).forEach(f => parseUploadedFile(f, r => processDemandRows(r, true)));
+        }
+      });
+
+      // Load Demo Button
+      document.getElementById('btn-load-demo').addEventListener('click', () => {
+        processStockRows(DEMO_INVENTORY);
+        processDemandRows(DEMO_DEMANDS, false);
+      });
+
+      // Clear Data Button
+      document.getElementById('btn-clear-data').addEventListener('click', () => {
+        AppState.rawStockRows = [];
+        AppState.rawDemandRows = [];
+        AppState.materialsMap = {};
+        AppState.recommendedTransfers = [];
+        updateStatusBadge();
+        renderDashboard();
+        showToast('Datos Limpiados', 'Se reinició el inventario y las salidas.', 'info');
+      });
+
+      // Plant Selector Change
+      document.getElementById('select-plant').addEventListener('change', (e) => {
+        AppState.focalPlant = e.target.value;
+        rebuildMaterialIndex();
+      });
+
+      // Policy Apply Button
+      document.getElementById('btn-apply-policy').addEventListener('click', () => {
+        AppState.policy.critDays = parseFloat(document.getElementById('input-crit-days').value) || 15;
+        AppState.policy.targetDays = parseFloat(document.getElementById('input-target-days').value) || 45;
+        AppState.policy.overstockDays = parseFloat(document.getElementById('input-overstock-days').value) || 90;
+        AppState.policy.horizonMonths = parseFloat(document.getElementById('input-horizon-months').value) || 9;
+        rebuildMaterialIndex();
+        showToast('Política Actualizada', 'Cálculos de cobertura recalculados con éxito.', 'success');
+      });
+
+      // Quadrant Tab Filters
+      document.querySelectorAll('.tab-filter').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-filter').forEach(b => {
+            b.classList.remove('active', 'bg-[#182237]', 'text-white');
+            b.classList.add('bg-white', 'text-[#182237]', 'border', 'border-[#E5E7EB]');
+          });
+          btn.classList.add('active', 'bg-[#182237]', 'text-white');
+          btn.classList.remove('bg-white');
+          AppState.currentFilter = btn.getAttribute('data-filter');
+          AppState.pagination.page = 1;
+          renderTable();
+        });
+      });
+
+      // Focus Factory Filter
+      document.getElementById('filter-focus').addEventListener('change', (e) => {
+        AppState.currentFocusFilter = e.target.value;
+        AppState.pagination.page = 1;
+        renderTable();
+      });
+
+      // Search Box
+      document.getElementById('table-search').addEventListener('input', (e) => {
+        AppState.searchQuery = e.target.value;
+        AppState.pagination.page = 1;
+        renderTable();
+      });
+
+      // Table Header Sorting
+      document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => {
+          const col = th.getAttribute('data-sort');
+          if (AppState.sortColumn === col) {
+            AppState.sortDirection = AppState.sortDirection === 'asc' ? 'desc' : 'asc';
+          } else {
+            AppState.sortColumn = col;
+            AppState.sortDirection = 'desc';
+          }
+          renderTable();
+        });
+      });
+
+      // Pagination Buttons
+      document.getElementById('btn-prev-page').addEventListener('click', () => {
+        if (AppState.pagination.page > 1) {
+          AppState.pagination.page--;
+          renderTable();
+        }
+      });
+      document.getElementById('btn-next-page').addEventListener('click', () => {
+        AppState.pagination.page++;
+        renderTable();
+      });
+
+      // Modals
+      document.getElementById('btn-open-transfers').addEventListener('click', renderTransferModal);
+      document.getElementById('btn-close-modal').addEventListener('click', () => {
+        document.getElementById('modal-transfers').classList.add('hidden');
+      });
+
+      // Exports & Printing
+      document.getElementById('btn-export-table').addEventListener('click', exportMainTableToExcel);
+      document.getElementById('btn-export-transfers').addEventListener('click', exportTransfersToExcel);
+      document.getElementById('btn-print-picking').addEventListener('click', () => window.print());
+
+      // Auto-load Demo
+      processStockRows(DEMO_INVENTORY);
+      processDemandRows(DEMO_DEMANDS, false);
+    });
+  </script>
+  <script>
+    // =========================================================================
+    // INTEGRACIÓN BIDIRECCIONAL CON HUB CENTRAL MULTIARCHIVOS (TRAXIONSYNC)
+    // =========================================================================
+    (function() {
+      if (!window.TraxionSync) return;
+
+      // 1. Cuando el usuario sube el archivo de Stock SAP en Interbodegas, compartirlo en el Hub
+      const inputStock = document.getElementById('file-stock');
+      if (inputStock) {
+        inputStock.addEventListener('change', function(e) {
+          if (e.target.files && e.target.files[0]) {
+            window.TraxionSync.publicarArchivoDesdeInput('sap', e.target.files[0], 'Nexus Stock Interbodegas', false);
+          }
+        });
+      }
+
+      const dropStockEl = document.getElementById('drop-stock');
+      if (dropStockEl) {
+        dropStockEl.addEventListener('drop', function(e) {
+          if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+            window.TraxionSync.publicarArchivoDesdeInput('sap', e.dataTransfer.files[0], 'Nexus Stock Interbodegas', false);
+          }
+        });
+      }
+
+      // 2. Recibir automáticamente Reporte SAP Rector desde Hub MULTIARCHIVOS
+      window.TraxionSync.alActualizarDatos(function(datos) {
+        if (!datos || !Array.isArray(datos.sapData) || datos.sapData.length < 2) return;
+        const objsSap = window.TraxionSync.obtenerFamilia('sap', 'objetos');
+        if (Array.isArray(objsSap) && objsSap.length > 0) {
+          processStockRows(objsSap);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
