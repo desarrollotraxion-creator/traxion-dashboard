@@ -1,1548 +1,1716 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRAXIÓN | Auditoría Operativa Izel</title>
-    <!-- Google Fonts: Montserrat & JetBrains Mono -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- PapaParse para CSV -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- SheetJS (xlsx) para Excel -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Montserrat', 'system-ui', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace']
-                    },
-                    colors: {
-                        traxion: {
-                            navy: '#182237',
-                            deepNavy: '#111827',
-                            accent: '#C0D838',
-                            accentLight: '#D0E934',
-                            canvas: '#F4F6F8'
-                        }
-                    }
-                }
-            }
+// =================================================================
+// --- CONFIGURACIÓN DE GRUPOS Y API ---
+// =================================================================
+const JID_TRANSPORTE = "5215550078006-1575998775@g.us";
+const JID_OPERACIONES = "5218119938064-1536719654@g.us";
+const JID_AUDITORIA = "5214424797298-1634165805@g.us";
+
+const API_URL = "https://bot-trafico-mx21.onrender.com/message/sendText/gema";
+const API_KEY = "5CAD959A58CC-4410-AE96-7F7271E40C47";
+
+// --- ID DE LA HOJA DE CIERRE DE TURNO / BODEGA ---
+const ID_SHEET_CIERRE = "1t1GQ8Ct4hB6v-rQc2GLDVxkCoWXQQYnExhhvmkLNHys";
+
+// --- ID DE LA HOJA DE MONITOR DE ANDENES (M.A.C) ---
+const ID_HOJA_MAC = "1INagHmP2t9rpneGqNK6ocsBL5trvu9GRg-0IItSvFNE";
+
+// --- CONFIGURACIÓN AUDITORÍA Y DASHBOARD DE OPERACIONES ---
+const ID_HOJA_OPERACION = "1zgXdaqo2jEEqj45rGX4-tYwVODWOyAaApV7LSmo51Ss";
+const PESTANA_USUARIOS = "COMPACTO";
+const CELDA_ULTIMA_ACTUALIZACION = "W1";
+const MAX_HORAS_SIN_ACTUALIZAR = 8;
+
+// --- CONFIGURACIÓN DE AUDITORÍA PICKING (HOJA 2) ---
+const ID_HOJA_AUDITORIA_PICKING = "1VisilpwDbATGtTyyeDz2IXOtjKbFJQOajXwVFTT58nU";
+const PESTANA_RESUMEN_AUDITORIA = "Hoja 2";
+
+// =================================================================
+// --- SALUDO DINÁMICO DESDE LA PESTAÑA GEMA ---
+// =================================================================
+function obtenerSaludoSegunHora() {
+  return obtenerSaludoDinamicoGema();
+}
+
+function obtenerSaludoDinamicoGema() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const hojaGema = ss.getSheetByName("GEMA");
+    const horaActual = new Date().getHours();
+
+    if (!hojaGema) {
+      return obtenerSaludoEstaticoFallback(horaActual);
+    }
+
+    let colIndex = 1; // Col A (SALUDOS_DIA) por defecto
+
+    if (horaActual >= 6 && horaActual < 14) {
+      colIndex = 1; // Col A: SALUDOS_DIA
+    } else if (horaActual >= 14 && horaActual < 22) {
+      colIndex = 2; // Col B: SALUDOS_TARDE
+    } else {
+      colIndex = 3; // Col C: SALUDOS_NOCHE
+    }
+
+    const columna = hojaGema.getRange(2, colIndex, Math.max(hojaGema.getLastRow() - 1, 1), 1).getValues();
+    const saludos = columna.map(f => f[0]).filter(s => s && String(s).trim() !== "");
+
+    if (saludos.length > 0) {
+      return saludos[Math.floor(Math.random() * saludos.length)];
+    }
+  } catch (e) {
+    Logger.log("Error al obtener saludo dinámico de GEMA: " + e.toString());
+  }
+  return obtenerSaludoEstaticoFallback(new Date().getHours());
+}
+
+function obtenerSaludoEstaticoFallback(hora) {
+  if (hora >= 6 && hora < 14) {
+    return "¡Buenos días!";
+  } else if (hora >= 14 && hora < 22) {
+    return "¡Buenas tardes!";
+  } else {
+    return "¡Buenas noches!";
+  }
+}
+
+function meHoras() {
+  return new Date().getHours();
+}
+
+// --- FUNCIÓN DE LIMPIEZA Y ELIMINACIÓN TOTAL DE ACENTOS ---
+function removerAcentos(texto) {
+  if (!texto) return "";
+  return texto
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+// =================================================================
+// --- FUNCIÓN PRINCIPAL PARA RECEPCIÓN DE MENSAJES (WEBHOOK) ---
+// =================================================================
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return ContentService.createTextOutput("Sin contenido");
+    }
+
+    const data = JSON.parse(e.postData.contents);
+    
+    // Ignorar mensajes del propio bot
+    if (data.data?.key?.fromMe) {
+      return ContentService.createTextOutput("Ignorado: mensaje propio");
+    }
+
+    let remoteJid = data.data?.key?.remoteJid;
+    const textOriginal = data.data?.message?.conversation || 
+                         data.data?.message?.extendedTextMessage?.text || "";
+    
+    let textLimpio = textOriginal.trim().toLowerCase();
+
+    if (!remoteJid || !textLimpio) {
+      return ContentService.createTextOutput("Sin datos válidos");
+    }
+
+    // --- FILTRO: Detecta si el mensaje contiene "gema" ---
+    if (!textLimpio.includes("gema")) {
+      return ContentService.createTextOutput("Ignorado: No contiene gema");
+    }
+
+    if (remoteJid.includes('@s.whatsapp.net')) {
+      remoteJid = remoteJid.replace('521', '52');
+    }
+
+    // --- LIMPIEZA DE INSTRUCCIÓN (Remueve @gema y gema) ---
+    let instruccion = removerAcentos(textLimpio)
+      .replace(/@?gema/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const extraccionNumero = instruccion.match(/\d{7,10}/); 
+    const contieneNumeroShipment = extraccionNumero ? extraccionNumero[0] : null;
+
+    const saludo = obtenerSaludoSegunHora();
+    const props = PropertiesService.getScriptProperties();
+
+    // 1. MENÚ PRINCIPAL (PÚBLICO)
+    if (!instruccion) {
+      const respuestaBot = `*${saludo} SOY GEMA*\n` +
+                           "Asistente virtual de *COLGATE CEDIS CALAMANDA MX21*\n\n" +
+                           "Por favor escribe el número o nombre de la opción que deseas consultar:\n\n" +
+                           "1️⃣ *ESTATUS* - Consulta la posición y estado de un embarque.\n" +
+                           "2️⃣ *ATRASOS* - Reporte exclusivo de embarques con FALTA TRANSPORTE y cita vencida.\n" +
+                           "🏢 *ANDENES* - Estado actual de rampas (Consola).\n" +
+                           "_Ejemplos:_\n" +
+                           "• `@gema 1` o `gema 1`\n" +
+                           "• `@gema monitor`\n" +
+                           "• `@gema andenes`\n" +
+                           "• `@gema auditados`\n" +
+                           "• `@gema 700****` (para buscar un shipment directo)";
+      enviarMensajeWhatsApp(remoteJid, respuestaBot);
+    } 
+    // 2. COMANDO CIERRE DE TURNO DIRECTO
+    else if (instruccion.startsWith("cierre")) {
+      const textoSinCierre = instruccion.replace("cierre", "").trim();
+      const esNaranja = textoSinCierre.includes("naranja");
+      const esRoja = textoSinCierre.includes("roja");
+
+      if (esNaranja || esRoja) {
+        const bodega = esNaranja ? "NARANJA" : "ROJA";
+        let verificador = textoSinCierre.replace("naranja", "").replace("roja", "").trim().toUpperCase();
+        if (!verificador) verificador = "OPERADOR";
+
+        const reporte = procesarCierreDeTurno(verificador, bodega);
+        enviarMensajeWhatsApp(remoteJid, reporte);
+      } else {
+        const verificador = textoSinCierre.toUpperCase() || "OPERADOR";
+        props.setProperty("ULTIMO_VERIFICADOR_" + remoteJid, verificador);
+
+        const respuestaBot = `👋 *${saludo} ${verificador}*\n\n` +
+                             "¿De qué bodega deseas generar el reporte de cierre?\n" +
+                             "Por favor responde con una de las siguientes opciones:\n\n" +
+                             "• `@gema Naranja`\n" +
+                             "• `@gema Roja`";
+        enviarMensajeWhatsApp(remoteJid, respuestaBot);
+      }
+    }
+    // 3. MÓDULO MONITOR DE DASHBOARD (CLIENTES Y EXPOS/INTRAS)
+    else if (instruccion.startsWith("monitor") || instruccion === "monitor") {
+      ejecutarMonitoreoDashboard(remoteJid);
+    }
+    // 4. MÓDULO DE ANDENES (DESDE LA PESTAÑA CONSOLA)
+    else if (instruccion.startsWith("andenes") || instruccion === "andenes") {
+      const reporteAndenes = obtenerReporteAndenes();
+      enviarMensajeWhatsApp(remoteJid, reporteAndenes);
+    }
+    // 5. MÓDULO CHECK DE SEGURIDAD
+    else if (instruccion.startsWith("check")) {
+      const resultadoCheck = verificarCheckSeguridad();
+      enviarMensajeWhatsApp(remoteJid, resultadoCheck);
+    }
+    // 6. RESPUESTA A BODEGAS (NARANJA O ROJA)
+    else if (instruccion === "naranja" || instruccion === "roja") {
+      const bodega = instruccion.toUpperCase();
+      const verificadorPendiente = props.getProperty("ULTIMO_VERIFICADOR_" + remoteJid);
+
+      if (verificadorPendiente) {
+        props.deleteProperty("ULTIMO_VERIFICADOR_" + remoteJid);
+        const reporte = procesarCierreDeTurno(verificadorPendiente, bodega);
+        enviarMensajeWhatsApp(remoteJid, reporte);
+      } else {
+        const reporteHistorico = consultarUltimoCierreDB(bodega);
+        enviarMensajeWhatsApp(remoteJid, reporteHistorico);
+      }
+    }
+    // 7. MÓDULO DE ESTATUS
+    else if (instruccion === "1" || instruccion.startsWith("estat")) {
+      const respuestaBot = `📦 *${saludo} MÓDULO DE ESTATUS - GEMA*\n\n` +
+                           "Por favor escribe `@gema` seguido del número de shipment (embarque).\n\n" +
+                           "_Ejemplo:_ `@gema 700*****`";
+      enviarMensajeWhatsApp(remoteJid, respuestaBot);
+    } 
+    // 8. MÓDULO DE ATRASOS
+    else if (instruccion === "2" || instruccion.includes("atraso")) {
+      enviarMensajeWhatsApp(remoteJid, obtenerAtrasosPlan());
+    } 
+    // 9. TRÁNSITOS
+    else if (instruccion === "3" || instruccion.includes("transit") || instruccion.includes("trancit")) {
+      enviarResumenTransitosEnDosMensajes(remoteJid);
+    }
+    // 10. PRIORIDADES
+    else if (instruccion.includes("prioridad")) {
+      const reporteGema = generarReporteGemaPrioridades();
+      enviarMensajeWhatsApp(remoteJid, reporteGema.reporteGeneral);
+    }
+    // 11. COMANDO AUDITADOS (GRUPO AUDITORÍA O GLOBAL)
+    else if (instruccion.includes("auditado")) {
+      const reporteAuditados = obtenerReporteAuditados(remoteJid);
+      enviarMensajeWhatsApp(remoteJid, reporteAuditados);
+    }
+    // 12. MENÚ DE ADMINISTRACIÓN
+    else if (instruccion === "admin" || instruccion === "administracion") {
+      const respuestaBot = `🔐 *${saludo} MENÚ INTERNO DE ADMINISTRACIÓN - GEMA*\n\n` +
+                           "Comandos disponibles para el equipo de operaciones:\n\n" +
+                           "• `@gema monitor` - Dashboard de monitoreo (Críticos, Clientes y Expos).\n" +
+                           "• `@gema cierre [NOMBRE]` - Generar cierre de turno de bodega.\n" +
+                           "• `@gema naranja` / `@gema roja` - Consultar último cierre de bodega.\n" +
+                           "• `@gema andenes` - Ver estado actual de rampas desde la Consola.\n" +
+                           "• `@gema transitos` - Resumen dinámico de tránsitos y orígenes.\n" +
+                           "• `@gema check` - Validar y notificar incidencias de seguridad en rampa.\n" +
+                           "• `@gema prioridades` - Alertas de salida y prioridades según matriz GEMA.\n" +
+                           "• `@gema pending` - Avance de Pending en tiempo real.\n" +
+                           "• `@gema auditados` - Resumen de viajes y tarimas auditadas.\n" +
+                           "• `@gema auditoria` - Verificación de actualización de supervisores (W1).";
+      enviarMensajeWhatsApp(remoteJid, respuestaBot);
+    }
+    // 13. AUDITORÍA Y ESTADO
+    else if (instruccion.includes("auditor") || instruccion.includes("estado") || instruccion === "log") {
+      let respuestaAuditoria = verificarActualizacionSupervisores();
+      if (!respuestaAuditoria) respuestaAuditoria = obtenerEstadoSistema();
+      enviarMensajeWhatsApp(remoteJid, respuestaAuditoria);
+    }
+    // 14. PENDING
+    else if (instruccion.includes("pendin")) {
+      enviarMensajeWhatsApp(remoteJid, obtenerReportePending(null));
+    }
+    // 15. BÚSQUEDA DIRECTA SHIPMENT O BÚSQUEDA GENERAL
+    else {
+      const terminoBusqueda = contieneNumeroShipment || instruccion;
+      enviarMensajeWhatsApp(remoteJid, buscarShipmentGlobal(terminoBusqueda));
+    }
+
+    return ContentService.createTextOutput("OK");
+
+  } catch (error) {
+    Logger.log("Error doPost: " + error.toString());
+    return ContentService.createTextOutput("Error: " + error.toString());
+  }
+}
+
+// =================================================================
+// --- MÓDULO AUDITORÍA PICKING: ALERTAS Y CONSULTAS (HOJA 2) ---
+// =================================================================
+
+// =================================================================
+// --- MÓDULO AUDITORÍA: ALERTA ANTI-DUPLICADOS CADA MINUTO ---
+// =================================================================
+
+function notificarPalletsAbarroteraAuditoria() {
+  try {
+    const ss = SpreadsheetApp.openById(ID_HOJA_AUDITORIA_PICKING);
+    const hoja = ss.getSheetByName(PESTANA_RESUMEN_AUDITORIA);
+
+    if (!hoja) {
+      Logger.log("No se encontró la pestaña '" + PESTANA_RESUMEN_AUDITORIA + "'");
+      return;
+    }
+
+    const datos = hoja.getDataRange().getValues();
+    const props = PropertiesService.getScriptProperties();
+    let alertasEnviadas = 0;
+
+    for (let i = 1; i < datos.length; i++) {
+      const viaje = String(datos[i][0] || "").trim();
+      const cajasArmadas = String(datos[i][1] || "0").trim();
+      const estatus = String(datos[i][3] || "").trim().toUpperCase();
+      const lpns = String(datos[i][5] || "0").trim();
+      const cliente = String(datos[i][6] || "").trim().toUpperCase();
+
+      if (!viaje) continue;
+
+      const claveFirma = "FIRMA_NOTIF_DUERO_" + viaje;
+
+      // Si el viaje ya concluyó o cambió de estatus, limpiamos su firma previa
+      if (estatus.includes("AUDITADO")) {
+        if (props.getProperty(claveFirma)) {
+          props.deleteProperty(claveFirma);
         }
-    </script>
-    <style>
-        body {
-            background-color: #F4F6F8;
-            color: #1D2939;
-            font-family: 'Montserrat', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-        .traxion-accent-bar {
-            height: 4px;
-            background: linear-gradient(90deg, #C0D838 0%, #D0E934 50%, #C0D838 100%);
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #F4F6F8;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #CBD5E1;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94A3B8;
-        }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col antialiased">
-    <!-- Toast de Notificaciones -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"></div>
+        continue;
+      }
 
-    <!-- Input Oculto de Archivos -->
-    <input type="file" id="file-input" accept=".csv, .txt, .xlsx, .xls" class="hidden" />
+      // Filtro estricto: Abarrotera del Duero, en proceso y con pallets reales (> 0)
+      if (cliente.includes("ABARROTERA DEL DUERO") && estatus.includes("EN PROCESO") && parseInt(lpns, 10) > 0) {
+        
+        // Firma única basada en viaje + cajas + pallets actuales
+        const firmaActual = `${viaje}_CAJAS:${cajasArmadas}_LPNS:${lpns}`;
+        const firmaGuardada = props.getProperty(claveFirma);
 
-    <!-- Barra de Acento Traxión Superior -->
-    <div class="traxion-accent-bar w-full"></div>
-
-    <!-- Header Principal -->
-    <header class="bg-[#182237] text-white border-b border-slate-800 sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-            
-            <!-- Logo Original Oficial de la Empresa & Título -->
-            <div class="flex items-center gap-4 min-w-0">
-                <div class="flex items-center pr-4 border-r border-slate-700/80 shrink-0">
-                    <!-- Logotipo Oficial Vectorial Traxión en Verde Corporativo -->
-                    <svg class="h-8 w-auto" viewBox="0 0 280 65" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <text x="140" y="38" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="900" font-size="34" letter-spacing="11" fill="#C0D838">TRAXIÓN</text>
-                        <text x="140" y="56" text-anchor="middle" font-family="'Montserrat', sans-serif" font-weight="700" font-size="11" letter-spacing="6.5" fill="#C0D838">VIDA EN MOVIMIENTO</text>
-                    </svg>
-                </div>
-                <div class="flex items-center gap-2.5 truncate">
-                    <h1 class="text-sm sm:text-base font-bold tracking-tight text-white truncate">
-                        Auditoría Operativa Izel
-                    </h1>
-                    <span class="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-medium px-2.5 py-0.5 rounded-full" title="Sincronización activa con Google Sheets">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>En línea</span>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Controles del Header -->
-            <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                <!-- Auditor y Turno -->
-                <div class="hidden md:flex items-center gap-2 bg-slate-800/70 border border-slate-700/80 rounded-lg px-2.5 py-1 text-xs">
-                    <div class="flex items-center gap-1.5">
-                        <i data-lucide="user" class="w-3.5 h-3.5 text-[#C0D838]"></i>
-                        <input type="text" id="input-auditor-name" value="MARTIN" placeholder="AUDITOR"
-                            class="w-20 bg-transparent text-white font-semibold uppercase text-xs focus:outline-none focus:text-[#C0D838]" title="Nombre del auditor activo" />
-                    </div>
-                    <div class="w-px h-3.5 bg-slate-700"></div>
-                    <div class="flex items-center gap-1 text-slate-300 font-mono text-[11px]">
-                        <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-                        <span id="current-shift-badge">1° TURNO</span>
-                    </div>
-                </div>
-
-                <!-- Cargar Archivo -->
-                <button id="btn-upload-file-header" class="px-3.5 py-1.5 bg-[#C0D838] hover:bg-[#D0E934] text-[#182237] text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm">
-                    <i data-lucide="upload-cloud" class="w-4 h-4 text-[#182237]"></i>
-                    <span>Cargar Archivo</span>
-                </button>
-
-                <!-- Sincronizar -->
-                <button id="btn-fetch-sheet" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white border border-slate-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs" title="Sincronizar con Google Sheets">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-[#C0D838]" id="icon-sync-refresh"></i>
-                    <span class="hidden sm:inline">Sincronizar</span>
-                </button>
-
-                <!-- Productividad -->
-                <button id="btn-open-productivity" class="px-2.5 py-1.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700/80 transition flex items-center gap-1.5 cursor-pointer">
-                    <i data-lucide="activity" class="w-3.5 h-3.5 text-[#C0D838]"></i>
-                    <span class="hidden lg:inline">Productividad</span>
-                </button>
-
-                <!-- Limpiar -->
-                <button id="btn-clean-data" class="p-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 rounded-lg transition cursor-pointer" title="Limpiar tablero">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Indicador de Carga Flotante -->
-    <div id="processing-indicator" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 w-full">
-        <div class="bg-blue-50 border border-blue-200 text-[#0070C0] px-4 py-2 rounded-lg text-xs font-semibold flex items-center justify-between shadow-xs animate-pulse">
-            <div class="flex items-center gap-2">
-                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
-                <span id="processing-text">Procesando archivo y validando estatus de auditoría...</span>
-            </div>
-            <span class="text-[11px] font-mono text-slate-500">WMS Traxión</span>
-        </div>
-    </div>
-
-    <!-- Contenido Principal -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4">
-
-        <!-- 1. Fila de KPIs Exacta -->
-        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <!-- Viajes Activos -->
-            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
-                <div>
-                    <span class="text-xs font-medium text-slate-500">Viajes Activos</span>
-                    <div id="kpi-total-trips" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums mt-1">0</div>
-                    <span class="text-xs text-slate-500 mt-1 block">
-                        <strong id="kpi-trips-completed" class="text-emerald-600 font-semibold tabular-nums">0</strong> completados
-                    </span>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-                    <i data-lucide="truck" class="w-4 h-4"></i>
-                </div>
-            </div>
-
-            <!-- Total Pallets (LPNs) -->
-            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
-                <div class="w-full pr-3">
-                    <span class="text-xs font-medium text-slate-500">Total Pallets (LPNs)</span>
-                    <div class="flex items-baseline gap-2 mt-1">
-                        <span id="kpi-total-lpns" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums">0</span>
-                        <span id="kpi-lpns-pct" class="text-xs font-mono font-semibold text-emerald-600 tabular-nums">0%</span>
-                    </div>
-                    <span class="text-xs text-slate-500 mt-1 block">
-                        <strong id="kpi-lpns-audited" class="text-emerald-600 font-semibold tabular-nums">0</strong> de <span id="kpi-lpns-target">0</span> auditados
-                    </span>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <i data-lucide="layers" class="w-4 h-4"></i>
-                </div>
-            </div>
-
-            <!-- Partidas SKU -->
-            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
-                <div class="w-full pr-3">
-                    <span class="text-xs font-medium text-slate-500">Partidas SKU</span>
-                    <div class="flex items-baseline gap-2 mt-1">
-                        <span id="kpi-total-skus" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums">0</span>
-                        <span id="kpi-skus-pct" class="text-xs font-mono font-semibold text-[#0070C0] tabular-nums">0%</span>
-                    </div>
-                    <span class="text-xs text-slate-500 mt-1 block truncate">
-                        <strong id="kpi-skus-audited" class="text-slate-700 font-semibold tabular-nums">0</strong> validados · <span id="kpi-skus-pending">0</span> pend.
-                    </span>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-blue-50 text-[#0070C0] flex items-center justify-center shrink-0">
-                    <i data-lucide="boxes" class="w-4 h-4"></i>
-                </div>
-            </div>
-
-            <!-- Total Cajas -->
-            <div class="bg-white rounded-xl border border-slate-200/80 p-4 flex items-start justify-between shadow-xs">
-                <div>
-                    <span class="text-xs font-medium text-slate-500">Total Cajas</span>
-                    <div id="kpi-total-boxes" class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tabular-nums mt-1">0</div>
-                    <span class="text-xs text-slate-500 mt-1 block">Volumen total en piso</span>
-                </div>
-                <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                    <i data-lucide="package" class="w-4 h-4"></i>
-                </div>
-            </div>
-        </section>
-
-        <!-- 2. Barra de Control Operativo Exacta -->
-        <section class="bg-white rounded-xl border border-slate-200/80 p-3 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 shadow-xs">
-            <!-- Buscador -->
-            <div class="relative flex-1 max-w-md">
-                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input type="text" id="filter-input" placeholder="Buscar por viaje, LPN, SKU o descripción..."
-                    class="w-full pl-9 pr-8 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-slate-400 transition" />
-                <button id="clear-filter-btn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer">
-                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
-                </button>
-            </div>
-
-            <!-- Filtros, Pestañas y Acciones -->
-            <div class="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
-                <!-- Filtro de Estatus -->
-                <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
-                    <button id="filter-status-all" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold cursor-pointer transition">Todos</button>
-                    <button id="filter-status-pending" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Pendientes</button>
-                    <button id="filter-status-audited" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Auditados</button>
-                    <button id="filter-status-incidences" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">Incidencias</button>
-                </div>
-
-                <!-- Selector de Vistas -->
-                <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
-                    <button id="tab-cards" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold flex items-center gap-1.5 cursor-pointer transition">
-                        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
-                        <span>Viajes</span>
-                    </button>
-                    <button id="tab-table" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer transition">
-                        <i data-lucide="table-2" class="w-3.5 h-3.5"></i>
-                        <span>Tabla</span>
-                    </button>
-                </div>
-
-                <!-- Botones Guardar en Sheet y Excel -->
-                <div class="flex items-center gap-2">
-                    <button id="btn-send-directly" class="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs">
-                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                        <span>Guardar en Sheet</span>
-                    </button>
-                    <button id="btn-export-xlsx" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 disabled:opacity-40 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs">
-                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
-                        <span>Excel</span>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- 3. Lista de Viajes -->
-        <section id="cards-view-wrapper" class="w-full flex flex-col gap-2.5"></section>
-
-        <!-- 4. Vista de Tabla Completa -->
-        <section id="table-view-wrapper" class="hidden bg-white border border-slate-200/80 rounded-xl shadow-xs overflow-hidden">
-            <div class="p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-[#182237] uppercase">Detalle de Auditoría por SKU (Columnas A:J)</span>
-                    <span class="text-[11px] text-slate-500">• Resaltados en verde al estar validados</span>
-                </div>
-                <span id="table-row-count-badge" class="text-[11px] font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded font-mono">0 filas</span>
-            </div>
-            <div class="overflow-x-auto max-h-[700px]">
-                <table class="w-full text-left text-xs border-collapse">
-                    <thead class="bg-[#182237] text-white uppercase text-[11px] font-bold tracking-wider border-b border-slate-700 select-none sticky top-0 z-10">
-                        <tr>
-                            <th class="px-3 py-3 w-12 text-center">#</th>
-                            <th class="px-3 py-3 w-28">TURNO (A)</th>
-                            <th class="px-3 py-3 w-28">AUDITOR (B)</th>
-                            <th class="px-3 py-3 w-36">FECHA (C)</th>
-                            <th class="px-3 py-3 w-32">SHIPMENT (D)</th>
-                            <th class="px-3 py-3 w-36">LPN / ETIQUETA (E)</th>
-                            <th class="px-3 py-3 w-28">SKU (F)</th>
-                            <th class="px-4 py-3 min-w-[200px]">DESCRIPCIÓN (G)</th>
-                            <th class="px-3 py-3 w-36">INCIDENCIA (H)</th>
-                            <th class="px-3 py-3 w-24 text-center">CAJAS (J)</th>
-                            <th class="px-3 py-3 w-32 text-center">ESTADO AUDITORÍA (N)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-summary-body" class="divide-y divide-slate-100 text-slate-800"></tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-
-    <!-- Modal de Copiado -->
-    <div id="copy-modal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden">
-            <div class="bg-[#182237] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-700">
-                <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-[#C0D838] text-[#182237] flex items-center justify-center font-bold">
-                        <i data-lucide="copy-check" class="w-4 h-4"></i>
-                    </div>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-white">Copiar LPNs</h3>
-                </div>
-                <button id="btn-close-modal" class="text-slate-400 hover:text-white transition cursor-pointer">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-5 flex flex-col gap-4 text-xs">
-                <div>
-                    <span class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Viaje Seleccionado:</span>
-                    <div class="p-2.5 bg-[#F4F6F8] rounded-lg border border-slate-200 flex items-center justify-between flex-wrap gap-2">
-                        <span id="modal-trip-name" class="font-mono font-bold text-sm text-[#0070C0]"></span>
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span id="modal-trip-badge" class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded"></span>
-                            <span id="modal-trip-skus" class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded"></span>
-                            <span id="modal-trip-boxes" class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded font-mono"></span>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <span class="text-[11px] font-bold uppercase text-slate-500 block mb-1.5">Formato de Copiado:</span>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
-                            <input type="radio" name="modal-delimiter" value="all_repeated" checked class="mt-0.5 text-[#0070C0]">
-                            <div>
-                                <span class="font-bold text-slate-900 text-[11px] block">Todos los LPNs</span>
-                                <span class="text-[9px] text-slate-500 leading-tight block">1 fila por cada SKU</span>
-                            </div>
-                        </label>
-                        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
-                            <input type="radio" name="modal-delimiter" value="unique" class="mt-0.5 text-[#0070C0]">
-                            <div>
-                                <span class="font-bold text-slate-900 text-[11px] block">LPNs Únicos</span>
-                                <span class="text-[9px] text-slate-500 leading-tight block">1 línea por pallet</span>
-                            </div>
-                        </label>
-                        <label class="flex items-start gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition">
-                            <input type="radio" name="modal-delimiter" value="with_skus" class="mt-0.5 text-[#0070C0]">
-                            <div>
-                                <span class="font-bold text-slate-900 text-[11px] block">LPN + SKU + Cajas</span>
-                                <span class="text-[9px] text-slate-500 leading-tight block">Tabulado para Excel</span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[11px] font-bold uppercase text-slate-500">Vista Previa (<span id="modal-lpn-total" class="font-mono text-slate-800">0</span> líneas):</span>
-                    </div>
-                    <textarea id="modal-textarea" readonly rows="6" class="w-full text-xs font-mono p-3 bg-[#F4F6F8] border border-slate-300 rounded-lg text-slate-800 focus:outline-none resize-none leading-relaxed"></textarea>
-                </div>
-            </div>
-            <div class="px-5 py-3 bg-[#F4F6F8] border-t border-slate-200 flex justify-end gap-2">
-                <button id="btn-cancel-modal" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg transition cursor-pointer">Cerrar</button>
-                <button id="btn-do-copy" class="px-4 py-2 text-xs font-bold text-white bg-[#0070C0] hover:bg-blue-700 rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer">
-                    <i data-lucide="clipboard" class="w-3.5 h-3.5 text-[#C0D838]"></i>
-                    <span>Copiar al Portapapeles</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Incidencias -->
-    <div id="incidence-modal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
-            <div class="bg-[#182237] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-700">
-                <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold">
-                        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-                    </div>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-white" id="incidence-modal-title">Registrar Incidencia</h3>
-                </div>
-                <button id="btn-close-incidence-modal" class="text-slate-400 hover:text-white transition cursor-pointer">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-5 flex flex-col gap-4 text-xs">
-                <div class="p-3 bg-[#F4F6F8] rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <div class="flex items-center justify-between">
-                        <span class="font-mono text-[#0070C0] font-bold" id="inc-trip-label"></span>
-                        <span class="font-mono text-slate-800 font-bold" id="inc-lpn-label"></span>
-                    </div>
-                    <div class="flex items-center justify-between border-t border-slate-200 pt-1">
-                        <span class="font-mono text-purple-700 font-bold text-sm" id="inc-sku-label"></span>
-                        <span class="font-mono text-amber-600 font-bold" id="inc-boxes-label"></span>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Tipo de Incidencia:</label>
-                    <select id="inc-type-select" class="w-full text-xs p-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none">
-                        <option value="Faltante">Faltante de Cajas</option>
-                        <option value="Sobrante">Sobrante de Cajas</option>
-                        <option value="Empaque dañado">Empaque Dañado / Roto</option>
-                        <option value="Código ilegible">Código de Barras Ilegible</option>
-                        <option value="Lote trocado">Lote Incorrecto</option>
-                        <option value="Otro">Otro / Discrepancia</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Cajas Afectadas:</label>
-                    <input type="number" id="inc-qty-input" min="1" value="1" class="w-24 px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold" />
-                </div>
-
-                <div>
-                    <label class="text-[11px] font-bold uppercase text-slate-500 block mb-1">Observaciones (Columna H):</label>
-                    <textarea id="inc-notes-input" rows="3" placeholder="Ej: Caja aplastada en estiba inferior..." class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg resize-none"></textarea>
-                </div>
-            </div>
-            <div class="px-5 py-3 bg-[#F4F6F8] border-t border-slate-200 flex justify-between gap-2">
-                <button id="btn-clear-incidence" class="px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer">Eliminar</button>
-                <div class="flex items-center gap-2">
-                    <button id="btn-cancel-incidence" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg transition cursor-pointer">Cancelar</button>
-                    <button id="btn-save-incidence" class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition flex items-center gap-1.5 shadow-xs cursor-pointer">
-                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                        <span>Guardar</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Productividad -->
-    <div id="productivity-modal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden">
-            <div class="bg-[#182237] text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-700">
-                <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-[#C0D838] text-[#182237] flex items-center justify-center font-bold">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-white">Métricas de Productividad</h3>
-                        <p class="text-[10px] text-slate-300">Desempeño operativo en vivo</p>
-                    </div>
-                </div>
-                <button id="btn-close-productivity-modal" class="text-slate-400 hover:text-white transition cursor-pointer">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-5 flex flex-col gap-4 text-xs">
-                <div class="p-3 bg-[#F4F6F8] rounded-xl border border-slate-200 flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Auditor en Turno:</span>
-                        <span id="prod-auditor-name" class="text-base font-bold text-[#182237] font-mono">MARTIN</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="text-[10px] font-bold text-slate-500 uppercase block">Turno:</span>
-                        <span id="prod-shift-badge" class="bg-[#182237] text-[#C0D838] px-2 py-0.5 rounded font-bold font-mono text-xs">1° TURNO</span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                            <i data-lucide="timer" class="w-4 h-4 text-[#0070C0]"></i>
-                            <span class="text-[11px] font-bold uppercase">Tiempo Activo</span>
-                        </div>
-                        <span id="prod-time-elapsed" class="text-xl font-bold text-[#182237] font-mono">00:00:00</span>
-                    </div>
-                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                            <i data-lucide="package" class="w-4 h-4 text-amber-600"></i>
-                            <span class="text-[11px] font-bold uppercase">Ritmo de Auditoría</span>
-                        </div>
-                        <span id="prod-rate" class="text-xl font-bold text-amber-600 font-mono">0 CJ/h</span>
-                    </div>
-                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                            <i data-lucide="layers" class="w-4 h-4 text-emerald-600"></i>
-                            <span class="text-[11px] font-bold uppercase">Pallets Auditados</span>
-                        </div>
-                        <span id="prod-pallets" class="text-xl font-bold text-emerald-600 font-mono">0</span>
-                    </div>
-                    <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-xs">
-                        <div class="flex items-center gap-1.5 text-slate-500 mb-1">
-                            <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600"></i>
-                            <span class="text-[11px] font-bold uppercase">Incidencias</span>
-                        </div>
-                        <span id="prod-incidences" class="text-xl font-bold text-rose-600 font-mono">0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="px-5 py-3 bg-[#F4F6F8] border-t border-slate-200 flex justify-end gap-2">
-                <button id="btn-cancel-productivity" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg transition cursor-pointer">Cerrar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-3 mt-auto text-xs text-slate-500">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-                <span class="font-bold text-[#182237]">TRAXIÓN</span>
-                <span>•</span>
-                <span>Vida en Movimiento</span>
-                <span>•</span>
-                <span>Dirección de Operaciones & Sistemas</span>
-            </div>
-            <p class="text-[11px]">Procedimiento: <strong>TSE-09-SIGEO-PR</strong> (Confidencial - Uso Interno)</p>
-        </div>
-    </footer>
-
-    <!-- Lógica JS Completa -->
-    <script>
-        function refreshIcons() {
-            if (window.lucide) window.lucide.createIcons();
+        // Si la firma guardada es idéntica a la actual, SE IGNORA (Anti-duplicado minuto a minuto)
+        if (firmaGuardada === firmaActual) {
+          continue;
         }
 
-        // Estructuras principales
-        let groupedTrips = new Map();
-        let sheetAuditStatusMap = new Map();
-        let expandedTrips = new Set();
-        let expandedLpns = new Set();
-        let currentFilter = "";
-        let currentStatusFilter = "all";
-        let isSyncing = false;
+        const mensajeAlerta = `¡Buenas tardes equipo de Auditoría! 🔍✨\n` +
+                              `les notifico que hay producto disponible para auditar:\n\n` +
+                              `📦 *ALERTA DE AUDITORÍA - ABARROTERA DEL DUERO*\n` +
+                              `• 🏢 *Cliente:* ABARROTERA DEL DUERO\n` +
+                              `• 🚛 *Viaje / Shipment:* ${viaje}\n` +
+                              `• 📦 *Cajas Armadas:* ${cajasArmadas}\n` +
+                              `• 🏷️ *Tarimas (LPNs):* ${lpns} pallets\n\n` +
+                              `⚠️ _Favor de coordinar la validación de estas tarimas en piso._\n` +
+                              `¡Seguimos sumando esfuerzos juntos! 💪✨`;
 
-        // Auditor y Turno
-        const inputAuditorName = document.getElementById('input-auditor-name');
-        const currentShiftBadge = document.getElementById('current-shift-badge');
-        const savedAuditor = localStorage.getItem('traxion_auditor_name') || 'MARTIN';
-        if (inputAuditorName) {
-            inputAuditorName.value = savedAuditor;
-            inputAuditorName.addEventListener('input', () => {
-                localStorage.setItem('traxion_auditor_name', inputAuditorName.value.trim().toUpperCase());
-            });
+        enviarMensajeWhatsApp(JID_AUDITORIA, mensajeAlerta);
+        
+        // Almacena la nueva firma inmediatamente para congelar duplicados en las siguientes ejecuciones
+        props.setProperty(claveFirma, firmaActual);
+        alertasEnviadas++;
+      }
+    }
+
+    if (alertasEnviadas > 0) {
+      registrarEnvio("AUDITORIA_DUERO", `Notificados ${alertasEnviadas} viaje(s)`);
+    }
+
+  } catch (error) {
+    Logger.log("Error en notificarPalletsAbarroteraAuditoria: " + error.toString());
+  }
+}
+
+function obtenerReporteAuditados(remoteJid) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_HOJA_AUDITORIA_PICKING);
+    const hoja = ss.getSheetByName(PESTANA_RESUMEN_AUDITORIA);
+
+    if (!hoja) {
+      return "⚠️ *GEMA Error:* No se encontró la pestaña de resumen de auditoría.";
+    }
+
+    const datos = hoja.getDataRange().getValues();
+    const saludo = obtenerSaludoSegunHora();
+    const esGrupoAuditoria = (remoteJid === JID_AUDITORIA);
+
+    let viajesAuditados = 0;
+    let totalTarimas = 0;
+    let detalleViajes = [];
+
+    for (let i = 1; i < datos.length; i++) {
+      const viaje = String(datos[i][0] || "").trim();
+      const cajasAuditadas = datos[i][2] || "0";
+      const estatus = String(datos[i][3] || "").trim().toUpperCase();
+      const lpns = parseInt(datos[i][5], 10) || 0;
+      const cliente = String(datos[i][6] || "").trim().toUpperCase();
+
+      if (!viaje) continue;
+
+      if (estatus.includes("AUDITADO")) {
+        // En el grupo de auditoría se reporta únicamente Abarrotera del Duero
+        if (esGrupoAuditoria && !cliente.includes("ABARROTERA DEL DUERO")) {
+          continue;
         }
 
-        // Productividad
-        let sessionStartTime = new Date();
-        let sessionSeconds = 0;
-        let auditedBoxesSession = 0;
-        let auditedPalletsSession = 0;
-        let incidencesCount = 0;
+        viajesAuditados++;
+        totalTarimas += lpns;
+        detalleViajes.push(`• *Viaje ${viaje}:* ${lpns} pallet(s) (${cajasAuditadas} cajas)`);
+      }
+    }
 
-        setInterval(() => {
-            sessionSeconds++;
-            const hours = Math.floor(sessionSeconds / 3600);
-            const minutes = Math.floor((sessionSeconds % 3600) / 60);
-            const seconds = sessionSeconds % 60;
-            const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            const timeEl = document.getElementById('prod-time-elapsed');
-            if (timeEl) timeEl.textContent = formatted;
+    if (viajesAuditados === 0) {
+      if (esGrupoAuditoria) {
+        return `ℹ️ *${saludo} EQUIPO DE AUDITORÍA*\n\nActualmente no se tienen viajes concluidos para *ABARROTERA DEL DUERO*.`;
+      } else {
+        return `ℹ️ *${saludo}*\n\nActualmente no se registran viajes con estatus AUDITADO en el sistema.`;
+      }
+    }
 
-            const hoursElapsed = Math.max(sessionSeconds / 3600, 1 / 60);
-            const rateEl = document.getElementById('prod-rate');
-            if (rateEl) rateEl.textContent = `${Math.round(auditedBoxesSession / hoursElapsed)} CJ/h`;
-        }, 1000);
+    let reporte = "";
 
-        // Apps Script Web App
-        const APPS_SCRIPT_EXEC_URL = "https://script.google.com/macros/s/AKfycbwplY5VhD9EThgPQpiACbhaE-QyPE-kVUqbrdXix7fgAhva9o6VUE63JN-xOjzfuHHV/exec";
+    if (esGrupoAuditoria) {
+      reporte = `¡${saludo} equipo de Auditoría! 🔍✨\n` +
+                `Reporte de viajes concluidos para *ABARROTERA DEL DUERO*:\n\n` +
+                `✅ *RESUMEN DE AUDITORÍA COMPLETADA*\n` +
+                `• 🚛 *Viajes Auditados:* ${viajesAuditados}\n` +
+                `• 🏷️ *Total de Tarimas (Pallets):* ${totalTarimas} pallets\n\n` +
+                `📋 *Detalle por Viaje:*\n` +
+                detalleViajes.join("\n") + `\n\n` +
+                `👍 _¡Excelente trabajo en equipo! Todo debidamente validado._ 💪✨`;
+    } else {
+      reporte = `¡${saludo} equipo! 🔍✨\n` +
+                `Reporte global de viajes concluidos en auditoría:\n\n` +
+                `📊 *RESUMEN GENERAL DE VIAJES AUDITADOS*\n` +
+                `• 🚛 *Total de Viajes:* ${viajesAuditados}\n` +
+                `• 🏷️ *Total de Tarimas (Pallets):* ${totalTarimas} pallets\n\n` +
+                `📋 *Detalle General:*\n` +
+                detalleViajes.join("\n") + `\n\n` +
+                `👍 _Reporte generado desde la Hoja de Control de Picking._ ✨`;
+    }
 
-        // Elementos DOM
-        const fileInput = document.getElementById('file-input');
-        const btnUploadFileHeader = document.getElementById('btn-upload-file-header');
-        const btnFetchSheet = document.getElementById('btn-fetch-sheet');
-        const btnCleanData = document.getElementById('btn-clean-data');
-        const btnSendDirectly = document.getElementById('btn-send-directly');
-        const btnExportXlsx = document.getElementById('btn-export-xlsx');
-        const processingIndicator = document.getElementById('processing-indicator');
-        const processingText = document.getElementById('processing-text');
-        const iconSyncRefresh = document.getElementById('icon-sync-refresh');
+    return reporte;
 
-        const filterInput = document.getElementById('filter-input');
-        const clearFilterBtn = document.getElementById('clear-filter-btn');
-        const filterStatusAll = document.getElementById('filter-status-all');
-        const filterStatusPending = document.getElementById('filter-status-pending');
-        const filterStatusAudited = document.getElementById('filter-status-audited');
-        const filterStatusIncidences = document.getElementById('filter-status-incidences');
+  } catch (error) {
+    Logger.log("Error en obtenerReporteAuditados: " + error.toString());
+    return "⚠️ *GEMA Error:* Ocurrió un problema al consultar los auditados: " + error.toString();
+  }
+}
 
-        const tabCards = document.getElementById('tab-cards');
-        const tabTable = document.getElementById('tab-table');
-        const cardsViewWrapper = document.getElementById('cards-view-wrapper');
-        const tableViewWrapper = document.getElementById('table-view-wrapper');
-        const tableSummaryBody = document.getElementById('table-summary-body');
-        const tableRowCountBadge = document.getElementById('table-row-count-badge');
+// =================================================================
+// --- MÓDULO DE MONITOREO DE DASHBOARD (EXACTO SEGÚN HOJA) ---
+// =================================================================
+function ejecutarMonitoreoDashboard(remoteJidRespuesta = null) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_HOJA_OPERACION);
+    const hoja = ss.getSheetByName("DASHBOARD");
 
-        // KPIs
-        const kpiTotalTrips = document.getElementById('kpi-total-trips');
-        const kpiTripsCompleted = document.getElementById('kpi-trips-completed');
-        const kpiTotalLpns = document.getElementById('kpi-total-lpns');
-        const kpiLpnsPct = document.getElementById('kpi-lpns-pct');
-        const kpiLpnsAudited = document.getElementById('kpi-lpns-audited');
-        const kpiLpnsTarget = document.getElementById('kpi-lpns-target');
-        const kpiTotalSkus = document.getElementById('kpi-total-skus');
-        const kpiSkusPct = document.getElementById('kpi-skus-pct');
-        const kpiSkusAudited = document.getElementById('kpi-skus-audited');
-        const kpiSkusPending = document.getElementById('kpi-skus-pending');
-        const kpiTotalBoxes = document.getElementById('kpi-total-boxes');
+    if (!hoja) {
+      const errorMsg = "⚠️ *GEMA:* No se encontró la pestaña 'DASHBOARD' en la hoja de control.";
+      if (remoteJidRespuesta) enviarMensajeWhatsApp(remoteJidRespuesta, errorMsg);
+      return errorMsg;
+    }
 
-        // Modales
-        const copyModal = document.getElementById('copy-modal');
-        const btnCloseModal = document.getElementById('btn-close-modal');
-        const btnCancelModal = document.getElementById('btn-cancel-modal');
-        const btnDoCopy = document.getElementById('btn-do-copy');
-        const modalTripName = document.getElementById('modal-trip-name');
-        const modalTripBadge = document.getElementById('modal-trip-badge');
-        const modalTripSkus = document.getElementById('modal-trip-skus');
-        const modalTripBoxes = document.getElementById('modal-trip-boxes');
-        const modalLpnTotal = document.getElementById('modal-lpn-total');
-        const modalTextarea = document.getElementById('modal-textarea');
+    const saludo = obtenerSaludoSegunHora();
 
-        const productivityModal = document.getElementById('productivity-modal');
-        const btnOpenProductivity = document.getElementById('btn-open-productivity');
-        const btnCloseProductivityModal = document.getElementById('btn-close-productivity-modal');
-        const btnCancelProductivity = document.getElementById('btn-cancel-productivity');
+    const cantCriticos = hoja.getRange("C5").getDisplayValue() || "0";
+    const cantRiesgo   = hoja.getRange("F5").getDisplayValue() || "0";
+    const cantEnTiempo = hoja.getRange("I5").getDisplayValue() || "0";
 
-        const incidenceModal = document.getElementById('incidence-modal');
-        const btnCloseIncidenceModal = document.getElementById('btn-close-incidence-modal');
-        const btnCancelIncidence = document.getElementById('btn-cancel-incidence');
-        const btnSaveIncidence = document.getElementById('btn-save-incidence');
-        const btnClearIncidence = document.getElementById('btn-clear-incidence');
-        let currentIncidenceTarget = null;
+    const datos = hoja.getDataRange().getValues();
 
-        function calculateShift(date = new Date()) {
-            const hours = date.getHours();
-            if (hours >= 6 && hours < 14) return "1° TURNO";
-            if (hours >= 14 && hours < 22) return "2° TURNO";
-            return "3° TURNO";
+    let listaClientes = [];
+    let listaExpos = [];
+    let foliosFaltantesTransporte = [];
+
+    function formatearPicking(val) {
+      let strVal = String(val || "").trim().toUpperCase();
+      if (!val || strVal.includes("SIN") || strVal === "0" || strVal === "0.0%" || strVal === "0%") {
+        return "Sin picking (Carga completa)";
+      }
+      if (typeof val === "number") {
+        return (val * 100).toFixed(0) + "%";
+      }
+      return String(val);
+    }
+
+    function formatearTareas(val) {
+      if (typeof val === "number") {
+        return (val * 100).toFixed(0) + "%";
+      }
+      return val ? String(val) : "0%";
+    }
+
+    for (let i = 9; i < datos.length; i++) {
+      let rawCliShip = String(datos[i][1] || "").trim();
+      if (rawCliShip) {
+        let matchCli = rawCliShip.match(/\d{7,10}/);
+        let shipCli = matchCli ? matchCli[0] : rawCliShip.replace(/[^\w\s]/gi, '').trim();
+
+        let cliente = String(datos[i][2] || "N/A").trim();
+        let limiteSalida = datos[i][3];
+        let limiteSalidaStr = (limiteSalida instanceof Date) ? SystemFormatDate(limiteSalida) : String(limiteSalida);
+        let tareasStr = formatearTareas(datos[i][4]);
+        let pickingStr = formatearPicking(datos[i][5]);
+        let tiempoRestante = String(datos[i][6] || "").trim();
+        let folio = String(datos[i][7] || "SIN FOLIO").trim();
+
+        let icono = "🟢";
+        if (rawCliShip.includes("🔴") || tiempoRestante.toLowerCase().includes("vencid")) icono = "🔴";
+        else if (rawCliShip.includes("🟠") || rawCliShip.includes("🟡") || tiempoRestante.toLowerCase().includes("proceso")) icono = "🟠";
+
+        if (icono === "🔴" || icono === "🟠" || folio.toUpperCase().includes("SIN FOLIO")) {
+          listaClientes.push({
+            icono: icono,
+            shipment: shipCli,
+            cliente: cliente,
+            limite: limiteSalidaStr,
+            resta: tiempoRestante,
+            tareas: tareasStr,
+            picking: pickingStr,
+            folio: folio
+          });
         }
 
-        function formatAuditDateTime(date = new Date()) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            let hours = date.getHours();
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
-            hours = hours % 12 || 12;
-            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} ${ampm}`;
+        if (folio.toUpperCase().includes("SIN FOLIO")) {
+          foliosFaltantesTransporte.push({ shipment: shipCli, cliente: cliente, limite: limiteSalidaStr, tipo: "Cliente" });
         }
+      }
 
-        function formatNumber(num) {
-            if (isNaN(num)) return "0";
-            return Number(num).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-        }
+      let rawExpoShip = String(datos[i][9] || "").trim();
+      if (rawExpoShip) {
+        let matchExpo = rawExpoShip.match(/\d{7,10}/);
+        let shipExpo = matchExpo ? matchExpo[0] : rawExpoShip.replace(/[^\w\s]/gi, '').trim();
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        }
+        let destino = String(datos[i][10] || "N/A").trim();
+        let limiteSalidaExpo = datos[i][11];
+        let limiteExpoStr = (limiteSalidaExpo instanceof Date) ? SystemFormatDate(limiteSalidaExpo) : String(limiteSalidaExpo);
+        let tiempoRestanteExpo = String(datos[i][14] || "").trim();
+        let folioExpo = String(datos[i][15] || "SIN FOLIO").trim();
 
-        function cleanTripNumber(rawTrip) {
-            if (!rawTrip) return null;
-            let str = String(rawTrip).trim();
-            if (!str.toUpperCase().includes('RECOLECCION PICK:')) return null;
-            if (str.toUpperCase().includes('REUBICACION')) return null;
-            str = str.replace(/^RECOLECCION\s*PICK\s*:\s*/i, '').replace(/^PICK\s*:\s*/i, '').trim();
-            const match = str.match(/(\d{7,14})/);
-            return match ? match[1] : (str || null);
-        }
+        let iconoExpo = "🟢";
+        if (rawExpoShip.includes("🔴") || tiempoRestanteExpo.toLowerCase().includes("vencid")) iconoExpo = "🔴";
+        else if (rawExpoShip.includes("🟠") || rawExpoShip.includes("🟡") || tiempoRestanteExpo.toLowerCase().includes("proceso")) iconoExpo = "🟠";
 
-        function parseQuantity(rawQty) {
-            if (rawQty === undefined || rawQty === null) return 0;
-            const str = String(rawQty).trim().replace(/,/g, '');
-            const parsed = parseFloat(str);
-            return isNaN(parsed) ? 0 : parsed;
-        }
-
-        function showNotification(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-            const toast = document.createElement('div');
-            let border = type === 'success' ? 'border-emerald-400' : (type === 'error' ? 'border-rose-500' : 'border-[#C0D838]');
-            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-lg shadow-xl text-xs font-semibold bg-[#182237] text-white border ${border} transition-all duration-200`;
-            toast.innerHTML = `<span>${message}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-        }
-
-        function updateKPIs() {
-            let totalTrips = groupedTrips.size;
-            let fullyAuditedTrips = 0;
-            let totalLpns = 0;
-            let fullyAuditedLpns = 0;
-            let totalSkus = 0;
-            let auditedSkus = 0;
-            let totalBoxes = 0;
-            incidencesCount = 0;
-
-            groupedTrips.forEach((group) => {
-                totalLpns += group.lpns.size;
-                let tripHasSkus = false;
-                let isTrip100Audited = true;
-
-                group.lpns.forEach((lpnData) => {
-                    let allSkusOfLpnAudited = lpnData.skus.size > 0;
-                    lpnData.skus.forEach((skuData) => {
-                        tripHasSkus = true;
-                        totalSkus++;
-                        totalBoxes += skuData.boxes;
-                        if (skuData.isAudited) {
-                            auditedSkus++;
-                        } else {
-                            allSkusOfLpnAudited = false;
-                            isTrip100Audited = false;
-                        }
-                        if (skuData.incidence) {
-                            incidencesCount++;
-                        }
-                    });
-                    if (allSkusOfLpnAudited) {
-                        fullyAuditedLpns++;
-                    }
-                });
-
-                if (tripHasSkus && isTrip100Audited) {
-                    fullyAuditedTrips++;
-                }
-            });
-
-            kpiTotalTrips.textContent = totalTrips.toLocaleString();
-            kpiTripsCompleted.textContent = fullyAuditedTrips;
-            
-            kpiTotalLpns.textContent = totalLpns.toLocaleString();
-            const lpnPct = totalLpns > 0 ? Math.round((fullyAuditedLpns / totalLpns) * 100) : 0;
-            kpiLpnsPct.textContent = `${lpnPct}%`;
-            kpiLpnsAudited.textContent = fullyAuditedLpns;
-            kpiLpnsTarget.textContent = totalLpns;
-
-            kpiTotalSkus.textContent = totalSkus.toLocaleString();
-            const skuPct = totalSkus > 0 ? Math.round((auditedSkus / totalSkus) * 100) : 0;
-            kpiSkusPct.textContent = `${skuPct}%`;
-            kpiSkusAudited.textContent = auditedSkus;
-            kpiSkusPending.textContent = Math.max(0, totalSkus - auditedSkus);
-
-            kpiTotalBoxes.textContent = formatNumber(totalBoxes);
-
-            const prodPalletsEl = document.getElementById('prod-pallets');
-            if (prodPalletsEl) prodPalletsEl.textContent = fullyAuditedLpns;
-            const prodIncEl = document.getElementById('prod-incidences');
-            if (prodIncEl) prodIncEl.textContent = incidencesCount;
-
-            refreshIcons();
-        }
-
-        function toggleTrip(tripCode) {
-            if (expandedTrips.has(tripCode)) {
-                expandedTrips.delete(tripCode);
-            } else {
-                expandedTrips.add(tripCode);
-            }
-            renderCardsView();
-        }
-
-        function toggleLpn(tripCode, lpn) {
-            const key = `${tripCode}_${lpn}`;
-            if (expandedLpns.has(key)) {
-                expandedLpns.delete(key);
-            } else {
-                expandedLpns.add(key);
-            }
-            renderCardsView();
-        }
-
-        function renderAllViews() {
-            renderCardsView();
-            renderTableView();
-            refreshIcons();
-        }
-
-        function renderCardsView() {
-            cardsViewWrapper.innerHTML = '';
-            const query = currentFilter.trim().toLowerCase();
-
-            groupedTrips.forEach((group, tripCode) => {
-                const lpnsArray = [];
-                group.lpns.forEach((lpnData, lpn) => {
-                    lpnsArray.push({
-                        lpn: lpn,
-                        skus: lpnData.skus,
-                        totalBoxes: lpnData.totalBoxes
-                    });
-                });
-
-                const tripMatch = tripCode.toLowerCase().includes(query);
-                let filteredLpns = [];
-
-                lpnsArray.forEach(item => {
-                    const lpnMatch = item.lpn.toLowerCase().includes(query);
-                    let matchingSkus = new Map();
-
-                    item.skus.forEach((sData, sku) => {
-                        const isAudited = sData.isAudited === true;
-                        const hasIncidence = Boolean(sData.incidence);
-
-                        if (currentStatusFilter === "audited" && !isAudited) return;
-                        if (currentStatusFilter === "pending" && isAudited) return;
-                        if (currentStatusFilter === "incidences" && !hasIncidence) return;
-
-                        const textMatch = !query || tripMatch || lpnMatch ||
-                            sku.toLowerCase().includes(query) ||
-                            (sData.desc && sData.desc.toLowerCase().includes(query)) ||
-                            (sData.incidence && sData.incidence.toLowerCase().includes(query));
-
-                        if (textMatch) {
-                            matchingSkus.set(sku, sData);
-                        }
-                    });
-
-                    if (matchingSkus.size > 0) {
-                        filteredLpns.push({
-                            lpn: item.lpn,
-                            skus: matchingSkus,
-                            totalBoxes: item.totalBoxes
-                        });
-                    }
-                });
-
-                if (filteredLpns.length === 0) return;
-
-                let tripTotalPallets = group.lpns.size;
-                let tripAuditedLpnsCount = 0;
-                let tripBoxes = 0;
-                let tripSkus = 0;
-
-                group.lpns.forEach((lData) => {
-                    let allAudited = lData.skus.size > 0;
-                    lData.skus.forEach(s => {
-                        tripBoxes += s.boxes;
-                        tripSkus++;
-                        if (!s.isAudited) allAudited = false;
-                    });
-                    if (allAudited) tripAuditedLpnsCount++;
-                });
-
-                const palletAuditPercent = tripTotalPallets > 0 ? Math.round((tripAuditedLpnsCount / tripTotalPallets) * 100) : 0;
-                const isTripExpanded = expandedTrips.has(tripCode);
-                const isTrip100Audited = tripTotalPallets > 0 && tripAuditedLpnsCount === tripTotalPallets;
-
-                const card = document.createElement('div');
-                card.className = `w-full bg-white border rounded-xl transition overflow-hidden shadow-xs ${
-                    isTrip100Audited ? 'border-emerald-300' : 'border-slate-200/80 hover:border-slate-300'
-                }`;
-
-                card.innerHTML = `
-                    <div class="w-full px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
-                        isTripExpanded ? 'bg-slate-50/70 border-b border-slate-200/70' : 'hover:bg-slate-50/50'
-                    }">
-                        <div class="flex flex-wrap items-center gap-3 sm:gap-4 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <div class="w-5 h-5 flex items-center justify-center text-slate-400 transition-transform ${isTripExpanded ? 'rotate-90 text-slate-700' : ''}">
-                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                                </div>
-                                <div class="flex items-center gap-1.5">
-                                    <i data-lucide="truck" class="w-4 h-4 text-slate-400"></i>
-                                    <span class="text-xs font-medium text-slate-400 uppercase">VIAJE</span>
-                                    <span class="font-mono font-bold text-sm sm:text-base text-slate-900 tabular-nums">${escapeHtml(group.tripClean)}</span>
-                                </div>
-                            </div>
-                            <div class="hidden sm:block h-4 w-px bg-slate-200"></div>
-                            <div class="flex items-center gap-2.5 text-xs text-slate-500">
-                                <span><strong class="font-mono font-semibold text-slate-800 tabular-nums">${tripTotalPallets}</strong> Pallets</span>
-                                <span>·</span>
-                                <span><strong class="font-mono font-semibold text-slate-800 tabular-nums">${tripSkus}</strong> SKUs</span>
-                                <span>·</span>
-                                <span><strong class="font-mono font-semibold text-slate-800 tabular-nums">${formatNumber(tripBoxes)}</strong> Cajas</span>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-3 sm:min-w-[200px] justify-end">
-                            <div class="flex-1 sm:max-w-[160px] flex flex-col gap-1">
-                                <div class="flex items-center justify-between text-[11px] leading-none">
-                                    <span class="text-slate-500">
-                                        <strong class="font-mono font-semibold text-slate-700 tabular-nums">${tripAuditedLpnsCount}/${tripTotalPallets}</strong> auditados
-                                    </span>
-                                    <span class="font-mono font-bold tabular-nums ${isTrip100Audited ? 'text-emerald-600' : (palletAuditPercent > 0 ? 'text-[#0070C0]' : 'text-slate-400')}">
-                                        ${palletAuditPercent}%
-                                    </span>
-                                </div>
-                                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-300 ${isTrip100Audited ? 'bg-emerald-500' : (palletAuditPercent > 0 ? 'bg-[#0070C0]' : 'bg-transparent')}"
-                                        style="width: ${palletAuditPercent}%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${isTripExpanded ? `
-                        <div class="w-full p-3 sm:p-4 flex flex-col gap-2.5 bg-slate-50/40">
-                            ${filteredLpns.map(item => {
-                                const lpnKey = `${tripCode}_${item.lpn}`;
-                                const isLpnExpanded = expandedLpns.has(lpnKey);
-                                let lpnAuditedCount = 0;
-                                let lpnIncidenceCount = 0;
-                                item.skus.forEach(s => {
-                                    if (s.isAudited) lpnAuditedCount++;
-                                    if (s.incidence) lpnIncidenceCount++;
-                                });
-                                const isLpnFullyAudited = lpnAuditedCount === item.skus.size && item.skus.size > 0;
-
-                                return `
-                                    <div class="w-full rounded-lg border transition-colors shadow-2xs ${
-                                        isLpnFullyAudited ? 'bg-emerald-50/40 border-emerald-300' : 'bg-white border-slate-200/80 hover:border-slate-300'
-                                    }">
-                                        <div class="lpn-header-bar w-full px-3.5 py-2.5 flex items-center justify-between gap-3 cursor-pointer select-none"
-                                            data-trip="${escapeHtml(tripCode)}" data-lpn="${escapeHtml(item.lpn)}">
-                                            <div class="flex items-center gap-3 min-w-0 flex-wrap">
-                                                <i data-lucide="${isLpnExpanded ? 'chevron-down' : 'chevron-right'}" class="w-4 h-4 text-slate-400"></i>
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="text-[11px] font-medium text-slate-400 uppercase">LPN</span>
-                                                    <span class="font-mono font-semibold text-xs sm:text-sm text-slate-900 tabular-nums">${escapeHtml(item.lpn)}</span>
-                                                    <button type="button" class="btn-copy-single-lpn p-1 text-slate-400 hover:text-slate-700 transition cursor-pointer" data-lpn="${escapeHtml(item.lpn)}" title="Copiar LPN">
-                                                        <i data-lucide="copy" class="w-3 h-3"></i>
-                                                    </button>
-                                                </div>
-                                                <span class="text-slate-300">·</span>
-                                                <div class="flex items-center gap-2 text-xs text-slate-500">
-                                                    <span><strong class="font-mono font-semibold text-slate-700 tabular-nums">${item.skus.size}</strong> SKUs</span>
-                                                    <span>·</span>
-                                                    <span><strong class="font-mono font-semibold text-slate-700 tabular-nums">${formatNumber(item.totalBoxes)}</strong> Cajas</span>
-                                                </div>
-                                                ${lpnIncidenceCount > 0 ? `
-                                                    <span class="inline-flex items-center gap-1 text-[11px] font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                                                        <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i>
-                                                        <span>${lpnIncidenceCount}</span>
-                                                    </span>
-                                                ` : ''}
-                                            </div>
-                                            <div class="flex items-center gap-2.5 shrink-0">
-                                                <span class="text-[11px] font-mono text-slate-400 tabular-nums hidden sm:inline">${lpnAuditedCount}/${item.skus.size}</span>
-                                                ${isLpnFullyAudited ? `
-                                                    <span class="inline-flex items-center gap-1 text-[11px] bg-emerald-600 text-white font-semibold px-2 py-0.5 rounded">
-                                                        <i data-lucide="check-circle-2" class="w-3 h-3"></i>
-                                                        <span>Auditado</span>
-                                                    </span>
-                                                ` : (lpnAuditedCount > 0 ? `
-                                                    <span class="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 font-medium px-2 py-0.5 rounded">En progreso</span>
-                                                ` : `
-                                                    <span class="text-[11px] bg-slate-100 text-slate-500 font-medium px-2 py-0.5 rounded">Pendiente</span>
-                                                `)}
-                                            </div>
-                                        </div>
-
-                                        ${isLpnExpanded ? `
-                                            <div class="w-full p-3 border-t border-slate-100 bg-white rounded-b-lg">
-                                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                                                    ${Array.from(item.skus.entries()).map(([skuKey, skuData]) => {
-                                                        const isAudited = skuData.isAudited === true;
-                                                        const hasInc = Boolean(skuData.incidence);
-                                                        return `
-                                                            <div class="flex flex-col justify-between p-3 rounded-lg border transition-all ${
-                                                                isAudited ? 'bg-emerald-50/60 border-emerald-300' : (hasInc ? 'bg-rose-50/50 border-rose-200' : 'bg-slate-50/60 border-slate-200/80')
-                                                            }">
-                                                                <div>
-                                                                    <div class="flex items-center justify-between gap-2 mb-1">
-                                                                        <span class="font-mono font-bold text-xs sm:text-sm tabular-nums ${isAudited ? 'text-emerald-900' : 'text-slate-900'}">${escapeHtml(skuKey)}</span>
-                                                                        <span class="font-mono font-semibold text-xs text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200/80 tabular-nums">
-                                                                            ${formatNumber(skuData.boxes)} CJ
-                                                                        </span>
-                                                                    </div>
-                                                                    <p class="text-xs text-slate-600 line-clamp-2 mb-2.5" title="${escapeHtml(skuData.desc)}">
-                                                                        ${escapeHtml(skuData.desc || 'Sin descripción')}
-                                                                    </p>
-                                                                    ${skuData.incidence ? `
-                                                                        <div class="mb-2 px-2 py-1 rounded bg-rose-100/80 text-rose-800 text-[11px] font-medium flex items-center gap-1.5">
-                                                                            <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600 shrink-0"></i>
-                                                                            <span class="truncate">${escapeHtml(skuData.incidence)}</span>
-                                                                        </div>
-                                                                    ` : ''}
-                                                                </div>
-                                                                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/50">
-                                                                    <button type="button" class="btn-open-inc px-2 py-1 rounded text-[11px] font-medium transition flex items-center gap-1 cursor-pointer ${
-                                                                        hasInc ? 'bg-rose-100 text-rose-800' : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
-                                                                    }" data-trip="${escapeHtml(tripCode)}" data-lpn="${escapeHtml(item.lpn)}" data-sku="${escapeHtml(skuKey)}">
-                                                                        <i data-lucide="alert-triangle" class="w-3 h-3"></i>
-                                                                        <span>${hasInc ? 'Editar inc.' : 'Incidencia'}</span>
-                                                                    </button>
-                                                                    <button type="button" class="btn-toggle-sku px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
-                                                                        isAudited ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                                                                    }" data-trip="${escapeHtml(tripCode)}" data-lpn="${escapeHtml(item.lpn)}" data-sku="${escapeHtml(skuKey)}">
-                                                                        ${isAudited ? '<i data-lucide="check" class="w-3 h-3"></i><span>Auditado</span>' : '<span>Validar</span>'}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        `;
-                                                    }).join('')}
-                                                </div>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    ` : ''}
-                `;
-
-                const tripHeader = card.querySelector('.w-full.px-4');
-                if (tripHeader) {
-                    tripHeader.addEventListener('click', () => toggleTrip(tripCode));
-                }
-
-                card.querySelectorAll('.lpn-header-bar').forEach(headerBar => {
-                    headerBar.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const t = headerBar.getAttribute('data-trip');
-                        const l = headerBar.getAttribute('data-lpn');
-                        toggleLpn(t, l);
-                    });
-                });
-
-                card.querySelectorAll('.btn-copy-single-lpn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const val = btn.getAttribute('data-lpn');
-                        navigator.clipboard.writeText(val);
-                        showNotification(`LPN ${val} copiado al portapapeles`, 'success');
-                    });
-                });
-
-                card.querySelectorAll('.btn-toggle-sku').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const t = btn.getAttribute('data-trip');
-                        const l = btn.getAttribute('data-lpn');
-                        const s = btn.getAttribute('data-sku');
-                        toggleSkuStatus(t, l, s);
-                    });
-                });
-
-                card.querySelectorAll('.btn-open-inc').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const t = btn.getAttribute('data-trip');
-                        const l = btn.getAttribute('data-lpn');
-                        const s = btn.getAttribute('data-sku');
-                        openIncidenceModal(t, l, s);
-                    });
-                });
-
-                cardsViewWrapper.appendChild(card);
-            });
-
-            if (cardsViewWrapper.children.length === 0) {
-                cardsViewWrapper.innerHTML = `
-                    <div class="w-full bg-white border border-slate-200/80 rounded-xl p-10 text-center text-slate-500 shadow-xs">
-                        <i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-300 mb-2"></i>
-                        <p class="text-sm font-semibold text-slate-800">No se encontraron viajes</p>
-                        <p class="text-xs text-slate-400 mt-1">Intenta cambiar el filtro o sincronizar nuevamente.</p>
-                    </div>
-                `;
-            }
-            refreshIcons();
-        }
-
-        function renderTableView() {
-            tableSummaryBody.innerHTML = '';
-            let index = 1;
-            const query = currentFilter.trim().toLowerCase();
-            const now = new Date();
-            const shift = calculateShift(now);
-            const dateStr = formatAuditDateTime(now);
-            const auditorName = inputAuditorName ? (inputAuditorName.value.trim().toUpperCase() || "MARTIN") : "MARTIN";
-            let totalDisplayedRows = 0;
-
-            groupedTrips.forEach((group) => {
-                group.lpns.forEach((lpnData, lpn) => {
-                    lpnData.skus.forEach((skuData, sku) => {
-                        const isAudited = skuData.isAudited === true;
-                        const hasIncidence = Boolean(skuData.incidence);
-
-                        if (currentStatusFilter === "audited" && !isAudited) return;
-                        if (currentStatusFilter === "pending" && isAudited) return;
-                        if (currentStatusFilter === "incidences" && !hasIncidence) return;
-
-                        const rowMatch = !query || 
-                            group.tripClean.toLowerCase().includes(query) ||
-                            lpn.toLowerCase().includes(query) ||
-                            sku.toLowerCase().includes(query) ||
-                            (skuData.desc && skuData.desc.toLowerCase().includes(query)) ||
-                            (skuData.incidence && skuData.incidence.toLowerCase().includes(query));
-
-                        if (!rowMatch) return;
-
-                        totalDisplayedRows++;
-                        const tr = document.createElement('tr');
-                        tr.className = `transition-colors border-b ${
-                            isAudited ? 'bg-emerald-50/80 hover:bg-emerald-100/70 border-emerald-200 text-emerald-950 font-medium' : 'hover:bg-slate-50 border-slate-100 text-slate-800'
-                        }`;
-                        tr.innerHTML = `
-                            <td class="px-3 py-2.5 text-center text-slate-400 font-mono text-[11px]">${index++}</td>
-                            <td class="px-3 py-2.5 text-slate-600 text-[11px] whitespace-nowrap">${escapeHtml(shift)}</td>
-                            <td class="px-3 py-2.5 font-bold text-[11px] text-slate-900 whitespace-nowrap">${escapeHtml(auditorName)}</td>
-                            <td class="px-3 py-2.5 text-slate-500 text-[10px] whitespace-nowrap font-mono">${escapeHtml(dateStr)}</td>
-                            <td class="px-3 py-2.5 font-mono font-bold text-xs text-[#0070C0] whitespace-nowrap">${escapeHtml(group.tripClean)}</td>
-                            <td class="px-3 py-2.5 font-mono font-bold text-xs ${isAudited ? 'text-emerald-900 bg-emerald-100/50' : 'text-[#182237]'} whitespace-nowrap">${escapeHtml(lpn)}</td>
-                            <td class="px-3 py-2.5 font-mono font-bold text-xs ${isAudited ? 'text-emerald-900' : 'text-purple-700'} whitespace-nowrap">${escapeHtml(sku)}</td>
-                            <td class="px-4 py-2.5 text-xs truncate max-w-xs" title="${escapeHtml(skuData.desc)}">${escapeHtml(skuData.desc || 'Sin descripción')}</td>
-                            <td class="px-3 py-2.5">
-                                ${skuData.incidence ? `
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300" title="${escapeHtml(skuData.incidence)}">
-                                        <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i>
-                                        <span class="truncate max-w-[120px]">${escapeHtml(skuData.incidence)}</span>
-                                    </span>
-                                ` : '<span class="text-slate-400 text-[10px]">-</span>'}
-                            </td>
-                            <td class="px-3 py-2.5 text-center font-bold font-mono text-xs text-amber-600">${formatNumber(skuData.boxes)}</td>
-                            <td class="px-3 py-2.5 text-center">
-                                <button class="btn-toggle-sku inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded transition shadow-2xs cursor-pointer ${
-                                    isAudited ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
-                                }" data-trip="${escapeHtml(group.tripClean)}" data-lpn="${escapeHtml(lpn)}" data-sku="${escapeHtml(sku)}">
-                                    ${isAudited ? '<i data-lucide="check" class="w-3 h-3"></i><span>AUDITADO</span>' : '<span>PENDIENTE</span>'}
-                                </button>
-                            </td>
-                        `;
-                        tableSummaryBody.appendChild(tr);
-                    });
-                });
-            });
-
-            if (tableRowCountBadge) {
-                tableRowCountBadge.textContent = `${totalDisplayedRows} filas mostradas`;
-            }
-
-            tableSummaryBody.querySelectorAll('.btn-toggle-sku').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const t = btn.getAttribute('data-trip');
-                    const l = btn.getAttribute('data-lpn');
-                    const s = btn.getAttribute('data-sku');
-                    toggleSkuStatus(t, l, s);
-                });
-            });
-        }
-
-        function toggleSkuStatus(tripCode, lpn, skuKey) {
-            const group = groupedTrips.get(tripCode);
-            if (!group) return;
-            const lpnData = group.lpns.get(lpn);
-            if (!lpnData) return;
-            const sku = lpnData.skus.get(skuKey);
-            if (!sku) return;
-
-            sku.isAudited = !sku.isAudited;
-            sku.status = sku.isAudited ? 'AUDITADO' : 'PENDIENTE';
-
-            if (sku.isAudited) {
-                auditedBoxesSession += sku.boxes;
-            } else {
-                auditedBoxesSession = Math.max(0, auditedBoxesSession - sku.boxes);
-            }
-
-            sheetAuditStatusMap.set(`${tripCode}_${lpn}_${skuKey}`, { isAudited: sku.isAudited, status: sku.status });
-            sheetAuditStatusMap.set(`${lpn}_${skuKey}`, { isAudited: sku.isAudited, status: sku.status });
-
-            updateKPIs();
-            renderAllViews();
-        }
-
-        function openIncidenceModal(trip, lpn, skuKey) {
-            currentIncidenceTarget = { trip, lpn, skuKey };
-            const group = groupedTrips.get(trip);
-            const lpnData = group?.lpns.get(lpn);
-            const skuData = lpnData?.skus.get(skuKey);
-
-            document.getElementById('inc-trip-label').textContent = `VIAJE: ${trip}`;
-            document.getElementById('inc-lpn-label').textContent = `LPN: ${lpn}`;
-            document.getElementById('inc-sku-label').textContent = skuKey;
-            document.getElementById('inc-boxes-label').textContent = `${skuData ? skuData.boxes : 0} Cajas`;
-            document.getElementById('inc-notes-input').value = skuData?.incidence || '';
-
-            incidenceModal.classList.remove('hidden');
-            refreshIcons();
-        }
-
-        btnSaveIncidence.addEventListener('click', () => {
-            if (!currentIncidenceTarget) return;
-            const { trip, lpn, skuKey } = currentIncidenceTarget;
-            const group = groupedTrips.get(trip);
-            const lpnData = group?.lpns.get(lpn);
-            const skuData = lpnData?.skus.get(skuKey);
-            if (!skuData) return;
-
-            const type = document.getElementById('inc-type-select').value;
-            const qty = document.getElementById('inc-qty-input').value;
-            const notes = document.getElementById('inc-notes-input').value.trim();
-
-            skuData.incidence = `${type}: ${qty} CJ${notes ? ' - ' + notes : ''}`;
-            incidenceModal.classList.add('hidden');
-            updateKPIs();
-            renderAllViews();
-            showNotification(`Incidencia guardada para SKU ${skuKey}`, 'info');
+        listaExpos.push({
+          icono: iconoExpo,
+          shipment: shipExpo,
+          destino: destino,
+          limite: limiteExpoStr,
+          resta: tiempoRestanteExpo,
+          folio: folioExpo
         });
 
-        btnClearIncidence.addEventListener('click', () => {
-            if (!currentIncidenceTarget) return;
-            const { trip, lpn, skuKey } = currentIncidenceTarget;
-            const group = groupedTrips.get(trip);
-            const lpnData = group?.lpns.get(lpn);
-            const skuData = lpnData?.skus.get(skuKey);
-            if (skuData) skuData.incidence = '';
-            incidenceModal.classList.add('hidden');
-            updateKPIs();
-            renderAllViews();
-            showNotification(`Incidencia removida de SKU ${skuKey}`, 'info');
-        });
+        if (folioExpo.toUpperCase().includes("SIN FOLIO")) {
+          foliosFaltantesTransporte.push({ shipment: shipExpo, cliente: destino, limite: limiteExpoStr, tipo: "Expo/Intra" });
+        }
+      }
+    }
 
-        [btnCloseIncidenceModal, btnCancelIncidence].forEach(b => {
-            b.addEventListener('click', () => incidenceModal.classList.add('hidden'));
-        });
+    let reporte = `¡${saludo} equipo! 🚚✨\n` +
+                  `Soy *GEMA* y les comparto el monitoreo preventivo del *Dashboard de Embarques*:\n\n` +
+                  `📊 *Resumen General:*\n` +
+                  `• 🔴 *Críticos:* ${cantCriticos}\n` +
+                  `• 🟡 *En Riesgo:* ${cantRiesgo}\n` +
+                  `• 🟢 *En Tiempo:* ${cantEnTiempo}\n\n`;
 
-        function setStatusFilter(filter) {
-            currentStatusFilter = filter;
-            [filterStatusAll, filterStatusPending, filterStatusAudited, filterStatusIncidences].forEach(btn => {
-                btn.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition";
-            });
-            if (filter === "all") {
-                filterStatusAll.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold cursor-pointer transition";
-            } else if (filter === "pending") {
-                filterStatusPending.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold cursor-pointer transition";
-            } else if (filter === "audited") {
-                filterStatusAudited.className = "px-2.5 py-1 rounded-md bg-white text-emerald-700 shadow-xs font-semibold cursor-pointer transition";
-            } else {
-                filterStatusIncidences.className = "px-2.5 py-1 rounded-md bg-white text-rose-700 shadow-xs font-semibold cursor-pointer transition";
-            }
-            renderAllViews();
+    if (listaClientes.length > 0) {
+      reporte += `👤 *Embarques a Cliente (Prioridades / Atención):*\n`;
+      listaClientes.forEach((c) => {
+        reporte += `• ${c.icono} *${c.shipment}* | ${c.cliente}\n` +
+                   `   ⏱️ Límite: ${c.limite} ${c.resta ? "(" + c.resta + ")" : ""}\n` +
+                   `   📦 Tareas: ${c.tareas} | Picking: ${c.picking}\n` +
+                   `   📄 Folio: *${c.folio}*\n\n`;
+      });
+    }
+
+    if (listaExpos.length > 0) {
+      reporte += `👥 *Expos / Intras:*\n`;
+      listaExpos.forEach((e) => {
+        reporte += `• ${e.icono} *${e.shipment}* | Destino: ${e.destino}\n` +
+                   `   ⏱️ Límite: ${e.limite} | Estado: *${e.resta || "N/A"}* | Folio: ${e.folio}\n\n`;
+      });
+    }
+
+    reporte += `⚠️ _Les encargamos mucho su valioso apoyo para revisar y priorizar estas unidades en rampa y piso._\n\n` +
+               `¡Seguimos sumando esfuerzos juntos! 💪✨`;
+
+    if (remoteJidRespuesta) {
+      enviarMensajeWhatsApp(remoteJidRespuesta, reporte);
+    } else {
+      enviarMensajeWhatsApp(JID_OPERACIONES, reporte);
+    }
+
+    if (foliosFaltantesTransporte.length > 0) {
+      let msgTransporte = `¡${saludo} equipo de Calamanda - Transporte! 🚛✨\n` +
+                          `Con el gusto de saludarles, les consulto por las siguientes unidades que ya están en ventana crítica y aún figuran *SIN FOLIO* en sistema:\n\n`;
+
+      foliosFaltantesTransporte.forEach((f) => {
+        msgTransporte += `• 📦 *${f.shipment}* | ${f.cliente} | Límite: ${f.limite} (${f.tipo})\n`;
+      });
+
+      msgTransporte += `\n¿Tendrán alguna novedad o estatus sobre la asignación/arribo de estas unidades para avanzar con su folio y despacho?\n\n` +
+                       `¡Muchas gracias por su valioso apoyo! 🙏`;
+
+      enviarMensajeWhatsApp(JID_TRANSPORTE, msgTransporte);
+    }
+
+    registrarEnvio("MONITOR_DASHBOARD", "Reporte Dashboard enviado con éxito");
+    return "Monitoreo ejecutado correctamente.";
+
+  } catch (error) {
+    Logger.log("Error en ejecutarMonitoreoDashboard: " + error.toString());
+    const errText = `⚠️ *GEMA Error:* No se pudo consultar el Dashboard: ${error.toString()}`;
+    if (remoteJidRespuesta) enviarMensajeWhatsApp(remoteJidRespuesta, errText);
+    return errText;
+  }
+}
+
+// =================================================================
+// --- MÓDULO CHECK DE SEGURIDAD ---
+// =================================================================
+function verificarCheckSeguridad() {
+  try {
+    const ss = SpreadsheetApp.openById(ID_HOJA_MAC);
+    const hojaCheck = ss.getSheetByName("CHECK");
+
+    if (!hojaCheck) {
+      return "⚠️ *GEMA:* No se encontró la pestaña 'CHECK' en la hoja de monitor.";
+    }
+
+    const ultimaFila = hojaCheck.getLastRow();
+    if (ultimaFila < 2) {
+      return `✅ *CHECK DE SEGURIDAD:* La pestaña se encuentra vacía actualmente.`;
+    }
+
+    const datos = hojaCheck.getDataRange().getValues();
+    let alertasEnviadas = 0;
+    const props = PropertiesService.getScriptProperties();
+
+    for (let i = 1; i < datos.length; i++) {
+      let check1 = String(datos[i][0] || "").trim().toUpperCase();
+      let check2 = String(datos[i][1] || "").trim().toUpperCase();
+      let check3 = String(datos[i][2] || "").trim().toUpperCase();
+      let check4 = String(datos[i][3] || "").trim().toUpperCase();
+      let anden = String(datos[i][4] || "").trim();
+      let linea = String(datos[i][5] || "").trim();
+      let economico = String(datos[i][6] || "").trim();
+      let estatus = String(datos[i][8] || "").trim().toUpperCase();
+      let fechaHora = String(datos[i][9] || "").trim();
+      let estatusNotificado = String(datos[i][10] || "").trim();
+
+      if (!anden && !economico) continue;
+
+      if (estatusNotificado === "✔" || estatusNotificado.toLowerCase().includes("notificado")) {
+        continue;
+      }
+
+      let claveUnidad = `${anden}_${economico}`.toUpperCase();
+      let estadoAnteriorBloqueo = props.getProperty("BLOQUEO_ACTIVO_" + claveUnidad);
+
+      if (estatus.includes("RECHAZADO") || estatus.includes("BLOQUEADO")) {
+        let textoFallaLimpio = "Incumplimiento en protocolos de seguridad";
+
+        if (check1 === "NO") {
+          textoFallaLimpio = "El número de tarjetón no coincide con el número de andén";
+        } else if (check2 === "NO") {
+          textoFallaLimpio = "El tracto no está apagado";
+        } else if (check3 === "NO") {
+          textoFallaLimpio = "La caja no está alineada a la rampa";
+        } else if (check4 === "NO") {
+          textoFallaLimpio = "El piso de la caja/contenedor no está totalmente horizontal y/o alineado";
         }
 
-        filterStatusAll.addEventListener('click', () => setStatusFilter('all'));
-        filterStatusPending.addEventListener('click', () => setStatusFilter('pending'));
-        filterStatusAudited.addEventListener('click', () => setStatusFilter('audited'));
-        filterStatusIncidences.addEventListener('click', () => setStatusFilter('incidences'));
+        let mensajeAlerta = `🚨 *GEMA ALERTA DE SEGURIDAD* 🚨\n` +
+                            `Hola equipo, se ha detectado un incumplimiento en los protocolos de seguridad:\n` +
+                            `- 📍 Ubicación: ${anden || "N/A"}\n` +
+                            `- 🏢 Línea: ${linea || "N/A"}\n` +
+                            `- 🚛 Económico: ${economico || "N/A"}\n` +
+                            `- ❌ Falla: ${textoFallaLimpio}\n` +
+                            `- ⏱️ Hora: ${fechaHora || "N/A"}\n` +
+                            `🛑 Acción requerida: Por favor corrijan la condición en rampa de inmediato. ⚠️`;
 
-        tabCards.addEventListener('click', () => {
-            tabCards.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold flex items-center gap-1.5 cursor-pointer transition";
-            tabTable.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer transition";
-            cardsViewWrapper.classList.remove('hidden');
-            tableViewWrapper.classList.add('hidden');
-            refreshIcons();
-        });
+        enviarMensajeWhatsApp(JID_OPERACIONES, mensajeAlerta);
 
-        tabTable.addEventListener('click', () => {
-            tabTable.className = "px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-xs font-semibold flex items-center gap-1.5 cursor-pointer transition";
-            tabCards.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 flex items-center gap-1.5 cursor-pointer transition";
-            tableViewWrapper.classList.remove('hidden');
-            cardsViewWrapper.classList.add('hidden');
-            refreshIcons();
-        });
+        props.setProperty("BLOQUEO_ACTIVO_" + claveUnidad, "true");
+        hojaCheck.getRange(i + 1, 11).setValue("✔");
+        alertasEnviadas++;
+      } else if (estatus.includes("APROBADO") || estatus.includes("ENRAMPADO")) {
+        if (estadoAnteriorBloqueo === "true") {
+          let mensajeResolucion = `✅ *GEMA - UNIDAD APROBADA / INCIDENCIA RESUELTA* ✅\n` +
+                                  `El andén ha quedado libre de riesgo y la unidad fue liberada:\n` +
+                                  `- 📍 Ubicación: ${anden || "N/A"}\n` +
+                                  `- 🏢 Línea: ${linea || "N/A"}\n` +
+                                  `- 🚛 Económico: ${economico || "N/A"}\n` +
+                                  `- 🟢 Estatus: ${estatus}\n` +
+                                  `- ⏱️ Hora: ${fechaHora || "N/A"}\n` +
+                                  `👍 *La condición en rampa ha sido corregida exitosamente.* ✨`;
 
-        filterInput.addEventListener('input', (e) => {
-            currentFilter = e.target.value;
-            clearFilterBtn.classList.toggle('hidden', currentFilter.length === 0);
-            renderAllViews();
-        });
-
-        clearFilterBtn.addEventListener('click', () => {
-            filterInput.value = '';
-            currentFilter = '';
-            clearFilterBtn.classList.add('hidden');
-            renderAllViews();
-        });
-
-        btnUploadFileHeader.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) processIncomingFile(e.target.files[0]);
-        });
-
-        function processIncomingFile(file) {
-            if (!file) return;
-            processingIndicator.classList.remove('hidden');
-            processingText.textContent = `Procesando "${file.name}" y validando auditados...`;
-
-            const name = file.name.toLowerCase();
-            if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.SheetNames[0];
-                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: "" });
-                        processingIndicator.classList.add('hidden');
-                        processRawMatrix(rows);
-                    } catch (err) {
-                        processingIndicator.classList.add('hidden');
-                        showNotification("Error en lectura Excel: " + err.message, "error");
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                Papa.parse(file, {
-                    header: false,
-                    skipEmptyLines: 'greedy',
-                    encoding: "latin1",
-                    complete: function(results) {
-                        processingIndicator.classList.add('hidden');
-                        processRawMatrix(results.data);
-                    },
-                    error: function(err) {
-                        processingIndicator.classList.add('hidden');
-                        showNotification("Error en CSV: " + err.message, "error");
-                    }
-                });
-            }
+          enviarMensajeWhatsApp(JID_OPERACIONES, mensajeResolucion);
+          props.deleteProperty("BLOQUEO_ACTIVO_" + claveUnidad);
         }
 
-        function processRawMatrix(matrix) {
-            if (!matrix || matrix.length < 2) {
-                showNotification("El archivo no contiene suficientes registros.", "error");
-                return;
-            }
-            groupedTrips.clear();
-            let startRow = 1;
-            for (let i = 0; i < Math.min(15, matrix.length); i++) {
-                const cellLpn = matrix[i][2] ? String(matrix[i][2]).trim() : '';
-                if (/^\d{8,}/.test(cellLpn)) {
-                    startRow = i;
-                    break;
-                }
-            }
+        hojaCheck.getRange(i + 1, 11).setValue("✔");
+        alertasEnviadas++;
+      }
+    }
 
-            for (let r = startRow; r < matrix.length; r++) {
-                const row = matrix[r];
-                if (!row || row.length === 0) continue;
+    if (alertasEnviadas > 0) {
+      return `✅ Se procesaron y actualizaron ${alertasEnviadas} registro(s) de seguridad.`;
+    } else {
+      return `✅ *CHECK DE SEGURIDAD:* Sin nuevas incidencias pendientes.`;
+    }
 
-                const lpnRaw = row[2] !== undefined ? String(row[2]).trim() : '';
-                const skuRaw = row[8] !== undefined ? String(row[8]).trim() : '';
-                const descRaw = row[34] !== undefined ? String(row[34]).trim() : (row[6] !== undefined ? String(row[6]).trim() : '');
-                const qtyRaw = row[21] !== undefined ? row[21] : 0;
-                const tripRaw = row[27] !== undefined ? String(row[27]).trim() : (row[26] !== undefined ? String(row[26]).trim() : '');
+  } catch (error) {
+    Logger.log("Error en verificarCheckSeguridad: " + error.toString());
+    return `⚠️ *GEMA Error:* No se pudo procesar la pestaña CHECK: ${error.toString()}`;
+  }
+}
 
-                if (!lpnRaw || lpnRaw.toUpperCase() === 'LPN' || lpnRaw.length < 4) continue;
+// =================================================================
+// --- MÓDULO DE ANDENES (DESDE LA PESTAÑA CONSOLA) ---
+// =================================================================
+function obtenerReporteAndenes() {
+  try {
+    const ss = SpreadsheetApp.openById(ID_HOJA_MAC);
+    const hoja = ss.getSheetByName("Consola");
 
-                const cleanTrip = cleanTripNumber(tripRaw);
-                if (!cleanTrip) continue;
+    if (!hoja) {
+      return `⚠️ *GEMA:* No se encontró la pestaña 'Consola' en la hoja de Monitor de Andenes.`;
+    }
 
-                const qty = parseQuantity(qtyRaw);
+    const saludo = obtenerSaludoSegunHora();
+    const datos = hoja.getDataRange().getValues();
 
-                if (!groupedTrips.has(cleanTrip)) {
-                    groupedTrips.set(cleanTrip, { tripClean: cleanTrip, lpns: new Map() });
-                }
+    let andenesLibres = 0;
+    let andenesOcupadas = 0;
+    let listaLibres = [];
+    let listaOcupadas = [];
 
-                const tripGroup = groupedTrips.get(cleanTrip);
-                if (!tripGroup.lpns.has(lpnRaw)) {
-                    tripGroup.lpns.set(lpnRaw, { skus: new Map(), totalBoxes: 0 });
-                }
+    for (let i = 1; i < datos.length; i++) {
+      let numCelda = parseInt(datos[i][1], 10); 
+      if (isNaN(numCelda) || numCelda < 1 || numCelda > 30) continue;
 
-                const lpnData = tripGroup.lpns.get(lpnRaw);
-                const auditKey1 = `${cleanTrip}_${lpnRaw}_${skuRaw}`;
-                const auditKey2 = `${lpnRaw}_${skuRaw}`;
-                const auditStatusObj = sheetAuditStatusMap.get(auditKey1) || sheetAuditStatusMap.get(auditKey2);
-                const isAuditedFromSheet = auditStatusObj ? auditStatusObj.isAudited : false;
-                const statusFromSheet = auditStatusObj ? auditStatusObj.status : "PENDIENTE";
+      let estado = String(datos[i][2] || "").trim().toUpperCase(); 
+      let linea = String(datos[i][3] || "").trim();               
+      let economico = String(datos[i][4] || "").trim();           
+      let motivo = String(datos[i][6] || "").trim();              
 
-                if (!lpnData.skus.has(skuRaw)) {
-                    lpnData.skus.set(skuRaw, {
-                        desc: descRaw,
-                        boxes: 0,
-                        isAudited: isAuditedFromSheet,
-                        status: statusFromSheet
-                    });
-                }
+      let nombreAnden = `Andén ${numCelda}`;
 
-                const skuItem = lpnData.skus.get(skuRaw);
-                skuItem.boxes += qty;
-                if (!skuItem.desc && descRaw) skuItem.desc = descRaw;
-                if (isAuditedFromSheet) {
-                    skuItem.isAudited = true;
-                    skuItem.status = statusFromSheet;
-                }
-                lpnData.totalBoxes += qty;
-            }
+      if (estado.includes("LIBRE")) {
+        andenesLibres++;
+        listaLibres.push(`• ${nombreAnden} (Libre)`);
+      } else {
+        andenesOcupadas++;
+        let detalleExtra = "";
+        let partes = [];
+        if (linea) partes.push(linea);
+        if (economico) partes.push(`Eco: ${economico}`);
+        if (motivo) partes.push(motivo);
 
-            updateKPIs();
-            renderAllViews();
-            showNotification(`Archivo procesado: ${groupedTrips.size} viajes listos.`, 'success');
+        if (partes.length > 0) {
+          detalleExtra = ` - ${partes.join(" | ")}`;
         }
 
-        async function fetchExistingFromSheet(isSilent = false) {
-            if (isSyncing) return;
-            isSyncing = true;
-            if (!isSilent) {
-                processingIndicator.classList.remove('hidden');
-                processingText.textContent = "Sincronizando con Google Sheets...";
-                iconSyncRefresh.classList.add('animate-spin');
-            }
+        let etiquetaEstado = estado.includes("OCUPAD") ? "Ocupada" : estado;
+        listaOcupadas.push(`• ${nombreAnden} (${etiquetaEstado}${detalleExtra})`);
+      }
+    }
 
-            try {
-                const response = await fetch(`${APPS_SCRIPT_EXEC_URL}?action=getTrips`);
-                const res = await response.json();
-                if (res.status === "success" && Array.isArray(res.data)) {
-                    const loadFresh = groupedTrips.size === 0;
+    let totalAnalizados = andenesLibres + andenesOcupadas;
 
-                    res.data.forEach(item => {
-                        const trip = item.trip || "SIN_VIAJE";
-                        const lpn = item.lpn || "";
-                        const sku = item.sku || "SIN_SKU";
-                        const desc = item.descripcion || "";
-                        const boxes = item.boxes || 0;
-                        const isAudited = item.isAudited === true;
-                        const status = item.status || (isAudited ? "AUDITADO" : "PENDIENTE");
+    let mensaje = `🏢 *${saludo} ESTADO DE ANDENES - MONITOR GENERAL*\n\n` +
+                  `📊 *Resumen General (1 al 30):*\n` +
+                  `• 🟢 *Andenes Libres:* ${andenesLibres}\n` +
+                  `• 🔴 *Andenes Ocupadas:* ${andenesOcupadas}\n` +
+                  `• 📌 *Total Evaluados:* ${totalAnalizados}/30\n\n`;
 
-                        sheetAuditStatusMap.set(`${trip}_${lpn}_${sku}`, { isAudited, status });
-                        sheetAuditStatusMap.set(`${lpn}_${sku}`, { isAudited, status });
+    if (listaLibres.length > 0) {
+      mensaje += `🟢 *Andenes Libres:*\n` + listaLibres.join("\n") + `\n\n`;
+    }
 
-                        if (loadFresh) {
-                            if (!groupedTrips.has(trip)) groupedTrips.set(trip, { tripClean: trip, lpns: new Map() });
-                            const tGroup = groupedTrips.get(trip);
-                            if (!tGroup.lpns.has(lpn)) tGroup.lpns.set(lpn, { skus: new Map(), totalBoxes: 0 });
-                            const lGroup = tGroup.lpns.get(lpn);
-                            lGroup.skus.set(sku, { desc, boxes, isAudited, status });
-                            lGroup.totalBoxes += boxes;
-                        } else if (groupedTrips.has(trip)) {
-                            const tGroup = groupedTrips.get(trip);
-                            if (tGroup.lpns.has(lpn)) {
-                                const lGroup = tGroup.lpns.get(lpn);
-                                if (lGroup.skus.has(sku)) {
-                                    lGroup.skus.get(sku).isAudited = isAudited;
-                                    lGroup.skus.get(sku).status = status;
-                                }
-                            }
-                        }
-                    });
+    if (listaOcupadas.length > 0) {
+      mensaje += `🔴 *Andenes Ocupadas:*\n` + listaOcupadas.join("\n") + `\n\n`;
+    }
 
-                    updateKPIs();
-                    renderAllViews();
-                    if (!isSilent) showNotification(`Sincronizados ${res.total} registros de Google Sheets.`, 'success');
-                }
-            } catch (err) {
-                if (!isSilent) showNotification("No se pudo conectar con Google Sheets.", "error");
-            } finally {
-                isSyncing = false;
-                if (!isSilent) {
-                    processingIndicator.classList.add('hidden');
-                    iconSyncRefresh.classList.remove('animate-spin');
-                }
-            }
+    mensaje += `_Reporte generado en tiempo real por GEMA desde la Consola._ ✨`;
+    return mensaje;
+
+  } catch (error) {
+    Logger.log("Error en obtenerReporteAndenes: " + error.toString());
+    return `⚠️ *GEMA Error:* No se pudo consultar la consola de andenes: ${error.toString()}`;
+  }
+}
+
+// =================================================================
+// --- MÓDULO DE TRÁNSITOS ACTUALIZADO ---
+// =================================================================
+function botonEnviarReporteTransitos() {
+  const ui = SpreadsheetApp.getUi();
+  const respuesta = ui.alert(
+    'Enviar Reporte de Tránsitos',
+    '¿Deseas enviar el reporte de tránsitos y prioridades al grupo de WhatsApp?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (respuesta === ui.Button.YES) {
+    enviarResumenTransitosEnDosMensajes(JID_OPERACIONES);
+    registrarEnvio("BOTON_TRANSITOS", "Enviado vía Botón por Usuario");
+    ui.alert('✅ Reporte enviado con éxito al grupo de WhatsApp.');
+  }
+}
+
+function enviarResumenTransitosEnDosMensajes(remoteJid) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("TRANSITOS");
+    if (!sheet) {
+      enviarMensajeWhatsApp(remoteJid, "⚠️ Error: No se encontró la pestaña 'TRANSITOS'.");
+      return;
+    }
+
+    const saludo = obtenerSaludoSegunHora();
+    const datos = sheet.getDataRange().getValues();
+
+    let enProcesoCount = 0;
+    let transitoCount = 0;
+    let origenesConteo = {};
+
+    for (let i = 1; i < datos.length; i++) {
+      let shipment = String(datos[i][1] || "").trim(); 
+      if (!shipment) continue;
+
+      let origen = String(datos[i][4] || "").trim();    
+      let estatus = removerAcentos(String(datos[i][9] || "")).toLowerCase(); 
+
+      if (estatus.includes("proceso")) {
+        enProcesoCount++;
+      } else if (estatus.includes("transito")) {
+        transitoCount++;
+      }
+
+      if (origen) {
+        origenesConteo[origen] = (origenesConteo[origen] || 0) + 1;
+      }
+    }
+
+    let totalGeneral = enProcesoCount + transitoCount;
+
+    let desgloseOrigenesTexto = "";
+    for (let org in origenesConteo) {
+      desgloseOrigenesTexto += `• *${org}:* ${origenesConteo[org]} unidades\n`;
+    }
+    if (!desgloseOrigenesTexto) {
+      desgloseOrigenesTexto = "• Sin registros de origen.\n";
+    }
+
+    let mensaje1 = `${saludo} 🚚✨\n\n` +
+                   `Soy *Gema* y con mucho gusto les comparto el reporte de tránsitos y arribos a *MX21*:\n\n` +
+                   `📊 *Estatus General de Arribos:*\n` +
+                   `• *En Proceso:* ${enProcesoCount} unidades\n` +
+                   `• *En Tránsito:* ${transitoCount} unidades\n` +
+                   `• *Total:* ${totalGeneral} unidades\n\n` +
+                   `📍 *Desglose por Origen:*\n` +
+                   desgloseOrigenesTexto + `\n` +
+                   `_A continuación les comparto el detalle de las unidades prioritarias en rampa..._ 👇`;
+
+    enviarMensajeWhatsApp(remoteJid, mensaje1);
+
+    let mensaje2 = `⭐ *Prioridades en Proceso (Tiempo en Planta):*\n\n` +
+                   `Equipo, les encargo mucho el seguimiento de estas unidades prioritarias que ya se encuentran en proceso dentro de las instalaciones:\n\n`;
+
+    let contadorPrioridades = 0;
+
+    for (let i = 1; i < datos.length; i++) {
+      const prioridad = datos[i][0] ? removerAcentos(datos[i][0]).toUpperCase() : "";
+      const shipment = datos[i][1] ? datos[i][1].toString().trim() : "";
+      const estatus = datos[i][9] ? removerAcentos(datos[i][9]).toLowerCase() : "";
+
+      if (prioridad.includes("PRIORIDAD") && shipment && estatus.includes("en proceso")) {
+        const transporte = datos[i][5] || "N/A";
+        const fechaArriboVal = sheet.getRange(i + 1, 8).getDisplayValue();
+        const horaArriboVal = sheet.getRange(i + 1, 9).getDisplayValue();
+        const tiempoPlantaStr = calcularTiempoEnPlanta(fechaArriboVal, horaArriboVal);
+
+        contadorPrioridades++;
+        mensaje2 += `${contadorPrioridades}. *Shipment ${shipment}*\n` +
+                    `   • *Transporte:* ${transporte}\n` +
+                    `   • ⏱️ *Tiempo en Planta:* ${tiempoPlantaStr}\n\n`;
+      }
+    }
+
+    if (contadorPrioridades === 0) {
+      mensaje2 += `_Actualmente no contamos con embarques prioritarios en estado 'en proceso'._\n\n`;
+    }
+
+    mensaje2 += `Quedo a su entera disposición para cualquier consulta. ¡Seguimos trabajando en equipo para tener un excelente turno! 💪✨`;
+
+    enviarMensajeWhatsApp(remoteJid, mensaje2);
+
+  } catch (error) {
+    enviarMensajeWhatsApp(remoteJid, "Error al consultar la pestaña TRANSITOS: " + error.toString());
+  }
+}
+
+// =================================================================
+// --- MÓDULO PRIORIDADES Y ALERTAS A TRÁFICO (GEMA) ---
+// =================================================================
+function generarReporteGemaPrioridades(turnoDeseado = 3) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hojaPlan = ss.getSheetByName("PLAN");
+  const hojaGema = ss.getSheetByName("GEMA");
+  
+  if (!hojaPlan || !hojaGema) {
+    Logger.log("Error: No se encontraron las pestañas PLAN o GEMA");
+    return { reporteGeneral: "⚠️ Error: No se encontraron las pestañas PLAN o GEMA." };
+  }
+
+  const ahora = new Date(); 
+  let inicioTurno = new Date(ahora);
+  let finTurno = new Date(ahora);
+
+  if (turnoDeseado === 3) {
+    if (ahora.getHours() < 6) {
+      inicioTurno.setDate(ahora.getDate() - 1);
+      inicioTurno.setHours(22, 0, 0, 0); 
+      finTurno.setHours(6, 0, 0, 0);       
+    } else {
+      inicioTurno.setHours(22, 0, 0, 0);  
+      finTurno.setDate(ahora.getDate() + 1);
+      finTurno.setHours(6, 0, 0, 0);       
+    }
+  } else if (turnoDeseado === 1) {
+    inicioTurno.setHours(6, 0, 0, 0);    
+    finTurno.setHours(14, 0, 0, 0);
+  } else if (turnoDeseado === 2) {
+    inicioTurno.setHours(14, 0, 0, 0);   
+    finTurno.setHours(22, 0, 0, 0);
+  }
+
+  const datosGema = hojaGema.getDataRange().getValues();
+  const mapaTransitTimes = {};
+  for (let i = 1; i < datosGema.length; i++) {
+    const destinoGema = String(datosGema[i][6] || "").trim().toUpperCase(); 
+    const horasTransito = parseFloat(datosGema[i][7]) || 0;             
+    if (destinoGema) {
+      mapaTransitTimes[destinoGema] = horasTransito;
+    }
+  }
+
+  const datosPlan = hojaPlan.getDataRange().getValues();
+  let faltaTransporte = [];
+  let urgenciasPatio = [];
+  
+  let conteoFaltaTransp = 0;
+  let conteoCarga = 0;
+  let conteoEsperaRampa = 0;
+
+  for (let i = 6; i < datosPlan.length; i++) {
+    const shipment = String(datosPlan[i][1] || "").trim(); 
+    const destino  = String(datosPlan[i][5] || "").trim(); 
+    
+    const fechaCitaRaw = datosPlan[i][6]; 
+    const horaCitaRaw  = datosPlan[i][7]; 
+    const estatus = String(datosPlan[i][9] || "").trim().toUpperCase(); 
+
+    if (!shipment || shipment.startsWith("9000") || shipment.toUpperCase() === "SHIPMENT") continue;
+
+    if (estatus.includes("FALTA TRANSPORTE")) conteoFaltaTransp++;
+    if (estatus.includes("CARGA")) conteoCarga++;
+    if (estatus.includes("ESPERA DE RAMPA")) conteoEsperaRampa++;
+
+    let fechaEntrega = parseFechaCita(fechaCitaRaw);
+
+    if (fechaEntrega && !isNaN(fechaEntrega.getTime())) {
+      let hrs = 0;
+      let mins = 0;
+
+      if (horaCitaRaw instanceof Date) {
+        hrs = horaCitaRaw.getHours();
+        mins = horaCitaRaw.getMinutes();
+      } else if (typeof horaCitaRaw === "string" && horaCitaRaw.includes(":")) {
+        const partesH = horaCitaRaw.split(":");
+        hrs = parseInt(partesH[0], 10) || 0;
+        mins = parseInt(partesH[1], 10) || 0;
+      } else if (fechaEntrega.getHours() !== 0 || fechaEntrega.getMinutes() !== 0) {
+        hrs = fechaEntrega.getHours();
+        mins = fechaEntrega.getMinutes();
+      } else {
+        hrs = 7;
+      }
+
+      fechaEntrega.setHours(hrs, mins, 0, 0);
+
+      const horasTransito = mapaTransitTimes[destino.toUpperCase()] || 0;
+      const msTransito = horasTransito * 60 * 60 * 1000;
+      const msColchon = 2 * 60 * 60 * 1000;
+      
+      const fechaHoraLimite = new Date(fechaEntrega.getTime() - msTransito - msColchon);
+
+      const esDeEsteTurno = (fechaHoraLimite >= inicioTurno && fechaHoraLimite < finTurno);
+      const esVencidoAnterior = (fechaHoraLimite < inicioTurno);
+
+      if (esDeEsteTurno || esVencidoAnterior) {
+        if (fechaHoraLimite >= finTurno) continue;
+
+        const dia = ("0" + fechaHoraLimite.getDate()).slice(-2);
+        const mes = ("0" + (fechaHoraLimite.getMonth() + 1)).slice(-2);
+        const hora = ("0" + fechaHoraLimite.getHours()).slice(-2);
+        const min = ("0" + fechaHoraLimite.getMinutes()).slice(-2);
+        const limiteFormateado = `${dia}/${mes} ${hora}:${min}h`;
+
+        if (estatus.includes("FALTA TRANSPORTE")) {
+          faltaTransporte.push(`• **${shipment}** | ${destino} | Límite: ${limiteFormateado}`);
+        } else if (estatus.includes("PROCESO DE CARGA") || estatus.includes("ESPERA DE RAMPA")) {
+          urgenciasPatio.push(`• **${shipment}** | ${destino} | ${estatus} | Límite: ${limiteFormateado}`);
+        }
+      }
+    }
+  }
+
+  let saludo = obtenerSaludoSegunHora();
+  let mensaje = `${saludo}\n`;
+  mensaje += `**Gema: Prioridades y Alertas de Salida (Turno ${turnoDeseado})**\n\n`;
+
+  mensaje += "🛑 **FALTA TRANSPORTE (ACCIONAR TRÁFICO):**\n";
+  if (faltaTransporte.length > 0) {
+    mensaje += faltaTransporte.join("\n") + "\n";
+  } else {
+    mensaje += "• Sin pendientes de transporte reportados para este turno.\n";
+  }
+
+  mensaje += "\n⚡ **URGENCIAS EN PATIO / RAMPA:**\n";
+  if (urgenciasPatio.length > 0) {
+    mensaje += urgenciasPatio.join("\n") + "\n";
+  } else {
+    mensaje += "• Sin urgencias reportadas en rampa para este turno.\n";
+  }
+
+  mensaje += `\n📊 **Estatus Operativo:** ${conteoFaltaTransp} Falta Transp | ${conteoCarga} Carga | ${conteoEsperaRampa} Espera Rampa\n\n`;
+  mensaje += "¡Seguimos trabajando en equipo! 💪✨";
+
+  return { reporteGeneral: mensaje };
+}
+
+// =================================================================
+// --- AUDITORÍA DE SUPERVISORES (COLGATE - CELDA W1) ---
+// =================================================================
+function verificarActualizacionSupervisores() {
+  try {
+    const ss = SpreadsheetApp.openById(ID_HOJA_OPERACION);
+    const sheet = ss.getSheetByName(PESTANA_USUARIOS);
+    
+    if (!sheet) {
+      return "⚠️ *ALERTA GEMA:* No se encontró la pestaña 'COMPACTO' en la hoja de operación.";
+    }
+
+    const valorCelda = sheet.getRange(CELDA_ULTIMA_ACTUALIZACION).getValue();
+    
+    if (!valorCelda || isNaN(new Date(valorCelda).getTime())) {
+      return "🚨 *ALERTA EQUIPO* 🚨\n\n" +
+             "⚠️ *Atención Supervisor:* Se detectó un problema en la hoja de control. La celda *W1* de la pestaña *COMPACTO* está vacía o no tiene una fecha/hora válida.\n\n" +
+             "👉 *Por favor registren el inicio de turno inmediatamente.*";
+    }
+
+    const fechaUltimaAct = new Date(valorCelda);
+    const fechaActual = new Date();
+    
+    const diferenciaMilisegundos = fechaActual - fechaUltimaAct;
+    const horasTranscurridas = diferenciaMilisegundos / (1000 * 60 * 60);
+
+    if (horasTranscurridas >= MAX_HORAS_SIN_ACTUALIZAR) {
+      const horasFormateadas = horasTranscurridas.toFixed(1);
+      const fechaTexto = formatearFecha(fechaUltimaAct);
+
+      return "🚨 *ALERTA DE INCUMPLIMIENTO - ACTUALIZAR SEMAFORO* 🚨\n\n" +
+             "⚠️ *Atención Supervisores:* La información de la pestaña *COMPACTO* no ha sido actualizada al inicio de turno.\n\n" +
+             "📌 *Última actualización:* " + fechaTexto + " hrs.\n" +
+             "⏱️ *Tiempo transcurrido:* " + horasFormateadas + " horas sin actualizar.\n\n" +
+             "👉 *Acción requerida:* Por favor actualicen los datos en la hoja de manera inmediata para mantener la continuidad operativa.";
+    } else {
+      const horasFormateadas = horasTranscurridas.toFixed(1);
+      const fechaTexto = formatearFecha(fechaUltimaAct);
+
+      return "✅ *ESTATUS DE SUPERVISIÓN - COLGATE*\n\n" +
+             "La pestaña *COMPACTO* se encuentra actualizada correctamente.\n\n" +
+             "📌 *Última actualización:* " + fechaTexto + " hrs.\n" +
+             "⏱️ *Tiempo transcurrido:* Hace " + horasFormateadas + " horas.";
+    }
+
+  } catch (error) {
+    Logger.log("Error al verificar actualización: " + error.toString());
+    return "⚠️ *GEMA ERROR:* Ocurrió un fallo al consultar la hoja de USUARIOS: " + error.toString();
+  }
+}
+
+function ejecutarAuditoriaSupervisores() {
+  const mensajeAlerta = verificarActualizacionSupervisores();
+  
+  if (mensajeAlerta && mensajeAlerta.includes("🚨")) {
+    enviarMensajeWhatsApp(JID_OPERACIONES, mensajeAlerta);
+    registrarEnvio("AUDITORIA_SUPERVISORES", "Alerta enviada por incumplimiento");
+  } else {
+    registrarEnvio("AUDITORIA_SUPERVISORES", "Revisado (Supervisores al día)");
+  }
+}
+
+// =================================================================
+// --- FUNCIONES CORE PARA CIERRE DE TURNO Y CONTEO DINÁMICO ---
+// =================================================================
+function procesarCierreDeTurno(verificador, bodegaNombre) {
+  try {
+    const doc = SpreadsheetApp.openById(ID_SHEET_CIERRE);
+    const nombrePestana = "CIERRE " + bodegaNombre.toUpperCase();
+    const sheet = doc.getSheetByName(nombrePestana);
+
+    if (!sheet) {
+      return `⚠️ Error: No se encontró la pestaña '${nombrePestana}' en el libro de cierres.`;
+    }
+
+    const saludo = obtenerSaludoSegunHora();
+    const ahora = new Date();
+    const fechaHoraStr = formatearFecha(ahora);
+
+    let totalDescargas = 0;
+    for (let i = 4; i <= 15; i++) {
+      let val = sheet.getRange(i, 2).getDisplayValue().trim(); 
+      if (val !== "") totalDescargas++;
+    }
+
+    let totalDescargasPend = 0;
+    for (let i = 18; i <= 22; i++) {
+      let val = sheet.getRange(i, 2).getDisplayValue().trim(); 
+      if (val !== "") totalDescargasPend++;
+    }
+
+    let cargasDetalle = "";
+    let listaCargasDB = [];
+    let totalCargas = 0;
+
+    for (let i = 25; i <= 29; i++) {
+      const shipment = sheet.getRange(i, 2).getDisplayValue().trim(); 
+      if (shipment) {
+        totalCargas++;
+        const destino = sheet.getRange(i, 4).getDisplayValue(); 
+        const linea = sheet.getRange(i, 7).getDisplayValue();   
+        const status = sheet.getRange(i, 10).getDisplayValue();  
+        cargasDetalle += `  • *Shipment ${shipment}* | ${destino} | ${linea} (${status})\n`;
+        listaCargasDB.push(`${shipment} (${destino})`);
+      }
+    }
+
+    let precargasDetalle = "";
+    let listaPrecargasDB = [];
+    let totalPrecargas = 0;
+
+    for (let i = 32; i <= 36; i++) {
+      const shipment = sheet.getRange(i, 2).getDisplayValue().trim(); 
+      if (shipment) {
+        totalPrecargas++;
+        const destino = sheet.getRange(i, 4).getDisplayValue(); 
+        const obs = sheet.getRange(i, 12).getDisplayValue();     
+        precargasDetalle += `  • *Shipment ${shipment}* | ${destino} ${obs ? "(" + obs + ")" : ""}\n`;
+        listaPrecargasDB.push(`${shipment} (${destino})`);
+      }
+    }
+
+    let reporte = `📋 *${saludo} REPORTE DE CIERRE DE TURNO - BODEGA ${bodegaNombre.toUpperCase()}*\n` +
+                  `👤 *Verificador:* ${verificador.toUpperCase()}\n\n` +
+                  `📊 *Resumen Operativo de Bodega:*\n` +
+                  `• 🟢 *Descargas Realizadas:* ${totalDescargas}\n` +
+                  `• 🔵 *Descargas Pendientes:* ${totalDescargasPend}\n` +
+                  `• 🟣 *Cargas Realizadas:* ${totalCargas}\n` +
+                  `• 🟡 *Precargas Preparadas:* ${totalPrecargas}\n\n`;
+
+    if (cargasDetalle) {
+      reporte += `🚛 *Detalle de Cargas en Turno:*\n${cargasDetalle}\n`;
+    }
+
+    if (precargasDetalle) {
+      reporte += `📦 *Detalle de Precargas Preparadas:*\n${precargasDetalle}\n`;
+    }
+
+    reporte += `_Cierre guardado en BD y pestaña limpiada exitosamente para el siguiente turno por GEMA._ ✨`;
+
+    guardarEnBaseDeDatos(doc, {
+      fechaHora: fechaHoraStr,
+      verificador: verificador.toUpperCase(),
+      bodega: bodegaNombre.toUpperCase(),
+      descargas: totalDescargas,
+      pendientes: totalDescargasPend,
+      cargas: totalCargas,
+      precargas: totalPrecargas,
+      detalleCargas: listaCargasDB.join(", ") || "Sin cargas",
+      detallePrecargas: listaPrecargasDB.join(", ") || "Sin precargas"
+    });
+
+    limpiarPestanaCierre(sheet);
+    registrarEnvio("CIERRE_" + bodegaNombre.toUpperCase(), `Entregado por ${verificador.toUpperCase()}`);
+
+    return reporte;
+
+  } catch (e) {
+    return "Error al procesar el Cierre de Turno: " + e.toString();
+  }
+}
+
+function limpiarPestanaCierre(sheet) {
+  try {
+    sheet.getRange("B4:L15").clearContent();
+    sheet.getRange("B18:L22").clearContent();
+    sheet.getRange("B25:L29").clearContent();
+    sheet.getRange("B32:L36").clearContent();
+  } catch (e) {
+    Logger.log("Error al limpiar la pestaña de cierre: " + e.toString());
+  }
+}
+
+function guardarEnBaseDeDatos(doc, datos) {
+  try {
+    let dbSheet = doc.getSheetByName("DB");
+    if (!dbSheet) {
+      dbSheet = doc.insertSheet("DB");
+      dbSheet.appendRow([
+        "Fecha_Hora", "Verificador", "Bodega", "Descargas", 
+        "Pendientes", "Cargas", "Precargas", "Detalle_Cargas", "Detalle_Precargas"
+      ]);
+      dbSheet.getRange("1:1").setFontWeight("bold").setBackground("#D9D9D9");
+    }
+
+    dbSheet.appendRow([
+      datos.fechaHora, datos.verificador, datos.bodega, datos.descargas,
+      datos.pendientes, datos.cargas, datos.precargas,
+      datos.detalleCargas, datos.detallePrecargas
+    ]);
+  } catch (e) {
+    Logger.log("Error guardando en pestaña DB: " + e.toString());
+  }
+}
+
+function consultarUltimoCierreDB(bodegaNombre) {
+  try {
+    const doc = SpreadsheetApp.openById(ID_SHEET_CIERRE);
+    const dbSheet = doc.getSheetByName("DB");
+
+    if (!dbSheet) return `⚠️ No se han registrado cierres históricos en la base de datos (DB).`;
+
+    const valores = dbSheet.getDataRange().getValues();
+    const saludo = obtenerSaludoSegunHora();
+    const bodegaBuscada = bodegaNombre.toUpperCase();
+
+    for (let i = valores.length - 1; i >= 1; i--) {
+      const fila = valores[i];
+      const bodegaReg = fila[2] ? fila[2].toString().toUpperCase() : "";
+
+      if (bodegaReg === bodegaBuscada) {
+        return `⏳ *${saludo} REPORTE DE CIERRE - TURNO ANTERIOR (HISTÓRICO)*\n` +
+               `🏢 *Bodega:* ${bodegaBuscada}\n` +
+               `👤 *Entregó:* ${fila[1]}\n` +
+               `🗓️ *Fecha/Hora Cierre:* ${fila[0]}\n\n` +
+               `📊 *Resumen Operativo Registrado:*\n` +
+               `• 🟢 *Descargas Realizadas:* ${fila[3]}\n` +
+               `• 🔵 *Descargas Pendientes:* ${fila[4]}\n` +
+               `• 🟣 *Cargas Realizadas:* ${fila[5]}\n` +
+               `• 🟡 *Precargas Preparadas:* ${fila[6]}\n\n` +
+               `🚛 *Cargas Registradas:* ${fila[7]}\n` +
+               `📦 *Precargas Registradas:* ${fila[8]}\n\n` +
+               `_Consulta histórica directa desde la base de datos._ ✨`;
+      }
+    }
+
+    return `⚠️ No se encontró ningún registro previo para la *Bodega ${bodegaBuscada}* en la base de datos.`;
+
+  } catch (e) {
+    return "Error al consultar la base de datos de cierres: " + e.toString();
+  }
+}
+
+// =================================================================
+// --- GESTIÓN DE AUDITORÍA Y REGISTRO DE EVENTOS ---
+// =================================================================
+function registrarEnvio(claveReporte, detalle) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty(claveReporte, `${formatearFecha(new Date())} (${detalle})`);
+  } catch (e) {
+    Logger.log("Error guardando registro de auditoría: " + e.toString());
+  }
+}
+
+function obtenerEstadoSistema() {
+  const props = PropertiesService.getScriptProperties();
+  const saludo = obtenerSaludoSegunHora();
+
+  return `🛡️ *${saludo} ESTADO Y AUDITORÍA DEL SISTEMA (GEMA)*\n\n` +
+         `🟢 *Servidor y Bot:* En línea y operativos.\n\n` +
+         `📋 *Historial del Último Envío:* \n` +
+         `• *Monitor Dashboard:* ${props.getProperty("MONITOR_DASHBOARD") || "Sin revisiones recientes"}\n` +
+         `• *Auditoría Supervisores:* ${props.getProperty("AUDITORIA_SUPERVISORES") || "Sin revisiones recientes"}\n` +
+         `• *Auditoría Duero:* ${props.getProperty("AUDITORIA_DUERO") || "Sin envíos recientes"}\n` +
+         `• *Cierre Naranja:* ${props.getProperty("CIERRE_NARANJA") || "Sin cierres registrados hoy"}\n` +
+         `• *Cierre Roja:* ${props.getProperty("CIERRE_ROJA") || "Sin cierres registrados hoy"}\n` +
+         `• *Atrasos (Horario):* ${props.getProperty("REPORTE_ATRASOS") || "Sin envíos registrados hoy"}\n` +
+         `• *Pending 15:00 hrs:* ${props.getProperty("PENDING_15HRS") || "Pendiente corte 15:00 hrs"}\n` +
+         `• *Pending 19:00 hrs:* ${props.getProperty("PENDING_19HRS") || "Pendiente corte 19:00 hrs"}\n` +
+         `• *Pending 22:00 hrs:* ${props.getProperty("PENDING_22HRS") || "Pendiente corte 22:00 hrs"}\n\n` +
+         `_Todo el flujo automático se está ejecutando correctamente._ ✨`;
+}
+
+function calcularTiempoEnPlanta(fechaStr, horaStr) {
+  if (!fechaStr || fechaStr === "N/A") return "Sin registro de arribo";
+
+  try {
+    let dia = 0, mes = 0, anio = 0;
+    let horas = 0, minutos = 0, segundos = 0;
+
+    const strF = fechaStr.toString().trim();
+    let partesF = strF.split(".");
+    if (partesF.length !== 3) partesF = strF.split("/");
+
+    if (partesF.length === 3) {
+      dia = parseInt(partesF[0], 10);
+      mes = parseInt(partesF[1], 10) - 1;
+      anio = parseInt(partesF[2], 10);
+    } else {
+      return "Fecha no válida";
+    }
+
+    if (horaStr && horaStr !== "N/A") {
+      const strH = horaStr.toString().trim();
+      const partesH = strH.split(":");
+      if (partesH.length >= 2) {
+        horas = parseInt(partesH[0], 10);
+        minutos = parseInt(partesH[1], 10);
+        segundos = partesH[2] ? parseInt(partesH[2], 10) : 0;
+      }
+    }
+
+    const fechaArribo = new Date(anio, mes, dia, horas, minutos, segundos);
+    const difMs = new Date() - fechaArribo;
+
+    if (isNaN(fechaArribo.getTime())) return "Fecha no válida";
+    if (difMs <= 0) return "Recién ingresado";
+
+    return formatearTiempoMs(difMs);
+
+  } catch (e) {
+    return "Error en cálculo";
+  }
+}
+
+function buscarShipmentGlobal(shipmentBuscado) {
+  const resultadoPlan = buscarEnPlan(shipmentBuscado);
+  if (!resultadoPlan.includes("no se encontró")) return resultadoPlan;
+
+  const resultadoTransito = buscarEnTransitos(shipmentBuscado);
+  if (!resultadoTransito.includes("no se encontró")) return resultadoTransito;
+
+  const saludo = obtenerSaludoSegunHora();
+  return `${saludo} ⚠️ El shipment "${shipmentBuscado}" no se encontró ni en la pestaña PLAN ni en TRANSITOS.`;
+}
+
+function buscarEnTransitos(shipmentBuscado) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("TRANSITOS");
+    if (!sheet) return "⚠️ Error: No se encontró la pestaña 'TRANSITOS'.";
+
+    const datos = sheet.getDataRange().getValues();
+    const busqueda = removerAcentos(shipmentBuscado).trim().toLowerCase();
+    const saludo = obtenerSaludoSegunHora();
+
+    for (let i = 1; i < datos.length; i++) {
+      const shipment = datos[i][1] ? datos[i][1].toString().trim() : "";
+
+      if (shipment.toLowerCase() === busqueda) {
+        const prioridad = datos[i][0] ? datos[i][0].toString().trim() : "";
+        const fechaEnvio = sheet.getRange(i + 1, 4).getDisplayValue() || "N/A";
+        const origen = datos[i][4] || "N/A";
+        const transporte = datos[i][5] || "N/A";
+        const remolque = datos[i][6] || "N/A";
+        const fechaArribo = sheet.getRange(i + 1, 8).getDisplayValue() || "N/A";
+        const horaArribo = sheet.getRange(i + 1, 9).getDisplayValue() || "N/A";
+        const estatus = datos[i][9] || "N/A";
+        const comentario = datos[i][10] || "Sin comentarios";
+
+        return `${saludo} 🚚 *Shipment ${shipment} (TRANSITOS):*\n` +
+               (prioridad ? `⭐ *Marca:* ${prioridad}\n` : "") +
+               `• *Origen:* ${origen}\n` +
+               `• *Transporte:* ${transporte}\n` +
+               `• *Remolque:* ${remolque}\n` +
+               `• *Fecha de Envío:* ${fechaEnvio}\n` +
+               `• *Fecha/Hora Arribo:* ${fechaArribo} ${horaArribo}\n` +
+               `• *Estatus:* ${estatus}\n` +
+               `• *Comentarios:* ${comentario}`;
+      }
+    }
+
+    return `⚠️ El shipment "${shipmentBuscado}" no se encontró en TRANSITOS.`;
+  } catch (e) {
+    return "Error al consultar la pestaña TRANSITOS: " + e.toString();
+  }
+}
+
+function obtenerReportePending(horaCorte) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("PLAN");
+    if (!sheet) return "⚠️ Error: No se encontró la pestaña 'PLAN'.";
+
+    const saludo = obtenerSaludoSegunHora();
+    const fechaPending = sheet.getRange("F2").getDisplayValue() || "N/A";
+
+    const pendingMeta = parseFloat(sheet.getRange("F3").getValue()) || 0;
+    const avanceActual = parseFloat(sheet.getRange("G3").getValue()) || 0;
+
+    let porcentajeAvance = 0;
+    if (pendingMeta > 0) {
+      porcentajeAvance = (avanceActual / pendingMeta) * 100;
+    }
+
+    const bloquesLlenos = Math.min(10, Math.max(0, Math.round(porcentajeAvance / 10)));
+    const barraProgreso = "█".repeat(bloquesLlenos) + "░".repeat(10 - bloquesLlenos);
+
+    const restanToneladas = sheet.getRange("H3").getDisplayValue() || "0";
+    const viajesPorFacturar = sheet.getRange("I3").getDisplayValue() || "0";
+
+    let mensaje = `📊 *${saludo} AVANCE DE PENDING - MX21*\n` +
+                  `📅 *Fecha:* ${fechaPending}\n\n` +
+                  `🎯 *Pending :* ${pendingMeta.toLocaleString("es-MX")} Tn\n` +
+                  `📈 *Avance Actual :* ${avanceActual.toLocaleString("es-MX")} Tn\n` +
+                  `📌 *Cumplimiento:* *${porcentajeAvance.toFixed(1)}%*\n` +
+                  `[${barraProgreso}]\n\n` +
+                  `⚖️ *Restan Toneladas:* ${restanToneladas}\n` +
+                  `🚛 *Viajes por Facturar:* ${viajesPorFacturar}`;
+
+    if (horaCorte === 19 && pendingMeta > 0) {
+      if (porcentajeAvance < 70) {
+        mensaje += `\n\n⚠️ *Atención Operaciones:* El avance (${porcentajeAvance.toFixed(1)}%) está por debajo de la meta mínima del 70% para el corte de las 19:00 hrs. Requiere acelerar carga y facturación. 🚛✨`;
+      }
+    }
+
+    if (horaCorte === 22) {
+      if (porcentajeAvance >= 100) {
+        mensaje += `\n\n🎉 *¡Gran trabajo, equipo!* Se alcanzó el *${porcentajeAvance.toFixed(1)}%* de la meta diaria de Pending. ¡Gracias por el compromiso! 👏✨`;
+      } else {
+        mensaje += `\n\n💪 *Cierre de turno:* Se cerró la jornada con un *${porcentajeAvance.toFixed(1)}%* de la meta. Reconocemos el esfuerzo de todos hoy. ¡A descansar y mañana con todo! 🌙`;
+      }
+    }
+
+    return mensaje;
+
+  } catch (error) {
+    return "Error al obtener reporte de Pending: " + error.toString();
+  }
+}
+
+function enviarReportePendingDiario() {
+  try {
+    const mensaje = obtenerReportePending(15);
+    if (!mensaje.includes("Error")) {
+      enviarMensajeWhatsApp(JID_OPERACIONES, mensaje);
+      registrarEnvio("PENDING_15HRS", "Enviado Automático");
+    }
+  } catch (error) {
+    Logger.log("Error en enviarReportePendingDiario: " + error.toString());
+  }
+}
+
+function enviarReportePending19hrs() {
+  try {
+    const mensaje = obtenerReportePending(19);
+    if (!mensaje.includes("Error")) {
+      enviarMensajeWhatsApp(JID_OPERACIONES, mensaje);
+      registrarEnvio("PENDING_19HRS", "Enviado Automático");
+    }
+  } catch (error) {
+    Logger.log("Error en enviarReportePending19hrs: " + error.toString());
+  }
+}
+
+function enviarReportePending22hrs() {
+  try {
+    const mensaje = obtenerReportePending(22);
+    if (!mensaje.includes("Error")) {
+      enviarMensajeWhatsApp(JID_OPERACIONES, mensaje);
+      registrarEnvio("PENDING_22HRS", "Enviado Automático");
+    }
+  } catch (error) {
+    Logger.log("Error en enviarReportePending22hrs: " + error.toString());
+  }
+}
+
+function ejecutarNotificacionesHorarias() {
+  const reporteAtrasos = obtenerAtrasosPlan();
+  if (!reporteAtrasos.includes("Sin novedades")) {
+    enviarMensajeWhatsApp(JID_TRANSPORTE, reporteAtrasos);
+    registrarEnvio("REPORTE_ATRASOS", "Enviado Automático (Con incidencias)");
+  } else {
+    registrarEnvio("REPORTE_ATRASOS", "Revisado (Sin novedades/Sin retrasos)");
+  }
+}
+
+function notificarRiesgoOperaciones() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("PLAN");
+    if (!sheet) return;
+
+    const saludo = obtenerSaludoSegunHora();
+    const datos = sheet.getDataRange().getValues();
+    let reporte = `⚠️ *${saludo} ALERTA DE OPERACIONES: RIESGO EN LÍMITE DE SALIDA*\n` +
+                  "_Notificación automática de GEMA_\n\n";
+    let encontrados = 0;
+
+    for (let i = 3; i < datos.length; i++) {
+      const shipment = datos[i][1] ? datos[i][1].toString().trim() : "";
+      const limiteSalidaVal = datos[i][8];
+      const estatus = datos[i][9] ? removerAcentos(datos[i][9]).toUpperCase() : "";
+
+      if (shipment && limiteSalidaVal && estatus !== "CARGADO" && estatus !== "FACTURADO") {
+        const atrasoMs = obtenerRetrasoMs(limiteSalidaVal);
+
+        if (atrasoMs > 0) {
+          reporte += `• *Shipment:* ${shipment}\n` +
+                     `  *Transporte:* ${datos[i][0] || "N/A"}\n` +
+                     `  *Cliente:* ${datos[i][4] || "N/A"}\n` +
+                     `  *Destino:* ${datos[i][5] || "N/A"}\n` +
+                     `  *Estatus:* ${estatus}\n` +
+                     `  *Andén:* ${datos[i][10] || "N/A"}\n` +
+                     `  *Límite Salida:* ${formatearFecha(limiteSalidaVal)}\n` +
+                     `  *Tiempo Excedido:* ${formatearTiempoMs(atrasoMs)}\n\n`;
+          encontrados++;
+        }
+      }
+    }
+
+    if (encontrados > 0) {
+      enviarMensajeWhatsApp(JID_OPERACIONES, reporte);
+      registrarEnvio("ALERTA_RIESGO", `Enviado (${encontrados} unidades en riesgo)`);
+    } else {
+      registrarEnvio("ALERTA_RIESGO", "Revisado (Sin embarques en riesgo)");
+    }
+  } catch (e) {
+    Logger.log("Error en notificarRiesgoOperaciones: " + e.toString());
+  }
+}
+
+function enviarMensajeWhatsApp(jid, texto) {
+  const payload = {
+    number: jid,
+    text: texto
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "apikey": API_KEY
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  UrlFetchApp.fetch(API_URL, options);
+}
+
+function buscarEnPlan(shipmentBuscado) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("PLAN");
+    if (!sheet) return "⚠️ Error: No se encontró la pestaña 'PLAN'.";
+
+    const datos = sheet.getDataRange().getValues();
+    const busqueda = removerAcentos(shipmentBuscado).trim().toLowerCase();
+    const saludo = obtenerSaludoSegunHora();
+
+    for (let i = 3; i < datos.length; i++) {
+      const shipment = datos[i][1] ? datos[i][1].toString().trim() : "";
+
+      if (shipment.toLowerCase() === busqueda) {
+        const transporte = datos[i][0] || "N/A";
+        const citaCarga = datos[i][3];
+        const cliente = datos[i][4] || "N/A";
+        const destino = datos[i][5] || "N/A";
+        const estatus = datos[i][9] ? datos[i][9].toString().trim() : "Sin estatus";
+        const anden = datos[i][10] ? datos[i][10].toString().trim() : "N/A";
+
+        let respuesta = `${saludo} ✅ *Shipment ${shipment} (PLAN):*\n` +
+                        `• *Transporte:* ${transporte}\n` +
+                        `• *Cliente:* ${cliente}\n` +
+                        `• *Destino:* ${destino}\n` +
+                        `• *Cita de Carga:* ${formatearFecha(citaCarga)}\n` +
+                        `• *Estatus:* ${estatus}\n` +
+                        `• *Andén:* ${anden}`;
+
+        const atrasoMs = obtenerRetrasoMs(citaCarga);
+        if (atrasoMs > 0 && removerAcentos(estatus).toUpperCase().includes("FALTA TRANSPORTE")) {
+          respuesta += `\n🚨 *Atención:* Presenta retraso por falta de transporte (${formatearTiempoMs(atrasoMs)}).`;
         }
 
-        btnFetchSheet.addEventListener('click', () => fetchExistingFromSheet(false));
-        setInterval(() => fetchExistingFromSheet(true), 5000);
+        return respuesta;
+      }
+    }
 
-        btnSendDirectly.addEventListener('click', async () => {
-            if (groupedTrips.size === 0) {
-                showNotification("No hay registros para enviar.", "error");
-                return;
-            }
-            const now = new Date();
-            const shift = calculateShift(now);
-            const dateStr = formatAuditDateTime(now);
-            const auditor = inputAuditorName.value.trim().toUpperCase() || "MARTIN";
-            const rows = [];
+    return `${saludo} ⚠️ El shipment "${shipmentBuscado}" no se encontró en la pestaña PLAN.`;
+  } catch (e) {
+    return "Error al consultar la pestaña PLAN: " + e.toString();
+  }
+}
 
-            groupedTrips.forEach(g => {
-                g.lpns.forEach((lpnData, lpn) => {
-                    lpnData.skus.forEach((skuData, sku) => {
-                        const row = new Array(10).fill("");
-                        row[0] = shift;
-                        row[1] = auditor;
-                        row[2] = dateStr;
-                        row[3] = g.tripClean;
-                        row[4] = lpn;
-                        row[5] = sku;
-                        row[6] = skuData.desc;
-                        row[7] = skuData.incidence || "";
-                        row[8] = "";
-                        row[9] = skuData.boxes;
-                        rows.push(row);
-                    });
-                });
-            });
+function obtenerAtrasosPlan() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("PLAN");
+    if (!sheet) return "⚠️ Error: No se encontró la pestaña 'PLAN'.";
 
-            btnSendDirectly.disabled = true;
-            btnSendDirectly.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Guardando...</span>`;
-            refreshIcons();
+    const saludo = obtenerSaludoSegunHora();
+    const datos = sheet.getDataRange().getValues();
+    let reporte = `🚛 *${saludo} Equipo de Calamanda - Transporte*\n` +
+                  "Soy *Gema* y les comparto la lista actualizada de embarques con cita vencida que aún no cuentan con unidad asignada:\n\n";
+    let encontrados = 0;
 
-            try {
-                await fetch(APPS_SCRIPT_EXEC_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: "uploadRows", rows, auditor })
-                });
-                showNotification(`¡Éxito! Registros acumulados en Google Sheets.`, "success");
-                fetchExistingFromSheet(true);
-            } catch {
-                showNotification("Lote enviado en modo de contingencia.", "success");
-            } finally {
-                btnSendDirectly.disabled = false;
-                btnSendDirectly.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i><span>Guardar en Sheet</span>`;
-                refreshIcons();
-            }
-        });
+    for (let i = 3; i < datos.length; i++) {
+      const shipment = datos[i][1] ? datos[i][1].toString().trim() : "";
+      const citaCarga = datos[i][3];
+      const estatus = datos[i][9] ? removerAcentos(datos[i][9]) : "";
 
-        btnExportXlsx.addEventListener('click', () => {
-            if (groupedTrips.size === 0) {
-                showNotification("No hay datos para exportar.", "error");
-                return;
-            }
-            const now = new Date();
-            const shift = calculateShift(now);
-            const dateStr = formatAuditDateTime(now);
-            const auditor = inputAuditorName.value.trim().toUpperCase() || "MARTIN";
-            const dataRows = [
-                ["TURNO", "AUDITOR", "FECHA DE AUDITORIA", "SHIPMENT", "LPN / ETIQUETA", "SKU", "DESCRIPCION", "INCIDENCIA", "AYUDANTE GENERAL", "TOTAL DE CAJAS EN LPN", "ESTADO AUDITORIA"]
-            ];
+      if (shipment && !shipment.startsWith("9000") && estatus.toUpperCase().includes("FALTA TRANSPORTE")) {
+        const atrasoMs = obtenerRetrasoMs(citaCarga);
 
-            groupedTrips.forEach(g => {
-                g.lpns.forEach((lpnData, lpn) => {
-                    lpnData.skus.forEach((skuData, sku) => {
-                        dataRows.push([shift, auditor, dateStr, g.tripClean, lpn, sku, skuData.desc, skuData.incidence || "", "", skuData.boxes, skuData.isAudited ? "AUDITADO" : "PENDIENTE"]);
-                    });
-                });
-            });
+        if (atrasoMs > 0) {
+          reporte += `• *Shipment:* ${shipment}\n` +
+                     `  *Transporte:* ${datos[i][0] || "N/A"}\n` +
+                     `  *Cliente:* ${datos[i][4] || "N/A"}\n` +
+                     `  *Destino:* ${datos[i][5] || "N/A"}\n` +
+                     `  *Cita:* ${formatearFecha(citaCarga)}\n` +
+                     `  *Atraso:* ${formatearTiempoMs(atrasoMs)}\n\n`;
+          encontrados++;
+        }
+      }
+    }
 
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(dataRows);
-            XLSX.utils.book_append_sheet(wb, ws, "Auditoria");
-            XLSX.writeFile(wb, `Traxion_Auditoria_${now.getTime()}.xlsx`);
-            showNotification("Archivo Excel descargado.", "success");
-        });
+    if (encontrados === 0) {
+      return `${saludo} ✅ *Sin novedades:* No hay embarques en 'FALTA TRANSPORTE' con cita vencida.`;
+    }
 
-        btnCleanData.addEventListener('click', () => {
-            groupedTrips.clear();
-            expandedTrips.clear();
-            expandedLpns.clear();
-            fileInput.value = '';
-            updateKPIs();
-            renderAllViews();
-            showNotification("Tablero limpio.", "info");
-        });
+    reporte += "❓ _¿Nos ayudan a revisar el estatus con sus operadores? Quedo al pendiente._ ";
+    return reporte;
+  } catch (e) {
+    return "Error al generar reporte de atrasos: " + e.toString();
+  }
+}
 
-        btnOpenProductivity.addEventListener('click', () => {
-            document.getElementById('prod-auditor-name').textContent = inputAuditorName.value.toUpperCase();
-            document.getElementById('prod-shift-badge').textContent = calculateShift();
-            productivityModal.classList.remove('hidden');
-            refreshIcons();
-        });
-        [btnCloseProductivityModal, btnCancelProductivity].forEach(b => {
-            b.addEventListener('click', () => productivityModal.classList.add('hidden'));
-        });
+function mantenerServidorActivo() {
+  try {
+    const response = UrlFetchApp.fetch("https://bot-trafico-mx21.onrender.com/", { muteHttpExceptions: true });
+    Logger.log("Ping al servidor ejecutado. Estado: " + response.getResponseCode());
+  } catch (e) {
+    Logger.log("Error al hacer ping al servidor: " + e.toString());
+  }
+}
 
-        window.addEventListener('DOMContentLoaded', () => {
-            refreshIcons();
-            fetchExistingFromSheet(true);
-        });
-    </script>
-</body>
-</html>
+// =================================================================
+// --- FUNCIONES AUXILIARES FECHAS Y FORMATOS ---
+// =================================================================
+function combinarFechaHora(f, h) {
+  if (!f) return null;
+  let d = new Date(f);
+  if (h instanceof Date) {
+    d.setHours(h.getHours(), h.getMinutes(), 0);
+  }
+  return d;
+}
+
+function SystemFormatDate(d) {
+  if (!d || isNaN(d.getTime())) return "N/A";
+  let dia = ("0" + d.getDate()).slice(-2);
+  let mes = ("0" + (d.getMonth() + 1)).slice(-2);
+  let hrs = ("0" + d.getHours()).slice(-2);
+  let min = ("0" + d.getMinutes()).slice(-2);
+  return `${dia}/${mes} ${hrs}:${min}h`;
+}
+
+function limpiarDestino(dest) {
+  return dest.replace(/^Qro-\s*/i, "").replace(/,.*$/, "");
+}
+
+function extraerSiglas(nombre) {
+  if (nombre.includes("GLOBAL TM")) return "GLOBAL TM";
+  if (nombre.includes("CASTORES")) return "CASTORES";
+  if (nombre.includes("MEX AMERI K")) return "MEX AMERI K";
+  return nombre.split(" ")[0];
+}
+
+function parseFechaCita(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+
+  const str = val.toString().trim();
+  const partes = str.split(" ");
+  if (partes.length < 2) return new Date(str);
+
+  const fechaPartes = partes[0].split("/");
+  const horaPartes = partes[1].split(":");
+
+  if (fechaPartes.length === 3 && horaPartes.length >= 2) {
+    const dia = parseInt(fechaPartes[0], 10);
+    const mes = parseInt(fechaPartes[1], 10) - 1;
+    const anio = parseInt(fechaPartes[2], 10);
+    const horas = parseInt(horaPartes[0], 10);
+    const minutos = parseInt(horaPartes[1], 10);
+    const segundos = horaPartes[2] ? parseInt(horaPartes[2], 10) : 0;
+
+    return new Date(anio, mes, dia, horas, minutos, segundos);
+  }
+
+  return new Date(str);
+}
+
+function obtenerRetrasoMs(fechaCitaVal) {
+  const cita = parseFechaCita(fechaCitaVal);
+  if (!cita || isNaN(cita.getTime())) return 0;
+  const diferenciaMs = new Date().getTime() - cita.getTime();
+  return diferenciaMs > 0 ? diferenciaMs : 0;
+}
+
+function formatearTiempoMs(ms) {
+  const minutosTotales = Math.floor(ms / (1000 * 60));
+  const horas = Math.floor(minutosTotales / 60);
+  const minutos = minutosTotales % 60;
+  return horas > 0 ? `${horas} hrs ${minutos} mins` : `${minutos} mins`;
+}
+
+function formatearFecha(val) {
+  const d = parseFechaCita(val);
+  if (!d || isNaN(d.getTime())) return val ? val.toString() : "N/A";
+  
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const anio = d.getFullYear();
+  const horas = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+
+  return `${dia}/${mes}/${anio} ${horas}:${mins}`;
+}
