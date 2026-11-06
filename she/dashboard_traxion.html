@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRAXIÓN | Tablero de Control Operativo SHE - Colgate Querétaro</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- SheetJS para procesar y exportar Excel localmente -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js y Plugin Datalabels -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+  <style>
+    /* ==========================================================
+       VARIABLES DE COLOR Y DISEÑO CORPORATIVO TRAXIÓN
+       ========================================================== */
+    :root {
+      --tx-navy-dark: #0a1124;
+      --tx-navy-card: #101c38;
+      --tx-navy-light: #1c2d54;
+      --tx-lime: #b8e922;
+      --tx-lime-glow: rgba(184, 233, 34, 0.35);
+      --tx-lime-hover: #cbf53d;
+      
+      --bg-canvas: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-alt: #f1f5f9;
+      
+      --border-subtle: #e2e8f0;
+      --border-focus: #b8e922;
+      
+      --text-main: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      
+      --status-success: #10b981;
+      --status-success-bg: #ecfdf5;
+      --status-success-border: #a7f3d0;
+      --status-success-text: #065f46;
+      
+      --status-danger: #f43f5e;
+      --status-danger-bg: #fff1f2;
+      --status-danger-border: #fecdd3;
+      --status-danger-text: #9f1239;
+      
+      --status-warning: #f59e0b;
+      --status-warning-bg: #fffbeb;
+      --status-warning-border: #fde68a;
+      --status-warning-text: #92400e;
+
+      --status-info: #0284c7;
+      --status-info-bg: #f0f9ff;
+      --status-info-border: #bae6fd;
+      --status-info-text: #0369a1;
+
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* CONTENEDOR PRINCIPAL */
+    .app-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 32px 48px;
+      width: 100%;
+    }
+
+    /* ==========================================================
+       HEADER INSTITUCIONAL TRAXIÓN
+       ========================================================== */
+    .hero-header {
+      background: linear-gradient(135deg, var(--tx-navy-dark) 0%, var(--tx-navy-card) 60%, #152244 100%);
+      border-radius: var(--radius-lg);
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .hero-header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--tx-lime) 0%, #d9f99d 50%, #84cc16 100%);
+    }
+
+    .hero-header::after {
+      content: "";
+      position: absolute;
+      right: -80px;
+      bottom: -80px;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(184, 233, 34, 0.12) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .header-info-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 1;
+    }
+
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge-unit {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(8px);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .badge-unit-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--tx-lime);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--tx-lime);
+    }
+
+    .badge-subsystem {
+      color: var(--tx-lime);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-meta {
+      font-size: 13px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-top: 2px;
+    }
+
+    .hero-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-branding {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      z-index: 1;
+    }
+
+    .traxion-brand-text {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 6px;
+      color: #ffffff;
+      line-height: 1;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .traxion-brand-sub {
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: var(--tx-lime);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ==========================================================
+       ZONA DE CARGA DE ARCHIVOS INTELIGENTE
+       ========================================================== */
+    .upload-section {
+      background: var(--bg-surface);
+      border: 1.5px dashed #cbd5e1;
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .upload-section:hover, .upload-section.dragover {
+      border-color: var(--tx-lime);
+      background-color: #f7fee7;
+      box-shadow: 0 0 0 4px rgba(184, 233, 34, 0.15);
+    }
+
+    .upload-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .upload-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .upload-icon-bubble {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-md);
+      background: #f1f5f9;
+      color: var(--tx-navy-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .upload-section:hover .upload-icon-bubble {
+      background: var(--tx-lime);
+      color: var(--tx-navy-dark);
+      transform: scale(1.05);
+    }
+
+    .upload-text h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--tx-navy-dark);
+      margin-bottom: 4px;
+    }
+
+    .upload-text p {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .program-indicators {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .prog-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-surface-alt);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.2s;
+    }
+
+    .prog-pill.loaded {
+      background: var(--status-success-bg);
+      color: var(--status-success-text);
+      border-color: var(--status-success-border);
+      font-weight: 700;
+    }
+
+    .prog-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    .prog-pill.loaded .prog-pill-dot {
+      background: var(--status-success);
+      box-shadow: 0 0 6px var(--status-success);
+    }
+
+    .upload-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .btn-primary-browse {
+      background: var(--tx-navy-dark);
+      color: #ffffff;
+      padding: 10px 22px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary-browse:hover {
+      background: var(--tx-navy-light);
+      border-color: var(--tx-lime);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .status-badge-loaded {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      background: #f1f5f9;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .loading-bar-wrap {
+      width: 100%;
+      margin-top: 14px;
+      background: #e2e8f0;
+      border-radius: var(--radius-full);
+      height: 6px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .loading-bar-progress {
+      height: 100%;
+      background: linear-gradient(90deg, var(--tx-lime), #84cc16);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* ==========================================================
+       BARRA DE CONTROLES Y FILTROS EJECUTIVOS
+       ========================================================== */
+    .controls-panel {
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .filter-group-left {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .filter-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-field label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .custom-select-wrap {
+      position: relative;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      appearance: none;
+      -webkit-appearance: none;
+      background-color: var(--bg-surface-alt);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 9px 36px 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.2s;
+      min-width: 220px;
+    }
+
+    select:focus, input:focus {
+      background-color: #ffffff;
+      border-color: var(--tx-navy-dark);
+      box-shadow: 0 0 0 3px rgba(16, 28, 56, 0.1);
+    }
+
+    .custom-select-arrow {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Stepper meta */
+    .meta-stepper {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-surface-alt);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .meta-btn {
+      background: transparent;
+      border: none;
+      width: 32px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-weight: 800;
+      font-size: 16px;
+      transition: background 0.15s;
+    }
+
+    .meta-btn:hover {
+      background: #e2e8f0;
+      color: var(--tx-navy-dark);
+    }
+
+    .meta-input-num {
+      width: 50px;
+      min-width: 50px;
+      text-align: center;
+      padding: 8px 0;
+      border: none;
+      background: transparent;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .quick-meta-presets {
+      display: flex;
+      gap: 4px;
+      margin-left: 6px;
+    }
+
+    .preset-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--bg-surface-alt);
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: 1px solid var(--border-subtle);
+      transition: all 0.15s;
+    }
+
+    .preset-pill:hover, .preset-pill.active {
+      background: var(--tx-navy-dark);
+      color: #ffffff;
+      border-color: var(--tx-navy-dark);
+    }
+
+    /* Buscador instantáneo */
+    .search-box-wrap {
+      position: relative;
+    }
+
+    .search-input {
+      padding-left: 36px;
+      padding-right: 14px;
+      min-width: 230px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* Botones de Acción Superior */
+    .filter-actions-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-action-outline {
+      background: #ffffff;
+      color: var(--tx-navy-dark);
+      border: 1.5px solid var(--border-subtle);
+      padding: 9px 16px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s;
+    }
+
+    .btn-action-outline:hover {
+      background: var(--bg-surface-alt);
+      border-color: var(--tx-navy-light);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-primary {
+      background: var(--tx-navy-dark);
+      color: #ffffff;
+      border: 1.5px solid var(--tx-navy-dark);
+      padding: 9px 18px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-action-primary:hover {
+      background: var(--tx-navy-light);
+      border-color: var(--tx-lime);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    /* ==========================================================
+       TARJETAS KPIS EJECUTIVAS
+       ========================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card-modern {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .kpi-card-modern:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .kpi-card-modern::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--border-subtle);
+    }
+
+    .kpi-card-modern.lime-border::before { background: var(--tx-lime); }
+    .kpi-card-modern.green-border::before { background: var(--status-success); }
+    .kpi-card-modern.red-border::before { background: var(--status-danger); }
+    .kpi-card-modern.blue-border::before { background: var(--status-info); }
+
+    .kpi-main-data {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kpi-label-text {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+
+    .kpi-metric-number {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .kpi-subtext-detail {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    .kpi-icon-bubble {
+      width: 46px;
+      height: 46px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .icon-bg-blue { background: var(--status-info-bg); color: var(--status-info); }
+    .icon-bg-green { background: var(--status-success-bg); color: var(--status-success); }
+    .icon-bg-red { background: var(--status-danger-bg); color: var(--status-danger); }
+    .icon-bg-amber { background: var(--status-warning-bg); color: var(--status-warning); }
+
+    /* ==========================================================
+       SECCIÓN DE GRÁFICOS VISUALES
+       ========================================================== */
+    .visual-analytics-grid {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1080px) {
+      .visual-analytics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .chart-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .chart-panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--tx-navy-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-legend-chips {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .legend-chip-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-indicator-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+    }
+
+    .dot-target-line {
+      width: 16px;
+      height: 2px;
+      background: var(--status-warning);
+      border-bottom: 2px dashed var(--status-warning);
+    }
+
+    .canvas-chart-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+    }
+
+    /* Centro del Donut */
+    .donut-center-stat {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -58%);
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .donut-center-pct {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--tx-navy-dark);
+      line-height: 1;
+    }
+
+    .donut-center-lbl {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* ==========================================================
+       TABLA OPERATIVA DE SEGUIMIENTO (ENTERPRISE DATATABLE)
+       ========================================================== */
+    .table-panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+
+    .table-panel-header {
+      padding: 18px 24px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .table-title-area h3 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--tx-navy-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-title-area p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .table-filter-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tbl-pill-btn {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-subtle);
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border-radius: var(--radius-full);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tbl-pill-btn:hover, .tbl-pill-btn.active {
+      background: var(--tx-navy-dark);
+      color: #ffffff;
+      border-color: var(--tx-navy-dark);
+    }
+
+    .table-responsive {
+      overflow-x: auto;
+      width: 100%;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12.5px;
+    }
+
+    thead th {
+      background: #f8fafc;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 12px 18px;
+      border-bottom: 1.5px solid var(--border-subtle);
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s;
+    }
+
+    thead th:hover {
+      color: var(--tx-navy-dark);
+    }
+
+    tbody tr {
+      transition: background-color 0.15s;
+    }
+
+    tbody tr:hover {
+      background-color: #f8fafc;
+    }
+
+    tbody td {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    /* Colaborador Avatar & ID */
+    .colab-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .colab-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-full);
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: var(--tx-lime);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11.5px;
+      font-weight: 800;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .colab-names {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .colab-full-name {
+      font-weight: 700;
+      color: var(--tx-navy-dark);
+      font-size: 13px;
+    }
+
+    .colab-user-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Medallas de ranking */
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+      font-weight: 800;
+      border-radius: 50%;
+    }
+
+    /* Micro-desglose por programa */
+    .prog-breakdown-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .breakdown-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* Barra de progreso de celda */
+    .progress-cell-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 140px;
+    }
+
+    .progress-bar-bg {
+      flex-grow: 1;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.3s;
+    }
+
+    .fill-success { background: var(--status-success); }
+    .fill-danger { background: var(--status-danger); }
+
+    .progress-text-val {
+      font-weight: 700;
+      font-size: 12px;
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* Badges de estatus */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .status-pill-ok {
+      background: var(--status-success-bg);
+      color: var(--status-success-text);
+      border: 1px solid var(--status-success-border);
+    }
+
+    .status-pill-risk {
+      background: var(--status-danger-bg);
+      color: var(--status-danger-text);
+      border: 1px solid var(--status-danger-border);
+    }
+
+    .status-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-pill-ok .status-pill-dot { background: var(--status-success); }
+    .status-pill-risk .status-pill-dot { background: var(--status-danger); }
+
+    /* Empty state */
+    .empty-state-wrap {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon {
+      font-size: 36px;
+      margin-bottom: 10px;
+      color: #cbd5e1;
+    }
+
+    /* FOOTER */
+    .app-footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border-subtle);
+      padding: 20px 32px;
+      text-align: center;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      background: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ==========================================================
+       OPTIMIZACIÓN PARA IMPRESIÓN (PDF REPORTING)
+       ========================================================== */
+    @media print {
+      body {
+        background: #ffffff;
+        color: #000000;
+        padding: 0;
+      }
+      .app-container {
+        max-width: 100%;
+        padding: 0;
+      }
+      .upload-section, .controls-panel, .filter-actions-right, .app-footer {
+        display: none !important;
+      }
+      .hero-header {
+        background: #0a1124 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .kpi-card-modern, .chart-panel-card, .table-panel-card {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        break-inside: avoid;
+      }
+      .visual-analytics-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- ====================================================
+         HEADER CORPORATIVO TRAXIÓN
+         ==================================================== -->
+    <header class="hero-header">
+      <div class="header-info-wrap">
+        <div class="header-badges">
+          <span class="badge-unit">
+            <span class="badge-unit-dot"></span>
+            Unidad Operativa: Colgate Querétaro
+          </span>
+          <span class="badge-subsystem">SHE Hub • Control y Seguimiento</span>
+        </div>
+        <h1 class="hero-title">
+          Tablero de Cumplimiento Semanal de Seguridad
+        </h1>
+        <div class="hero-meta" id="headerMetaSummary">
+          <span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <strong id="lblPeriodoCorte">Esperando carga de archivos...</strong>
+          </span>
+          <span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Meta: <strong id="lblMetaActual">5 registros / colaborador</strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="hero-branding">
+        <span class="traxion-brand-text">TRAXION</span>
+        <span class="traxion-brand-sub">VIDA EN MOVIMIENTO</span>
+      </div>
+    </header>
+
+    <!-- ====================================================
+         ZONA INTELIGENTE DE CARGA (.XLSX)
+         ==================================================== -->
+    <section class="upload-section" id="dropZone">
+      <div class="upload-content">
+        <div class="upload-left">
+          <div class="upload-icon-bubble">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <div class="upload-text">
+            <h3>Carga de Archivos de Auditoría Operativa (.xlsx, .xls)</h3>
+            <p>Arrastre y suelte aquí los reportes <code>datos (40)</code>, <code>datos (41)</code> y <code>datos (42)</code>, o haga clic en examinar.</p>
+            <div class="program-indicators">
+              <span class="prog-pill" id="pillObs">
+                <span class="prog-pill-dot"></span>
+                Obs. Progresiva [datos (40)]
+              </span>
+              <span class="prog-pill" id="pillF2f">
+                <span class="prog-pill-dot"></span>
+                Face to Face [datos (41)]
+              </span>
+              <span class="prog-pill" id="pillMov">
+                <span class="prog-pill-dot"></span>
+                Eq. Móvil [datos (42)]
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-actions">
+          <input type="file" id="fileInput" multiple accept=".xlsx, .xls, .csv" style="display:none;">
+          <label class="btn-primary-browse" for="fileInput">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m16 16-4-4-4 4"></path></svg>
+            Examinar Archivos
+          </label>
+          <span id="uploadStatusBadge" class="status-badge-loaded">Sin archivos cargados</span>
+        </div>
+      </div>
+
+      <div class="loading-bar-wrap" id="loadingBarWrap">
+        <div class="loading-bar-progress" id="loadingBarFill"></div>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         CONTROLES, FILTROS Y BÚSQUEDA INSTANTÁNEA
+         ==================================================== -->
+    <div class="controls-panel">
+      <div class="filter-group-left">
+        <!-- Selector de Semana -->
+        <div class="filter-field">
+          <label for="selectSemana">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            Semana Operativa
+          </label>
+          <div class="custom-select-wrap">
+            <select id="selectSemana" onchange="renderizarDashboard()">
+              <option value="">(Cargue archivos primero)</option>
+            </select>
+            <span class="custom-select-arrow">▼</span>
+          </div>
+        </div>
+
+        <!-- Selector de Programa -->
+        <div class="filter-field">
+          <label for="selectTipo">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+            Programa de Seguridad
+          </label>
+          <div class="custom-select-wrap">
+            <select id="selectTipo" onchange="renderizarDashboard()">
+              <option value="tot">Consolidado Total (Todos los programas)</option>
+              <option value="obs">Observación Progresiva [datos (40)]</option>
+              <option value="f2f">Face to Face (F2F) [datos (41)]</option>
+              <option value="mov">Monitoreo Estándares Eq. Móvil [datos (42)]</option>
+            </select>
+            <span class="custom-select-arrow">▼</span>
+          </div>
+        </div>
+
+        <!-- Meta Semanal -->
+        <div class="filter-field">
+          <label for="inputMeta">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+            Meta Semanal
+          </label>
+          <div style="display: flex; align-items: center;">
+            <div class="meta-stepper">
+              <button class="meta-btn" onclick="ajustarMeta(-1)">−</button>
+              <input type="number" id="inputMeta" class="meta-input-num" value="5" min="1" max="50" onchange="renderizarDashboard()">
+              <button class="meta-btn" onclick="ajustarMeta(1)">+</button>
+            </div>
+            <div class="quick-meta-presets">
+              <span class="preset-pill" onclick="fijarMeta(3)">3</span>
+              <span class="preset-pill active" onclick="fijarMeta(5)">5</span>
+              <span class="preset-pill" onclick="fijarMeta(8)">8</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buscador -->
+        <div class="filter-field">
+          <label for="inputSearch">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Buscar Auditor
+          </label>
+          <div class="search-box-wrap">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="inputSearch" class="search-input" placeholder="Nombre o ID..." oninput="filtrarTabla()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones de Exportación -->
+      <div class="filter-actions-right">
+        <button class="btn-action-outline" onclick="exportarExcel()" title="Descargar datos en formato XLSX">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Exportar Excel
+        </button>
+        <button class="btn-action-primary" onclick="exportarGraficaPNG()" title="Guardar gráfico como imagen de alta resolución">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          Descargar Gráfica
+        </button>
+      </div>
+    </div>
+
+    <!-- ====================================================
+         TARJETAS KPIS RESUMEN EJECUTIVO
+         ==================================================== -->
+    <section class="kpi-grid">
+      <!-- Total Auditores -->
+      <div class="kpi-card-modern blue-border">
+        <div class="kpi-main-data">
+          <span class="kpi-label-text">Auditores Activos</span>
+          <div class="kpi-metric-number" id="kpiAuditores">0</div>
+          <span class="kpi-subtext-detail" id="kpiAuditoresSub">Participantes con actividad</span>
+        </div>
+        <div class="kpi-icon-bubble icon-bg-blue">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        </div>
+      </div>
+
+      <!-- Cumplieron Meta -->
+      <div class="kpi-card-modern green-border">
+        <div class="kpi-main-data">
+          <span class="kpi-label-text">Cumplieron Objetivo</span>
+          <div class="kpi-metric-number" id="kpiCumplieron" style="color: var(--status-success);">0</div>
+          <span class="kpi-subtext-detail" id="kpiCumplieronSub">Alcanzaron o superaron la meta</span>
+        </div>
+        <div class="kpi-icon-bubble icon-bg-green">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+      </div>
+
+      <!-- En Riesgo -->
+      <div class="kpi-card-modern red-border">
+        <div class="kpi-main-data">
+          <span class="kpi-label-text">Bajo Objetivo (En Riesgo)</span>
+          <div class="kpi-metric-number" id="kpiCriticos" style="color: var(--status-danger);">0</div>
+          <span class="kpi-subtext-detail" id="kpiCriticosSub">Requieren seguimiento</span>
+        </div>
+        <div class="kpi-icon-bubble icon-bg-red">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+      </div>
+
+      <!-- Total Auditorías -->
+      <div class="kpi-card-modern lime-border">
+        <div class="kpi-main-data">
+          <span class="kpi-label-text">Total Registros SHE</span>
+          <div class="kpi-metric-number" id="kpiTotalRegistros">0</div>
+          <span class="kpi-subtext-detail" id="kpiPromedioSub">Promedio: 0 por auditor</span>
+        </div>
+        <div class="kpi-icon-bubble" style="background: rgba(184, 233, 34, 0.2); color: #4d7c0f;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+        </div>
+      </div>
+
+      <!-- Tasa Global -->
+      <div class="kpi-card-modern amber-border">
+        <div class="kpi-main-data">
+          <span class="kpi-label-text">Efectividad Global</span>
+          <div class="kpi-metric-number" id="kpiPorcentaje">0%</div>
+          <span class="kpi-subtext-detail" id="kpiPorcentajeStatus">Sin datos</span>
+        </div>
+        <div class="kpi-icon-bubble icon-bg-amber">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         GRÁFICOS ANALÍTICOS (BARRAS DINÁMICAS + DONA DE DESEMPEÑO)
+         ==================================================== -->
+    <section class="visual-analytics-grid">
+      <!-- Gráfico de Barras -->
+      <div class="chart-panel-card">
+        <div class="chart-panel-header">
+          <div class="chart-panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+            <span id="chartBarTitle">Cumplimiento Nominal por Colaborador</span>
+          </div>
+          <div class="chart-legend-chips">
+            <span class="legend-chip-item">
+              <span class="legend-indicator-dot" style="background: var(--status-success);"></span> Cumplió Meta
+            </span>
+            <span class="legend-chip-item">
+              <span class="legend-indicator-dot" style="background: var(--status-danger);"></span> Bajo Meta
+            </span>
+            <span class="legend-chip-item">
+              <span class="dot-target-line"></span> Línea de Meta
+            </span>
+          </div>
+        </div>
+        <div class="canvas-chart-container">
+          <canvas id="barChartCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfico de Dona -->
+      <div class="chart-panel-card">
+        <div class="chart-panel-header">
+          <div class="chart-panel-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+            <span>Distribución de Estado</span>
+          </div>
+        </div>
+        <div class="canvas-chart-container" style="display: flex; align-items: center; justify-content: center;">
+          <canvas id="doughnutChartCanvas"></canvas>
+          <div class="donut-center-stat" id="donutCenterStat">
+            <div class="donut-center-pct" id="donutCenterPct">0%</div>
+            <div class="donut-center-lbl">Cumplimiento</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================
+         TABLA OPERATIVA NOMINAL DE SEGUIMIENTO
+         ==================================================== -->
+    <section class="table-panel-card">
+      <div class="table-panel-header">
+        <div class="table-title-area">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            Seguimiento Nominal de Auditores
+          </h3>
+          <p id="tableSubtitle">Detalle de participación y evaluación de meta individual</p>
+        </div>
+
+        <div class="table-filter-pills">
+          <button class="tbl-pill-btn active" id="filterBtnAll" onclick="cambiarFiltroEstado('todos')">Todos (<span id="cntAll">0</span>)</button>
+          <button class="tbl-pill-btn" id="filterBtnOk" onclick="cambiarFiltroEstado('ok')">Cumplieron (<span id="cntOk">0</span>)</button>
+          <button class="tbl-pill-btn" id="filterBtnRisk" onclick="cambiarFiltroEstado('risk')">En Riesgo (<span id="cntRisk">0</span>)</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table id="mainTable">
+          <thead>
+            <tr>
+              <th onclick="ordenarPor('rank')" style="width: 50px;">#</th>
+              <th onclick="ordenarPor('nombre')">Colaborador / Auditor</th>
+              <th onclick="ordenarPor('desglose')">Desglose por Programa</th>
+              <th onclick="ordenarPor('registros')" style="text-align: center;">Registros</th>
+              <th onclick="ordenarPor('avance')">Avance vs Meta</th>
+              <th onclick="ordenarPor('pct')" style="text-align: center;">% Cumplimiento</th>
+              <th onclick="ordenarPor('estatus')" style="text-align: center;">Estatus</th>
+            </tr>
+          </thead>
+          <tbody id="gridBody">
+            <tr>
+              <td colspan="7">
+                <div class="empty-state-wrap">
+                  <div class="empty-state-icon">📂</div>
+                  <h4>No hay datos operativos disponibles</h4>
+                  <p>Por favor cargue los archivos Excel <code>datos (40)</code>, <code>datos (41)</code> o <code>datos (42)</code> en la zona superior.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FOOTER INSTITUCIONAL -->
+    <footer class="app-footer">
+      <div>
+        <strong>TRAXIÓN SHE SYSTEM</strong> • Gerencia de Seguridad, Higiene y Medio Ambiente • Planta Colgate Querétaro
+      </div>
+      <div>
+        Tablero de Control V2.0 • Procesamiento Local 100% Confidencial
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- ====================================================
+       LÓGICA JAVASCRIPT ROBUSTA, MODERNA Y OPTIMIZADA
+       ==================================================== -->
+  <script>
+    Chart.register(ChartDataLabels);
+
+    // Mapeo nominal institucional
+    const directoriaColaboradores = {
+      'TSE09.RigobertoS': 'Rigoberto Sinecio',
+      'TSE09.GabrielS': 'Gabriel Santiago Morales',
+      'TSE09.JohvaniT': 'Johvani Trejo',
+      'TSE09.ValentinaD': 'Valentina Díaz Martínez',
+      'TSE09.RolandoH': 'Isabel Chávez Martínez',
+      'TSE09.GardeniaA': 'Gardenia Arellano',
+      'TSE09.JuanCA': 'Carlos Ávila',
+      'TSE05.FranciscoA': 'Francisco Amaya',
+      'TSE09.JoseJL': 'Juan José León Aguilar',
+      'TSE09.JoseGV': 'José Guadalupe Verde',
+      'TSE09.JuanDG': 'Juan Daniel García',
+      'TSE09.OsvaldoG': 'Osvaldo García',
+      'TSE09.AreliB': 'Jaqueline Bravo',
+      'TSE09.AndresG': 'Andrés Galván',
+      'TSE09.BenitoS': 'Benito Serrano',
+      'TSE09.ErizemaA': 'Erizema Cruz',
+      'TSE09.MartinL': 'Martín León',
+      'TSE09.VictorF': 'Víctor Filomeno',
+      'TSE09.ChristianH': 'Christian Hernández',
+      'TSE09.SergioT': 'Sergio Troncoso',
+      'TSE09.ReynelN': 'Reynel Naranjo'
+    };
+
+    // Estructuras de datos
+    let dbOperativa = { obs: {}, f2f: {}, mov: {} };
+    let mapaSemanas = {};
+    let barChart = null;
+    let doughnutChart = null;
+    let datosTablaActual = [];
+    let filtroEstadoActual = 'todos'; // 'todos' | 'ok' | 'risk'
+    let ordenActual = { columna: 'registros', asc: false };
+
+    // Plugin personalizado para dibujar la línea de meta en el gráfico de barras
+    const targetLinePlugin = {
+      id: 'targetLine',
+      afterDraw(chart) {
+        const meta = parseInt(document.getElementById('inputMeta').value) || 5;
+        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+        if (!y) return;
+        const yVal = y.getPixelForValue(meta);
+        if (yVal === undefined || isNaN(yVal)) return;
+
+        ctx.save();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(left, yVal);
+        ctx.lineTo(right, yVal);
+        ctx.stroke();
+
+        // Etiqueta visual de Meta
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.fillText(`Meta: ${meta}`, right - 50, yVal - 6);
+        ctx.restore();
+      }
+    };
+    Chart.register(targetLinePlugin);
+
+    // Cálculo preciso de Semana ISO 8601
+    function getISOWeekInfo(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+
+      const mon = new Date(d); mon.setUTCDate(d.getUTCDate() - 3);
+      const sun = new Date(d); sun.setUTCDate(d.getUTCDate() + 3);
+
+      const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const strMon = `${String(mon.getUTCDate()).padStart(2, '0')} ${meses[mon.getUTCMonth()]}`;
+      const strSun = `${String(sun.getUTCDate()).padStart(2, '0')} ${meses[sun.getUTCMonth()]}`;
+
+      return {
+        key: `Sem ${weekNo}`,
+        weekNum: weekNo,
+        label: `Semana ${weekNo} (${strMon} - ${strSun})`
+      };
+    }
+
+    // Gestión de Drag and Drop
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('dragover', (e) => { 
+      e.preventDefault(); 
+      dropZone.classList.add('dragover'); 
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) procesarArchivos(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) procesarArchivos(e.target.files);
+    });
+
+    // Procesamiento con barra de progreso
+    async function procesarArchivos(files) {
+      const barWrap = document.getElementById('loadingBarWrap');
+      const barFill = document.getElementById('loadingBarFill');
+      const statusBadge = document.getElementById('uploadStatusBadge');
+
+      barWrap.style.display = 'block';
+      barFill.style.width = '10%';
+      statusBadge.innerText = `Cargando ${files.length} archivo(s)...`;
+      statusBadge.style.background = '#eff6ff';
+      statusBadge.style.color = '#1e40af';
+
+      let count = 0;
+      for (let f of files) {
+        statusBadge.innerText = `Leyendo ${f.name}...`;
+        await leerLibroExcel(f);
+        count++;
+        barFill.style.width = `${Math.round((count / files.length) * 100)}%`;
+        await new Promise(r => setTimeout(r, 60)); // Permite renderizar estado
+      }
+
+      poblarSelectorSemanas();
+      statusBadge.innerText = `✓ ${files.length} archivo(s) procesados correctamente`;
+      statusBadge.style.background = '#ecfdf5';
+      statusBadge.style.color = '#065f46';
+
+      setTimeout(() => {
+        barWrap.style.display = 'none';
+        barFill.style.width = '0%';
+      }, 1200);
+
+      renderizarDashboard();
+    }
+
+    function leerLibroExcel(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            // Optimización de SheetJS con dense: true para archivos de más de 20MB
+            const wb = XLSX.read(data, { type: 'array', cellDates: true, dense: true });
+            const hoja = wb.Sheets[wb.SheetNames[0]];
+            const filas = XLSX.utils.sheet_to_json(hoja, { defval: "" });
+
+            if (!filas.length) return resolve();
+
+            const r0 = filas[0];
+            let tipo = 'obs';
+            const fName = (file.name || '').toLowerCase();
+
+            // Detección inteligente por cabecera y nombre de archivo
+            if ('1. ¿TE COMPARTIERON EL CONTACTO DE SEGURIDAD DE HOY?' in r0 || fName.includes('41')) {
+              tipo = 'f2f';
+              marcarPillCargado('pillF2f');
+            } else if ('1. ESTÁNDAR DE LOS 3 SEGUNDOS' in r0 || 'SELECCIONE EL O LOS ESTÁNDARES A VERIFICAR 0' in r0 || fName.includes('42')) {
+              tipo = 'mov';
+              marcarPillCargado('pillMov');
+            } else {
+              tipo = 'obs';
+              marcarPillCargado('pillObs');
+            }
+
+            filas.forEach(r => {
+              const uNeg = String(r['UNIDAD DE NEGOCIO'] || '').toLowerCase();
+              if (!uNeg.includes('colgate') || (!uNeg.includes('quer') && !uNeg.includes('qro'))) return;
+
+              const user = String(r['USUARIO QUE REPORTA'] || '').trim();
+              if (!user || user === '--') return;
+
+              const repName = r['NOMBRE DE QUIÉN LEVANTÓ EL REPORTE:'] || r['NOMBRE DE QUIEN LEVANTÓ EL REPORTE'] || r['NOMBRE DEL SUPERVISOR'];
+              if (repName && !directoriaColaboradores[user]) {
+                directoriaColaboradores[user] = String(repName).trim();
+              }
+
+              const rawFecha = r['Fecha de envío'];
+              let dt = null;
+              if (rawFecha instanceof Date && !isNaN(rawFecha)) {
+                dt = rawFecha;
+              } else if (typeof rawFecha === 'number') {
+                // Conversión de serial Excel a fecha JavaScript
+                dt = new Date(Math.round((rawFecha - 25569) * 86400 * 1000));
+              } else if (rawFecha) {
+                dt = new Date(rawFecha);
+              }
+              if (!dt || isNaN(dt)) return;
+
+              const sem = getISOWeekInfo(dt);
+              mapaSemanas[sem.key] = { label: sem.label, weekNum: sem.weekNum };
+
+              if (!dbOperativa[tipo][sem.key]) dbOperativa[tipo][sem.key] = {};
+              dbOperativa[tipo][sem.key][user] = (dbOperativa[tipo][sem.key][user] || 0) + 1;
+            });
+          } catch (err) {
+            console.error("Error al procesar archivo:", err);
+          }
+          resolve();
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function marcarPillCargado(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('loaded');
+    }
+
+    function poblarSelectorSemanas() {
+      const select = document.getElementById('selectSemana');
+      const keys = Object.keys(mapaSemanas).sort((a,b) => {
+        const numA = mapaSemanas[a]?.weekNum || parseInt(a.split(' ')[1]) || 0;
+        const numB = mapaSemanas[b]?.weekNum || parseInt(b.split(' ')[1]) || 0;
+        return numB - numA;
+      });
+
+      const current = select.value;
+      select.innerHTML = '';
+      keys.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.text = mapaSemanas[k]?.label || k;
+        select.appendChild(opt);
+      });
+
+      if (keys.includes(current)) select.value = current;
+      else if (keys.length) select.value = keys[0];
+    }
+
+    function ajustarMeta(delta) {
+      const input = document.getElementById('inputMeta');
+      let val = (parseInt(input.value) || 5) + delta;
+      if (val < 1) val = 1;
+      if (val > 50) val = 50;
+      input.value = val;
+      actualizarPresetsActivos(val);
+      renderizarDashboard();
+    }
+
+    function fijarMeta(val) {
+      document.getElementById('inputMeta').value = val;
+      actualizarPresetsActivos(val);
+      renderizarDashboard();
+    }
+
+    function actualizarPresetsActivos(val) {
+      document.querySelectorAll('.preset-pill').forEach(p => {
+        p.classList.toggle('active', parseInt(p.innerText) === val);
+      });
+    }
+
+    function renderizarDashboard() {
+      const semana = document.getElementById('selectSemana').value;
+      const tipo = document.getElementById('selectTipo').value;
+      const meta = parseInt(document.getElementById('inputMeta').value) || 5;
+
+      document.getElementById('lblMetaActual').innerText = `${meta} registros / colaborador`;
+
+      if (!semana) return;
+
+      const semLabel = mapaSemanas[semana]?.label || semana;
+      document.getElementById('lblPeriodoCorte').innerText = semLabel;
+
+      // Consolidación de datos
+      let datos = {};
+      let breakdownUsers = {};
+
+      if (tipo === 'tot') {
+        ['obs', 'f2f', 'mov'].forEach(t => {
+          const map = dbOperativa[t][semana] || {};
+          for (let u in map) {
+            datos[u] = (datos[u] || 0) + map[u];
+            if (!breakdownUsers[u]) breakdownUsers[u] = { obs: 0, f2f: 0, mov: 0 };
+            breakdownUsers[u][t] = (breakdownUsers[u][t] || 0) + map[u];
+          }
+        });
+      } else {
+        const map = dbOperativa[tipo][semana] || {};
+        for (let u in map) {
+          datos[u] = map[u];
+          breakdownUsers[u] = { [tipo]: map[u] };
+        }
+      }
+
+      const usuarios = Object.keys(datos).sort((a, b) => datos[b] - datos[a]);
+      const labels = [];
+      const values = [];
+      const barColors = [];
+
+      let cumplieron = 0;
+      let criticos = 0;
+      let totalRealizados = 0;
+
+      datosTablaActual = [];
+
+      usuarios.forEach((u, idx) => {
+        const val = datos[u];
+        const nom = directoriaColaboradores[u] || u;
+        labels.push(`${nom} (${u})`);
+        values.push(val);
+        totalRealizados += val;
+
+        const ok = val >= meta;
+        if (ok) cumplieron++; else criticos++;
+
+        barColors.push(ok ? '#10b981' : '#f43f5e');
+
+        datosTablaActual.push({
+          rank: idx + 1,
+          user: u,
+          nombre: nom,
+          registros: val,
+          meta: meta,
+          pct: Math.round((val / meta) * 100),
+          estatus: ok ? 'ok' : 'risk',
+          breakdown: breakdownUsers[u] || {}
+        });
+      });
+
+      // Actualizar Contadores y KPIs
+      const totalAuditores = usuarios.length;
+      document.getElementById('kpiAuditores').innerText = totalAuditores;
+      document.getElementById('kpiCumplieron').innerText = cumplieron;
+      document.getElementById('kpiCriticos').innerText = criticos;
+      document.getElementById('kpiTotalRegistros').innerText = totalRealizados.toLocaleString();
+
+      const prom = totalAuditores > 0 ? (totalRealizados / totalAuditores).toFixed(1) : 0;
+      document.getElementById('kpiPromedioSub').innerText = `Promedio: ${prom} por auditor`;
+
+      const pctGlobal = totalAuditores > 0 ? Math.round((cumplieron / totalAuditores) * 100) : 0;
+      document.getElementById('kpiPorcentaje').innerText = `${pctGlobal}%`;
+
+      const kpiStatusEl = document.getElementById('kpiPorcentajeStatus');
+      if (pctGlobal >= 80) {
+        kpiStatusEl.innerText = "Excelente desempeño de equipo";
+        kpiStatusEl.style.color = "#059669";
+      } else if (pctGlobal >= 60) {
+        kpiStatusEl.innerText = "Cumplimiento operativo regular";
+        kpiStatusEl.style.color = "#d97706";
+      } else {
+        kpiStatusEl.innerText = "Alerta: Requiere atención inmediata";
+        kpiStatusEl.style.color = "#e11d48";
+      }
+
+      // Títulos de programas
+      const nombresPrograma = {
+        obs: 'Observación Progresiva',
+        f2f: 'Face to Face (F2F)',
+        mov: 'Monitoreo Estándares Equipo Móvil',
+        tot: 'Consolidado General de Seguridad'
+      };
+      document.getElementById('chartBarTitle').innerText = `${nombresPrograma[tipo]} • ${semLabel}`;
+
+      // Renderizar Tabla con filtros
+      filtrarTabla();
+
+      // Renderizar Gráfico de Barras Moderno
+      renderizarGraficoBarras(labels, values, barColors, meta, usuarios);
+
+      // Renderizar Gráfico de Dona
+      renderizarGraficoDona(cumplieron, criticos, pctGlobal);
+    }
+
+    function renderizarGraficoBarras(labels, values, barColors, meta, usuarios) {
+      const ctxBar = document.getElementById('barChartCanvas').getContext('2d');
+      if (barChart) barChart.destroy();
+
+      // Gradientes visuales
+      const gradGreen = ctxBar.createLinearGradient(0, 0, 0, 300);
+      gradGreen.addColorStop(0, '#10b981');
+      gradGreen.addColorStop(1, '#059669');
+
+      const gradRed = ctxBar.createLinearGradient(0, 0, 0, 300);
+      gradRed.addColorStop(0, '#f43f5e');
+      gradRed.addColorStop(1, '#e11d48');
+
+      const gradientArray = barColors.map(c => c === '#10b981' ? gradGreen : gradRed);
+
+      barChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: gradientArray,
+            borderColor: barColors,
+            borderWidth: 1.5,
+            borderRadius: 6,
+            barThickness: 28,
+            maxBarThickness: 36
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 32, bottom: 8, left: 10, right: 10 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0a1124',
+              titleFont: { size: 12, weight: 'bold', family: 'Inter' },
+              bodyFont: { size: 12, family: 'Inter' },
+              padding: 12,
+              cornerRadius: 8,
+              callbacks: {
+                title: (items) => items[0].label,
+                label: (item) => `Registros Realizados: ${item.raw} (Meta: ${meta})`
+              }
+            },
+            datalabels: {
+              anchor: 'end',
+              align: 'top',
+              offset: 4,
+              font: { size: 10.5, weight: 'bold', family: 'Inter' },
+              color: '#0f172a',
+              formatter: (v) => `${v}`
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                font: { size: 10, family: 'Inter', weight: '500' },
+                maxRotation: 45,
+                minRotation: 25,
+                callback: function(val, idx) {
+                  const raw = labels[idx] || '';
+                  return raw.split(' (')[0];
+                }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax: Math.max(...(values.length ? values : [0]), meta) + 2,
+              grid: { color: '#f1f5f9' },
+              ticks: { stepSize: 1, font: { size: 10, family: 'Inter' } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderizarGraficoDona(cumplieron, criticos, pctGlobal) {
+      const ctxPie = document.getElementById('doughnutChartCanvas').getContext('2d');
+      if (doughnutChart) doughnutChart.destroy();
+
+      document.getElementById('donutCenterPct').innerText = `${pctGlobal}%`;
+
+      doughnutChart = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+          labels: ['Cumplieron Meta', 'Bajo Meta'],
+          datasets: [{
+            data: [cumplieron, criticos],
+            backgroundColor: ['#10b981', '#f43f5e'],
+            hoverBackgroundColor: ['#059669', '#e11d48'],
+            borderWidth: 3,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { font: { size: 11, weight: '600', family: 'Inter' }, boxWidth: 12, padding: 16 }
+            },
+            datalabels: {
+              color: '#ffffff',
+              font: { weight: 'bold', size: 12, family: 'Inter' },
+              formatter: (value, ctx) => {
+                let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                return sum && value > 0 ? `${Math.round((value / sum) * 100)}%` : '';
+              }
+            }
+          },
+          cutout: '72%'
+        }
+      });
+    }
+
+    // Filtrado y Renderizado de Tabla
+    function cambiarFiltroEstado(estado) {
+      filtroEstadoActual = estado;
+      ['filterBtnAll', 'filterBtnOk', 'filterBtnRisk'].forEach(id => {
+        document.getElementById(id).classList.remove('active');
+      });
+      if (estado === 'todos') document.getElementById('filterBtnAll').classList.add('active');
+      if (estado === 'ok') document.getElementById('filterBtnOk').classList.add('active');
+      if (estado === 'risk') document.getElementById('filterBtnRisk').classList.add('active');
+      filtrarTabla();
+    }
+
+    function filtrarTabla() {
+      const term = (document.getElementById('inputSearch').value || '').toLowerCase().trim();
+      
+      let rows = datosTablaActual.filter(item => {
+        const matchesTerm = !term || item.nombre.toLowerCase().includes(term) || item.user.toLowerCase().includes(term);
+        const matchesEstado = filtroEstadoActual === 'todos' || item.estatus === filtroEstadoActual;
+        return matchesTerm && matchesEstado;
+      });
+
+      // Actualizar contadores en botones
+      const cntAll = datosTablaActual.length;
+      const cntOk = datosTablaActual.filter(d => d.estatus === 'ok').length;
+      const cntRisk = datosTablaActual.filter(d => d.estatus === 'risk').length;
+      document.getElementById('cntAll').innerText = cntAll;
+      document.getElementById('cntOk').innerText = cntOk;
+      document.getElementById('cntRisk').innerText = cntRisk;
+
+      // Ordenación
+      rows.sort((a, b) => {
+        let valA = a[ordenActual.columna];
+        let valB = b[ordenActual.columna];
+        if (typeof valA === 'string') {
+          return ordenActual.asc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return ordenActual.asc ? valA - valB : valB - valA;
+      });
+
+      const tbody = document.getElementById('gridBody');
+      tbody.innerHTML = '';
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">
+              <div class="empty-state-wrap">
+                <div class="empty-state-icon">🔍</div>
+                <h4>No se encontraron colaboradores</h4>
+                <p>Intente con otro término de búsqueda o cambie el filtro de estatus.</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      rows.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+
+        // Iniciales para avatar
+        const initials = r.nombre.split(' ').map(n => n[0]).slice(0, 2).join('');
+
+        // Medalla para top 3
+        let medal = `#${r.rank}`;
+        if (r.rank === 1) medal = '🥇';
+        else if (r.rank === 2) medal = '🥈';
+        else if (r.rank === 3) medal = '🥉';
+
+        // Desglose por programa
+        let desgloseHtml = '';
+        if (r.breakdown.obs !== undefined) desgloseHtml += `<span class="breakdown-tag">Obs: ${r.breakdown.obs || 0}</span>`;
+        if (r.breakdown.f2f !== undefined) desgloseHtml += `<span class="breakdown-tag">F2F: ${r.breakdown.f2f || 0}</span>`;
+        if (r.breakdown.mov !== undefined) desgloseHtml += `<span class="breakdown-tag">Móvil: ${r.breakdown.mov || 0}</span>`;
+
+        // Barra de progreso
+        const barPct = Math.min(100, r.pct);
+        const fillClass = r.estatus === 'ok' ? 'fill-success' : 'fill-danger';
+
+        tr.innerHTML = `
+          <td style="font-weight: 800; text-align: center; font-size: 13px;">${medal}</td>
+          <td>
+            <div class="colab-cell">
+              <div class="colab-avatar">${initials}</div>
+              <div class="colab-names">
+                <span class="colab-full-name">${r.nombre}</span>
+                <span class="colab-user-id">${r.user}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="prog-breakdown-tags">
+              ${desgloseHtml || '<span style="color: var(--text-muted); font-size: 11px;">100% Programa actual</span>'}
+            </div>
+          </td>
+          <td style="text-align: center; font-weight: 800; font-size: 14px;">
+            ${r.registros}
+          </td>
+          <td>
+            <div class="progress-cell-wrap">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill ${fillClass}" style="width: ${barPct}%;"></div>
+              </div>
+              <span class="progress-text-val">${r.registros}/${r.meta}</span>
+            </div>
+          </td>
+          <td style="text-align: center; font-weight: 700; color: ${r.estatus === 'ok' ? 'var(--status-success)' : 'var(--status-danger)'};">
+            ${r.pct}%
+          </td>
+          <td style="text-align: center;">
+            <span class="status-pill ${r.estatus === 'ok' ? 'status-pill-ok' : 'status-pill-risk'}">
+              <span class="status-pill-dot"></span>
+              ${r.estatus === 'ok' ? 'Cumplido' : 'En Riesgo'}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function ordenarPor(col) {
+      if (ordenActual.columna === col) {
+        ordenActual.asc = !ordenActual.asc;
+      } else {
+        ordenActual.columna = col;
+        ordenActual.asc = false;
+      }
+      filtrarTabla();
+    }
+
+    // Exportación de Imagen
+    function exportarGraficaPNG() {
+      if (!barChart) {
+        alert('Por favor cargue archivos para generar la gráfica.');
+        return;
+      }
+      const sem = document.getElementById('selectSemana').value || 'Reporte';
+      const a = document.createElement('a');
+      a.download = `TRAXION_Cumplimiento_SHE_${sem}.png`;
+      a.href = barChart.toBase64Image('image/png', 1.0);
+      a.click();
+    }
+
+    // Exportación a Excel
+    function exportarExcel() {
+      if (!datosTablaActual.length) {
+        alert('No hay datos disponibles para exportar.');
+        return;
+      }
+      const sem = document.getElementById('selectSemana').value || 'Semana';
+      const rows = datosTablaActual.map(r => ({
+        'Ranking': r.rank,
+        'Usuario (Clave)': r.user,
+        'Nombre Colaborador': r.nombre,
+        'Observaciones Progresivas': r.breakdown.obs || 0,
+        'Face to Face': r.breakdown.f2f || 0,
+        'Equipo Móvil': r.breakdown.mov || 0,
+        'Registros Totales': r.registros,
+        'Meta Asignada': r.meta,
+        '% Cumplimiento': `${r.pct}%`,
+        'Estatus Operativo': r.estatus === 'ok' ? 'Cumplido' : 'En Riesgo'
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Cumplimiento SHE");
+      XLSX.writeFile(wb, `TRAXION_SHE_Colgate_QRO_${sem}.xlsx`);
+    }
+  </script>
+</body>
+</html>
