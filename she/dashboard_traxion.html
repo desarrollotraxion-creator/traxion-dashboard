@@ -972,6 +972,14 @@
       background: #f1f5f9;
       color: var(--text-secondary);
       border: 1px solid var(--border-subtle);
+      transition: all 0.15s;
+    }
+
+    .breakdown-tag.tag-meta-ok {
+      background: var(--status-success-bg);
+      color: var(--status-success-text);
+      border-color: var(--status-success-border);
+      font-weight: 800;
     }
 
     /* Barra de progreso de celda */
@@ -1125,7 +1133,7 @@
           </span>
           <span>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            Meta: <strong id="lblMetaActual">5 registros / colaborador</strong>
+            Meta: <strong id="lblMetaActual">15 registros / colaborador (5 Obs + 5 F2F + 5 Móvil)</strong>
           </span>
         </div>
       </div>
@@ -1189,14 +1197,14 @@
          ==================================================== -->
     <div class="controls-panel">
       <div class="filter-group-left">
-        <!-- Selector de Semana -->
+        <!-- Selector de Periodo / Semana -->
         <div class="filter-field">
           <label for="selectSemana">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            Semana Operativa
+            Periodo / Semana Operativa
           </label>
           <div class="custom-select-wrap">
-            <select id="selectSemana" onchange="renderizarDashboard()">
+            <select id="selectSemana" onchange="alCambiarSemana()">
               <option value="">(Cargue archivos primero)</option>
             </select>
             <span class="custom-select-arrow">▼</span>
@@ -1210,33 +1218,13 @@
             Programa de Seguridad
           </label>
           <div class="custom-select-wrap">
-            <select id="selectTipo" onchange="renderizarDashboard()">
-              <option value="tot">Consolidado Total (Todos los programas)</option>
-              <option value="obs">Observación Progresiva [datos (40)]</option>
-              <option value="f2f">Face to Face (F2F) [datos (41)]</option>
-              <option value="mov">Monitoreo Estándares Eq. Móvil [datos (42)]</option>
+            <select id="selectTipo" onchange="alCambiarPrograma()">
+              <option value="tot" selected>Consolidado Total (Meta: 15 registros)</option>
+              <option value="obs">Observación Progresiva (Meta: 5 registros) [datos (40)]</option>
+              <option value="f2f">Face to Face - F2F (Meta: 5 registros) [datos (41)]</option>
+              <option value="mov">Monitoreo Estándares Eq. Móvil (Meta: 5 registros) [datos (42)]</option>
             </select>
             <span class="custom-select-arrow">▼</span>
-          </div>
-        </div>
-
-        <!-- Meta Semanal -->
-        <div class="filter-field">
-          <label for="inputMeta">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-            Meta Semanal
-          </label>
-          <div style="display: flex; align-items: center;">
-            <div class="meta-stepper">
-              <button class="meta-btn" onclick="ajustarMeta(-1)">−</button>
-              <input type="number" id="inputMeta" class="meta-input-num" value="5" min="1" max="50" onchange="renderizarDashboard()">
-              <button class="meta-btn" onclick="ajustarMeta(1)">+</button>
-            </div>
-            <div class="quick-meta-presets">
-              <span class="preset-pill" onclick="fijarMeta(3)">3</span>
-              <span class="preset-pill active" onclick="fijarMeta(5)">5</span>
-              <span class="preset-pill" onclick="fijarMeta(8)">8</span>
-            </div>
           </div>
         </div>
 
@@ -1476,12 +1464,13 @@
     let datosTablaActual = [];
     let filtroEstadoActual = 'todos'; // 'todos' | 'ok' | 'risk'
     let ordenActual = { columna: 'registros', asc: false };
+    let currentMeta = 15;
 
     // Plugin personalizado para dibujar la línea de meta en el gráfico de barras
     const targetLinePlugin = {
       id: 'targetLine',
       afterDraw(chart) {
-        const meta = parseInt(document.getElementById('inputMeta').value) || 5;
+        const meta = currentMeta || 5;
         const { ctx, chartArea: { left, right }, scales: { y } } = chart;
         if (!y) return;
         const yVal = y.getPixelForValue(meta);
@@ -1633,7 +1622,7 @@
               if (!dt || isNaN(dt)) return;
 
               const sem = getISOWeekInfo(dt);
-              mapaSemanas[sem.key] = { label: sem.label, weekNum: sem.weekNum };
+              mapaSemanas[sem.key] = { label: sem.label, weekNum: sem.weekNum, year: sem.year };
 
               if (!dbOperativa[tipo][sem.key]) dbOperativa[tipo][sem.key] = {};
               dbOperativa[tipo][sem.key][user] = (dbOperativa[tipo][sem.key][user] || 0) + 1;
@@ -1662,71 +1651,163 @@
 
       const current = select.value;
       select.innerHTML = '';
-      keys.forEach(k => {
-        const opt = document.createElement('option');
-        opt.value = k;
-        opt.text = mapaSemanas[k]?.label || k;
-        select.appendChild(opt);
-      });
 
-      if (keys.includes(current)) select.value = current;
-      else if (keys.length) select.value = keys[0];
+      if (keys.length > 0) {
+        // Agrupación por año detectado
+        let aniosMap = {};
+        keys.forEach(k => {
+          const yr = mapaSemanas[k]?.year || 'Actual';
+          if (!aniosMap[yr]) aniosMap[yr] = [];
+          aniosMap[yr].push(k);
+        });
+
+        const anios = Object.keys(aniosMap).sort((a,b) => b - a);
+
+        // 1. Grupo de Acumulados Anuales
+        const optgroupAnual = document.createElement('optgroup');
+        optgroupAnual.label = '⭐ Vistas Acumuladas';
+
+        anios.forEach(yr => {
+          const opt = document.createElement('option');
+          opt.value = `anio_${yr}`;
+          const countSems = aniosMap[yr].length;
+          opt.text = `📅 Total del Año ${yr} (${countSems} semanas acumuladas)`;
+          optgroupAnual.appendChild(opt);
+        });
+        select.appendChild(optgroupAnual);
+
+        // 2. Grupo de Semanas Individuales
+        const optgroupSemanas = document.createElement('optgroup');
+        optgroupSemanas.label = '🗓️ Semanas Operativas';
+
+        keys.forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.text = mapaSemanas[k]?.label || k;
+          optgroupSemanas.appendChild(opt);
+        });
+        select.appendChild(optgroupSemanas);
+      }
+
+      if (current && select.querySelector(`option[value="${current}"]`)) {
+        select.value = current;
+      } else if (keys.length) {
+        select.value = keys[0]; // Semana más reciente por defecto
+      }
     }
 
-    function ajustarMeta(delta) {
-      const input = document.getElementById('inputMeta');
-      let val = (parseInt(input.value) || 5) + delta;
-      if (val < 1) val = 1;
-      if (val > 50) val = 50;
-      input.value = val;
-      actualizarPresetsActivos(val);
+    const METAS_BASE = {
+      tot: 15,
+      obs: 5,
+      f2f: 5,
+      mov: 5
+    };
+
+    function calcularMetaActual(tipo, semana) {
+      const esAcumuladoAnio = semana ? semana.startsWith('anio_') : false;
+      const numSemanas = obtenerNumeroSemanas(semana);
+      const metaBase = METAS_BASE[tipo] || 5;
+      return esAcumuladoAnio ? (numSemanas * metaBase) : metaBase;
+    }
+
+    function alCambiarSemana() {
       renderizarDashboard();
     }
 
-    function fijarMeta(val) {
-      document.getElementById('inputMeta').value = val;
-      actualizarPresetsActivos(val);
+    function alCambiarPrograma() {
       renderizarDashboard();
     }
 
-    function actualizarPresetsActivos(val) {
-      document.querySelectorAll('.preset-pill').forEach(p => {
-        p.classList.toggle('active', parseInt(p.innerText) === val);
+    function obtenerNumeroSemanas(semana) {
+      if (!semana || !semana.startsWith('anio_')) return 1;
+      const targetYear = semana.replace('anio_', '');
+      const sems = Object.keys(mapaSemanas).filter(k => {
+        if (targetYear === 'Actual') return true;
+        return String(mapaSemanas[k]?.year || '') === targetYear;
       });
+      return sems.length || Object.keys(mapaSemanas).length || 1;
     }
 
     function renderizarDashboard() {
       const semana = document.getElementById('selectSemana').value;
       const tipo = document.getElementById('selectTipo').value;
-      const meta = parseInt(document.getElementById('inputMeta').value) || 5;
-
-      document.getElementById('lblMetaActual').innerText = `${meta} registros / colaborador`;
+      const esAcumuladoAnio = semana ? semana.startsWith('anio_') : false;
+      const numSemanas = obtenerNumeroSemanas(semana);
+      const meta = calcularMetaActual(tipo, semana);
+      currentMeta = meta;
 
       if (!semana) return;
 
-      const semLabel = mapaSemanas[semana]?.label || semana;
-      document.getElementById('lblPeriodoCorte').innerText = semLabel;
-
-      // Consolidación de datos
+      // Consolidación de datos según periodo (Semana vs Año)
       let datos = {};
       let breakdownUsers = {};
+      let semLabel = '';
+      const metaSubProg = esAcumuladoAnio ? (numSemanas * 5) : 5;
 
-      if (tipo === 'tot') {
-        ['obs', 'f2f', 'mov'].forEach(t => {
-          const map = dbOperativa[t][semana] || {};
-          for (let u in map) {
-            datos[u] = (datos[u] || 0) + map[u];
-            if (!breakdownUsers[u]) breakdownUsers[u] = { obs: 0, f2f: 0, mov: 0 };
-            breakdownUsers[u][t] = (breakdownUsers[u][t] || 0) + map[u];
-          }
+      if (esAcumuladoAnio) {
+        const targetYear = semana.replace('anio_', '');
+        const semanasKeys = Object.keys(mapaSemanas).filter(k => {
+          if (targetYear === 'Actual') return true;
+          return String(mapaSemanas[k]?.year || '') === targetYear;
         });
+
+        semLabel = `Total del Año ${targetYear !== 'Actual' ? targetYear : ''} (Acumulado - ${semanasKeys.length} semanas)`.trim();
+
+        if (tipo === 'tot') {
+          ['obs', 'f2f', 'mov'].forEach(t => {
+            semanasKeys.forEach(s => {
+              const map = dbOperativa[t][s] || {};
+              for (let u in map) {
+                datos[u] = (datos[u] || 0) + map[u];
+                if (!breakdownUsers[u]) breakdownUsers[u] = { obs: 0, f2f: 0, mov: 0 };
+                breakdownUsers[u][t] = (breakdownUsers[u][t] || 0) + map[u];
+              }
+            });
+          });
+        } else {
+          semanasKeys.forEach(s => {
+            const map = dbOperativa[tipo][s] || {};
+            for (let u in map) {
+              datos[u] = (datos[u] || 0) + map[u];
+              if (!breakdownUsers[u]) breakdownUsers[u] = { [tipo]: 0 };
+              breakdownUsers[u][tipo] = (breakdownUsers[u][tipo] || 0) + map[u];
+            }
+          });
+        }
+
+        if (tipo === 'tot') {
+          document.getElementById('lblMetaActual').innerText = `${meta} registros acumulados (${numSemanas} sem × 15) [Obs: ${metaSubProg} + F2F: ${metaSubProg} + Móvil: ${metaSubProg}]`;
+        } else {
+          document.getElementById('lblMetaActual').innerText = `${meta} registros acumulados (${numSemanas} sem × 5)`;
+        }
       } else {
-        const map = dbOperativa[tipo][semana] || {};
-        for (let u in map) {
-          datos[u] = map[u];
-          breakdownUsers[u] = { [tipo]: map[u] };
+        semLabel = mapaSemanas[semana]?.label || semana;
+
+        if (tipo === 'tot') {
+          ['obs', 'f2f', 'mov'].forEach(t => {
+            const map = dbOperativa[t][semana] || {};
+            for (let u in map) {
+              datos[u] = (datos[u] || 0) + map[u];
+              if (!breakdownUsers[u]) breakdownUsers[u] = { obs: 0, f2f: 0, mov: 0 };
+              breakdownUsers[u][t] = (breakdownUsers[u][t] || 0) + map[u];
+            }
+          });
+        } else {
+          const map = dbOperativa[tipo][semana] || {};
+          for (let u in map) {
+            datos[u] = map[u];
+            breakdownUsers[u] = { [tipo]: map[u] };
+          }
+        }
+
+        if (tipo === 'tot') {
+          document.getElementById('lblMetaActual').innerText = `${meta} registros totales (5 Obs + 5 F2F + 5 Móvil)`;
+        } else {
+          document.getElementById('lblMetaActual').innerText = `${meta} registros / colaborador`;
         }
       }
+
+      document.getElementById('lblPeriodoCorte').innerText = semLabel;
 
       const usuarios = Object.keys(datos).sort((a, b) => datos[b] - datos[a]);
       const labels = [];
@@ -1757,6 +1838,7 @@
           nombre: nom,
           registros: val,
           meta: meta,
+          metaSubProg: metaSubProg,
           pct: Math.round((val / meta) * 100),
           estatus: ok ? 'ok' : 'risk',
           breakdown: breakdownUsers[u] || {}
@@ -1801,13 +1883,13 @@
       filtrarTabla();
 
       // Renderizar Gráfico de Barras Moderno
-      renderizarGraficoBarras(labels, values, barColors, meta, usuarios);
+      renderizarGraficoBarras(labels, values, barColors, meta, usuarios, tipo);
 
       // Renderizar Gráfico de Dona
       renderizarGraficoDona(cumplieron, criticos, pctGlobal);
     }
 
-    function renderizarGraficoBarras(labels, values, barColors, meta, usuarios) {
+    function renderizarGraficoBarras(labels, values, barColors, meta, usuarios, tipo) {
       const ctxBar = document.getElementById('barChartCanvas').getContext('2d');
       if (barChart) barChart.destroy();
 
@@ -1850,7 +1932,12 @@
               cornerRadius: 8,
               callbacks: {
                 title: (items) => items[0].label,
-                label: (item) => `Registros Realizados: ${item.raw} (Meta: ${meta})`
+                label: (item) => {
+                  if (tipo === 'tot') {
+                    return `Registros: ${item.raw} / Meta: ${meta} (5 Obs + 5 F2F + 5 Móvil)`;
+                  }
+                  return `Registros Realizados: ${item.raw} (Meta: ${meta})`;
+                }
               }
             },
             datalabels: {
@@ -1995,11 +2082,21 @@
         else if (r.rank === 2) medal = '🥈';
         else if (r.rank === 3) medal = '🥉';
 
-        // Desglose por programa
+        // Desglose por programa (Meta dinámica según semana o acumulado anual)
         let desgloseHtml = '';
-        if (r.breakdown.obs !== undefined) desgloseHtml += `<span class="breakdown-tag">Obs: ${r.breakdown.obs || 0}</span>`;
-        if (r.breakdown.f2f !== undefined) desgloseHtml += `<span class="breakdown-tag">F2F: ${r.breakdown.f2f || 0}</span>`;
-        if (r.breakdown.mov !== undefined) desgloseHtml += `<span class="breakdown-tag">Móvil: ${r.breakdown.mov || 0}</span>`;
+        const mSub = r.metaSubProg || 5;
+        if (r.breakdown.obs !== undefined) {
+          const okObs = (r.breakdown.obs || 0) >= mSub;
+          desgloseHtml += `<span class="breakdown-tag ${okObs ? 'tag-meta-ok' : ''}" title="Meta programa: ${mSub}">Obs: ${r.breakdown.obs || 0}/${mSub}</span>`;
+        }
+        if (r.breakdown.f2f !== undefined) {
+          const okF2f = (r.breakdown.f2f || 0) >= mSub;
+          desgloseHtml += `<span class="breakdown-tag ${okF2f ? 'tag-meta-ok' : ''}" title="Meta programa: ${mSub}">F2F: ${r.breakdown.f2f || 0}/${mSub}</span>`;
+        }
+        if (r.breakdown.mov !== undefined) {
+          const okMov = (r.breakdown.mov || 0) >= mSub;
+          desgloseHtml += `<span class="breakdown-tag ${okMov ? 'tag-meta-ok' : ''}" title="Meta programa: ${mSub}">Móvil: ${r.breakdown.mov || 0}/${mSub}</span>`;
+        }
 
         // Barra de progreso
         const barPct = Math.min(100, r.pct);
@@ -2063,8 +2160,9 @@
         return;
       }
       const sem = document.getElementById('selectSemana').value || 'Reporte';
+      const filePeriod = sem.startsWith('anio_') ? `Total_Anual_${sem.replace('anio_', '')}` : sem.replace(/\s+/g, '_');
       const a = document.createElement('a');
-      a.download = `TRAXION_Cumplimiento_SHE_${sem}.png`;
+      a.download = `TRAXION_Cumplimiento_SHE_${filePeriod}.png`;
       a.href = barChart.toBase64Image('image/png', 1.0);
       a.click();
     }
@@ -2076,6 +2174,7 @@
         return;
       }
       const sem = document.getElementById('selectSemana').value || 'Semana';
+      const filePeriod = sem.startsWith('anio_') ? `Total_Anual_${sem.replace('anio_', '')}` : sem.replace(/\s+/g, '_');
       const rows = datosTablaActual.map(r => ({
         'Ranking': r.rank,
         'Usuario (Clave)': r.user,
@@ -2092,7 +2191,7 @@
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Cumplimiento SHE");
-      XLSX.writeFile(wb, `TRAXION_SHE_Colgate_QRO_${sem}.xlsx`);
+      XLSX.writeFile(wb, `TRAXION_SHE_Colgate_QRO_${filePeriod}.xlsx`);
     }
   </script>
 </body>
