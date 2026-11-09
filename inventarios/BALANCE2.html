@@ -247,6 +247,34 @@
     tr:nth-child(even) { background-color: #F8FAFC; }
     tr:hover { background-color: #F1F5F9; }
 
+    /* Encabezados interactivos tipo Excel (Click to Sort) */
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      padding-right: 22px !important;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    th.sortable:hover {
+      background-color: #24324f;
+    }
+    th.sortable .sort-icon {
+      font-size: 9px;
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0.35;
+    }
+    th.sortable.active-sort {
+      background-color: #0f172a;
+      color: var(--accent-lime);
+    }
+    th.sortable.active-sort .sort-icon {
+      opacity: 1;
+      color: var(--accent-lime);
+    }
+
     .col-group-border { border-right: 2px solid var(--border-soft); }
 
     .diff-zero { color: var(--green-ok); font-weight: 700; }
@@ -313,11 +341,11 @@
       <div class="view-mode-selector">
         <button class="view-mode-btn active" id="btnModeOmit" onclick="setViewMode(false)">
           <i data-lucide="eye-off" style="width:14px; height:14px;"></i>
-          Vista A: Omitir DIS y SIN (Operativa)
+          Vista A: Omitir DIS y SIN (Operativa FG/DR/QR)
         </button>
         <button class="view-mode-btn" id="btnModeInclude" onclick="setViewMode(true)">
           <i data-lucide="eye" style="width:14px; height:14px;"></i>
-          Vista B: Incluir DIS y SIN (Auditoría)
+          Vista B: Incluir DIS y SIN (Auditoría Integral 5 Estatus)
         </button>
       </div>
     </header>
@@ -357,7 +385,7 @@
 
         <div>
           <button class="file-btn" id="btnExport" onclick="exportToCSV()" style="background:var(--primary-dark); color:#FFF; display:none;">
-            <i data-lucide="download" style="width:14px; height:14px;"></i> Exportar CSV
+            <i data-lucide="download" style="width:14px; height:14px;"></i> Exportar CSV Conciliación
           </button>
         </div>
       </div>
@@ -366,31 +394,31 @@
       <div class="kpi-grid">
         <div class="k-card">
           <div class="k-card-header">
-            <span class="k-card-title" id="lblCardSapTitle">1. SAP</span>
+            <span class="k-card-title" id="lblCardSapTitle">1. SAP RECTOR</span>
             <div class="k-card-icon" style="background:#FAF5FF; color:#6B21A8;"><i data-lucide="database" style="width:16px; height:16px;"></i></div>
           </div>
           <div class="k-card-value" id="kpiSapTotal">0.00</div>
           <div class="k-card-footer">
-            <span>FG Oper: <strong id="kpiSapFg">0.00</strong></span>
+            <span>FG: <strong id="kpiSapFg">0.00</strong> | QR: <strong id="kpiSapQr">0.00</strong></span>
             <span>DR: <strong id="kpiSapDr">0.00</strong></span>
           </div>
         </div>
 
         <div class="k-card">
           <div class="k-card-header">
-            <span class="k-card-title">2. IZEL</span>
+            <span class="k-card-title" id="lblCardIzelTitle">2. IZEL FÍSICO</span>
             <div class="k-card-icon" style="background:#EFF6FF; color:#1D4ED8;"><i data-lucide="boxes" style="width:16px; height:16px;"></i></div>
           </div>
           <div class="k-card-value" id="kpiIzelTotal">0.00</div>
           <div class="k-card-footer">
-            <span>FG: <strong id="kpiIzelFg">0.00</strong></span>
+            <span>FG: <strong id="kpiIzelFg">0.00</strong> | QR: <strong id="kpiIzelQr">0.00</strong></span>
             <span>DR: <strong id="kpiIzelDr">0.00</strong></span>
           </div>
         </div>
 
         <div class="k-card">
           <div class="k-card-header">
-            <span class="k-card-title">3. Diferencia SAP vs IZEL</span>
+            <span class="k-card-title">3. DIFERENCIA NETA (SAP vs IZEL)</span>
             <div class="k-card-icon" style="background:#FFFBEB; color:#B45309;"><i data-lucide="scale" style="width:16px; height:16px;"></i></div>
           </div>
           <div class="k-card-value" id="kpiNetDiff">0.00</div>
@@ -450,7 +478,7 @@
                 <i data-lucide="list" style="width:13px; height:13px;"></i> Vista Resumida (6 Col.)
               </button>
               <button class="sub-switch-btn" id="btnTableDetail" onclick="setTableMode('detailed')">
-                <i data-lucide="table-properties" style="width:13px; height:13px;"></i> Vista Detallada (Comparativo)
+                <i data-lucide="table-properties" style="width:13px; height:13px;"></i> Vista Detallada (5 Estatus)
               </button>
             </div>
           </div>
@@ -468,7 +496,7 @@
             <thead id="tableHead"></thead>
             <tbody id="tableBody">
               <tr>
-                <td colspan="15" style="text-align:center; padding:32px; color:var(--text-muted);">
+                <td colspan="19" style="text-align:center; padding:32px; color:var(--text-muted);">
                   Carga los archivos SAP Rector e IZEL arriba para procesar la auditoría.
                 </td>
               </tr>
@@ -561,14 +589,14 @@
           <table>
             <thead>
               <tr>
-                <th>SKU / MATERIAL</th>
-                <th class="num">SAP BASE</th>
-                <th class="num">IZEL BASE</th>
-                <th class="num">DIF. BASE</th>
-                <th class="num">SAP COMP.</th>
-                <th class="num">IZEL COMP.</th>
-                <th class="num">DIF. COMP.</th>
-                <th class="num">DELTA DIF.</th>
+                <th class="sortable" onclick="setHistSort('sku')">SKU / MATERIAL <span class="sort-icon" id="histIcon_sku">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('sapBase')">SAP BASE <span class="sort-icon" id="histIcon_sapBase">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('izelBase')">IZEL BASE <span class="sort-icon" id="histIcon_izelBase">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('diffBase')">DIF. BASE <span class="sort-icon" id="histIcon_diffBase">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('sapComp')">SAP COMP. <span class="sort-icon" id="histIcon_sapComp">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('izelComp')">IZEL COMP. <span class="sort-icon" id="histIcon_izelComp">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('diffComp')">DIF. COMP. <span class="sort-icon" id="histIcon_diffComp">▲▼</span></th>
+                <th class="num sortable" onclick="setHistSort('delta')">DELTA DIF. <span class="sort-icon" id="histIcon_delta">▲▼</span></th>
                 <th style="text-align:center;">COMPORTAMIENTO</th>
               </tr>
             </thead>
@@ -598,10 +626,21 @@
     let includeDisSin = false;
     let tableMode = 'summary';
 
+    // Estado de Ordenamiento Tabla Principal (Pestaña 1)
+    let sortKey = 'netDiff'; // Columna inicial por defecto
+    let sortAsc = false;     // false = Mayor a menor (DESC), true = Menor a mayor (ASC)
+
+    // Estado de Ordenamiento Histórico (Pestaña 2)
+    let histSortKey = 'absDelta';
+    let histSortAsc = false;
+
     // Datos Día Actual (Pestaña 1)
     let rawIzelData = null, rawSapData = null;
     let reconciledData = [];
-    let summaryTotals = { izelFg: 0, izelDr: 0, izelQr: 0, sapFg: 0, sapQr: 0, sapDr: 0, sapSin: 0, sapDis: 0 };
+    let summaryTotals = {
+      izelFg: 0, izelDr: 0, izelQr: 0, izelDis: 0, izelSin: 0,
+      sapFg: 0, sapDr: 0, sapQr: 0, sapDis: 0, sapSin: 0
+    };
 
     // Base de Datos IndexedDB
     let db;
@@ -672,26 +711,35 @@
       return bySku;
     }
 
-    /* Mapeo IZEL con soporte para ZONAQI (QR) */
+    /* Mapeo IZEL con soporte para los 5 estatus: FG, DR, QR, DIS, SIN */
     function parseIzelRows(json) {
       const bySku = {};
       json.forEach(row => {
         const sku = String(row['SKU'] || row['Material'] || '').trim();
         if (!sku) return;
         const qty = parseFloat(row['Cantidad'] || row['Quantity'] || 0) || 0;
+        const estatusRaw = String(row['Estatus'] || '').trim().toUpperCase();
         const area = String(row['Area'] || row['Ubicacion'] || '').trim().toUpperCase();
 
+        // 1. Priorizar columna Estatus si viene en el archivo
         let cat = 'FG';
-        if (area.includes('DAÑOS') || area.includes('DANOS') || area === 'DR') {
-          cat = 'DR';
-        } else if (area.includes('ZONAQI') || area === 'QR') {
-          cat = 'QR';
+        if (estatusRaw === 'DIS' || estatusRaw === 'DR' || estatusRaw === 'QR' || estatusRaw === 'FG' || estatusRaw === 'SIN') {
+          cat = estatusRaw;
+        } else {
+          // 2. Mapeo fallback por Área o Ubicación
+          if (area.includes('DAÑOS') || area.includes('DANOS') || area === 'DR') {
+            cat = 'DR';
+          } else if (area.includes('ZONAQI') || area === 'QR') {
+            cat = 'QR';
+          } else if (area.includes('DIS')) {
+            cat = 'DIS';
+          } else if (area.includes('SIN')) {
+            cat = 'SIN';
+          }
         }
 
-        if (!bySku[sku]) bySku[sku] = { fg: 0, dr: 0, qr: 0 };
-        if (cat === 'DR') bySku[sku].dr += qty;
-        else if (cat === 'QR') bySku[sku].qr += qty;
-        else bySku[sku].fg += qty;
+        if (!bySku[sku]) bySku[sku] = { fg: 0, dr: 0, qr: 0, dis: 0, sin: 0 };
+        bySku[sku][cat.toLowerCase()] += qty;
       });
       return bySku;
     }
@@ -703,12 +751,32 @@
       document.getElementById('btnModeInclude').classList.toggle('active', include);
 
       document.getElementById('lblCardSapTitle').innerText = include ? 
-        '1. BASE SAP AUDITORÍA (DR+FG+QR+SIN+DIS)' : 
-        '1. BASE SAP RECTOR (DR+FG+QR)';
+        '1. SAP ' : 
+        '1. SAP ';
+
+      document.getElementById('lblCardIzelTitle').innerText = include ? 
+        '2. IZEL' : 
+        '2. IZEL';
 
       updateDashboardMetrics();
       renderTable();
       recalculateHistoricalComparison();
+    }
+
+    /* CONTROL DE ORDENAMIENTO DE COLUMNAS (TABLA PRINCIPAL) */
+    function setSort(key) {
+      if (sortKey === key) {
+        sortAsc = !sortAsc; // Alterna entre ascendente y descendente
+      } else {
+        sortKey = key;
+        sortAsc = false;   // Por defecto comienza de Mayor a Menor
+      }
+      renderTable();
+    }
+
+    function getSortIndicator(key) {
+      if (sortKey !== key) return '<span class="sort-icon">▲▼</span>';
+      return `<span class="sort-icon">${sortAsc ? '▲' : '▼'}</span>`;
     }
 
     /* CARGA PESTAÑA 1 */
@@ -752,11 +820,14 @@
 
       const allSkus = Array.from(new Set([...Object.keys(sapBySku), ...Object.keys(izelBySku)]));
       reconciledData = [];
-      summaryTotals = { izelFg: 0, izelDr: 0, izelQr: 0, sapFg: 0, sapQr: 0, sapDr: 0, sapSin: 0, sapDis: 0 };
+      summaryTotals = {
+        izelFg: 0, izelDr: 0, izelQr: 0, izelDis: 0, izelSin: 0,
+        sapFg: 0, sapDr: 0, sapQr: 0, sapDis: 0, sapSin: 0
+      };
 
       allSkus.forEach(sku => {
         const sp = sapBySku[sku] || { fg: 0, qr: 0, dr: 0, sin: 0, dis: 0, desc: '' };
-        const iz = izelBySku[sku] || { fg: 0, dr: 0, qr: 0 };
+        const iz = izelBySku[sku] || { fg: 0, dr: 0, qr: 0, dis: 0, sin: 0 };
 
         summaryTotals.sapFg += sp.fg;
         summaryTotals.sapQr += sp.qr;
@@ -767,6 +838,8 @@
         summaryTotals.izelFg += iz.fg;
         summaryTotals.izelDr += iz.dr;
         summaryTotals.izelQr += iz.qr;
+        summaryTotals.izelDis += (iz.dis || 0);
+        summaryTotals.izelSin += (iz.sin || 0);
 
         reconciledData.push({
           sku,
@@ -774,11 +847,13 @@
           sapFg: sp.fg,
           sapQr: sp.qr,
           sapDr: sp.dr,
-          sin: sp.sin,
-          dis: sp.dis,
+          sapSin: sp.sin,
+          sapDis: sp.dis,
           izelFg: iz.fg,
           izelDr: iz.dr,
           izelQr: iz.qr,
+          izelDis: iz.dis || 0,
+          izelSin: iz.sin || 0,
           inSap: !!sapBySku[sku],
           inIzel: !!izelBySku[sku]
         });
@@ -829,10 +904,10 @@
           const dayData = {};
           skus.forEach(sku => {
             const sp = sapMap[sku] || { fg: 0, qr: 0, dr: 0, sin: 0, dis: 0 };
-            const iz = izelMap[sku] || { fg: 0, dr: 0, qr: 0 };
+            const iz = izelMap[sku] || { fg: 0, dr: 0, qr: 0, dis: 0, sin: 0 };
             dayData[sku] = {
               sapFg: sp.fg, sapQr: sp.qr, sapDr: sp.dr, sin: sp.sin, dis: sp.dis,
-              izelFg: iz.fg, izelDr: iz.dr, izelQr: iz.qr
+              izelFg: iz.fg, izelDr: iz.dr, izelQr: iz.qr, izelDis: (iz.dis || 0), izelSin: (iz.sin || 0)
             };
           });
 
@@ -892,6 +967,16 @@
       };
     }
 
+    function setHistSort(key) {
+      if (histSortKey === key) {
+        histSortAsc = !histSortAsc;
+      } else {
+        histSortKey = key;
+        histSortAsc = false;
+      }
+      renderHistoricalTable();
+    }
+
     function renderHistoricalComparison(baseMap, compMap) {
       const allSkus = Array.from(new Set([...Object.keys(baseMap), ...Object.keys(compMap)]));
       let sumBaseDiff = 0, sumCompDiff = 0;
@@ -899,16 +984,16 @@
       const rows = [];
 
       allSkus.forEach(sku => {
-        const b = baseMap[sku] || { sapFg: 0, sapQr: 0, sapDr: 0, sin: 0, dis: 0, izelFg: 0, izelDr: 0, izelQr: 0 };
-        const c = compMap[sku] || { sapFg: 0, sapQr: 0, sapDr: 0, sin: 0, dis: 0, izelFg: 0, izelDr: 0, izelQr: 0 };
+        const b = baseMap[sku] || { sapFg: 0, sapQr: 0, sapDr: 0, sin: 0, dis: 0, izelFg: 0, izelDr: 0, izelQr: 0, izelDis: 0, izelSin: 0 };
+        const c = compMap[sku] || { sapFg: 0, sapQr: 0, sapDr: 0, sin: 0, dis: 0, izelFg: 0, izelDr: 0, izelQr: 0, izelDis: 0, izelSin: 0 };
 
-        const sapBase = b.sapFg + b.sapQr + b.sapDr + (includeDisSin ? (b.sin + b.dis) : 0);
-        const izelBase = b.izelFg + b.izelDr + (b.izelQr || 0);
-        const diffBase = izelBase - sapBase;
+        const sapBase = b.sapFg + b.sapQr + b.sapDr + (includeDisSin ? ((b.sin || 0) + (b.dis || 0)) : 0);
+        const izelBase = b.izelFg + b.izelDr + (b.izelQr || 0) + (includeDisSin ? ((b.izelDis || 0) + (b.izelSin || 0)) : 0);
+        const diffBase = sapBase - izelBase;
 
-        const sapComp = c.sapFg + c.sapQr + c.sapDr + (includeDisSin ? (c.sin + c.dis) : 0);
-        const izelComp = c.izelFg + c.izelDr + (c.izelQr || 0);
-        const diffComp = izelComp - sapComp;
+        const sapComp = c.sapFg + c.sapQr + c.sapDr + (includeDisSin ? ((c.sin || 0) + (c.dis || 0)) : 0);
+        const izelComp = c.izelFg + c.izelDr + (c.izelQr || 0) + (includeDisSin ? ((c.izelDis || 0) + (c.izelSin || 0)) : 0);
+        const diffComp = sapComp - izelComp;
 
         sumBaseDiff += diffBase;
         sumCompDiff += diffComp;
@@ -976,7 +1061,30 @@
       const tbody = document.getElementById('tblHistBody');
       tbody.innerHTML = '';
 
-      window.cachedHistRows.sort((a, b) => b.absDelta - a.absDelta);
+      // Actualizar indicadores visuales de ordenación en encabezados históricos
+      const histKeys = ['sku', 'sapBase', 'izelBase', 'diffBase', 'sapComp', 'izelComp', 'diffComp', 'delta'];
+      histKeys.forEach(k => {
+        const el = document.getElementById(`histIcon_${k}`);
+        if (el) {
+          if (histSortKey === k) {
+            el.innerText = histSortAsc ? '▲' : '▼';
+            el.style.opacity = '1';
+            el.style.color = 'var(--accent-lime)';
+          } else {
+            el.innerText = '▲▼';
+            el.style.opacity = '0.35';
+            el.style.color = '';
+          }
+        }
+      });
+
+      window.cachedHistRows.sort((a, b) => {
+        let valA = a[histSortKey], valB = b[histSortKey];
+        if (histSortKey === 'sku') {
+          return histSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return histSortAsc ? (valA - valB) : (valB - valA);
+      });
 
       window.cachedHistRows.forEach(r => {
         if (q && !r.sku.toLowerCase().includes(q)) return;
@@ -1021,17 +1129,19 @@
     function updateDashboardMetrics() {
       const s = summaryTotals;
       const sapTotal = s.sapFg + s.sapQr + s.sapDr + (includeDisSin ? (s.sapSin + s.sapDis) : 0);
-      const izelTotal = s.izelFg + s.izelDr + s.izelQr;
+      const izelTotal = s.izelFg + s.izelQr + s.izelDr + (includeDisSin ? (s.izelSin + s.izelDis) : 0);
 
       const netDiff = izelTotal - sapTotal;
       const drDiff = s.izelDr - s.sapDr;
 
       document.getElementById('kpiSapTotal').innerText = formatNum(sapTotal);
-      document.getElementById('kpiSapFg').innerText = formatNum(s.sapFg + s.sapQr);
+      document.getElementById('kpiSapFg').innerText = formatNum(s.sapFg);
+      document.getElementById('kpiSapQr').innerText = formatNum(s.sapQr);
       document.getElementById('kpiSapDr').innerText = formatNum(s.sapDr);
 
       document.getElementById('kpiIzelTotal').innerText = formatNum(izelTotal);
       document.getElementById('kpiIzelFg').innerText = formatNum(s.izelFg);
+      document.getElementById('kpiIzelQr').innerText = formatNum(s.izelQr);
       document.getElementById('kpiIzelDr').innerText = formatNum(s.izelDr);
 
       const netElem = document.getElementById('kpiNetDiff');
@@ -1054,8 +1164,8 @@
 
       let sqCount = 0, varCount = 0;
       reconciledData.forEach(r => {
-        const spTot = r.sapFg + r.sapQr + r.sapDr + (includeDisSin ? (r.sin + r.dis) : 0);
-        const izTot = r.izelFg + r.izelDr + r.izelQr;
+        const spTot = r.sapFg + r.sapQr + r.sapDr + (includeDisSin ? (r.sapSin + r.sapDis) : 0);
+        const izTot = r.izelFg + r.izelQr + r.izelDr + (includeDisSin ? (r.izelSin + r.izelDis) : 0);
         if (Math.abs(izTot - spTot) < 0.001) sqCount++;
         else varCount++;
       });
@@ -1072,13 +1182,19 @@
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
 
+      const thSort = (key, label, extraClass = '') => `
+        <th class="sortable ${extraClass} ${sortKey === key ? 'active-sort' : ''}" onclick="setSort('${key}')">
+          ${label} ${getSortIndicator(key)}
+        </th>
+      `;
+
       if (tableMode === 'summary') {
         thead.innerHTML = `
           <tr>
-            <th>SKU / MATERIAL</th>
-            <th class="num">TOTAL SAP</th>
-            <th class="num">TOTAL IZEL FÍSICO</th>
-            <th class="num">DIFERENCIA NETA</th>
+            ${thSort('sku', 'SKU / MATERIAL')}
+            ${thSort('sapTot', 'TOTAL SAP', 'num')}
+            ${thSort('izelTot', 'TOTAL IZEL FÍSICO', 'num')}
+            ${thSort('netDiff', 'DIFERENCIA NETA', 'num')}
             <th style="text-align:center;">DONDE ESTÁ LA DIFERENCIA</th>
             <th style="text-align:center;">ESTATUS VS SAP</th>
           </tr>
@@ -1086,24 +1202,37 @@
       } else {
         thead.innerHTML = `
           <tr>
-            <th class="col-group-border">SKU / MATERIAL</th>
+            ${thSort('sku', 'SKU / MATERIAL', 'col-group-border')}
+            
             <!-- Bloque FG -->
-            <th class="num">SAP FG</th>
-            <th class="num">IZEL FG</th>
-            <th class="num col-group-border">DIF. FG</th>
+            ${thSort('sapFg', 'SAP FG', 'num')}
+            ${thSort('izelFg', 'IZEL FG', 'num')}
+            ${thSort('diffFG', 'DIF. FG', 'num col-group-border')}
+            
             <!-- Bloque DR -->
-            <th class="num">SAP DR</th>
-            <th class="num">IZEL DR</th>
-            <th class="num col-group-border">DIF. DR</th>
+            ${thSort('sapDr', 'SAP DR', 'num')}
+            ${thSort('izelDr', 'IZEL DR', 'num')}
+            ${thSort('diffDR', 'DIF. DR', 'num col-group-border')}
+            
             <!-- Bloque QR -->
-            <th class="num">SAP QR</th>
-            <th class="num">IZEL QR</th>
-            <th class="num col-group-border">DIF. QR</th>
-            <!-- Totales e Informativas -->
-            <th class="num">DIS / SIN</th>
-            <th class="num">TOTAL SAP</th>
-            <th class="num">TOTAL IZEL</th>
-            <th class="num">DIFERENCIA NETA</th>
+            ${thSort('sapQr', 'SAP QR', 'num')}
+            ${thSort('izelQr', 'IZEL QR', 'num')}
+            ${thSort('diffQR', 'DIF. QR', 'num col-group-border')}
+            
+            <!-- Bloque DIS -->
+            ${thSort('sapDis', 'SAP DIS', 'num')}
+            ${thSort('izelDis', 'IZEL DIS', 'num')}
+            ${thSort('diffDIS', 'DIF. DIS', 'num col-group-border')}
+            
+            <!-- Bloque SIN -->
+            ${thSort('sapSin', 'SAP SIN', 'num')}
+            ${thSort('izelSin', 'IZEL SIN', 'num')}
+            ${thSort('diffSIN', 'DIF. SIN', 'num col-group-border')}
+            
+            <!-- Totales -->
+            ${thSort('sapTot', 'TOTAL SAP', 'num')}
+            ${thSort('izelTot', 'TOTAL IZEL', 'num')}
+            ${thSort('netDiff', 'DIFERENCIA NETA', 'num')}
             <th style="text-align:center;">ESTATUS VS SAP</th>
           </tr>
         `;
@@ -1112,7 +1241,7 @@
       if (reconciledData.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="${tableMode === 'summary' ? 6 : 15}" style="text-align:center; padding:32px; color:var(--text-muted);">
+            <td colspan="${tableMode === 'summary' ? 6 : 20}" style="text-align:center; padding:32px; color:var(--text-muted);">
               Carga los archivos SAP Rector e IZEL arriba para procesar la auditoría.
             </td>
           </tr>
@@ -1122,27 +1251,67 @@
 
       tbody.innerHTML = '';
 
+      // Ordenamiento Dinámico de los Datos (Excel-style)
       const sorted = [...reconciledData].sort((a, b) => {
-        const spA = a.sapFg + a.sapQr + a.sapDr + (includeDisSin ? (a.sin + a.dis) : 0);
-        const spB = b.sapFg + b.sapQr + b.sapDr + (includeDisSin ? (b.sin + b.dis) : 0);
-        return Math.abs((b.izelFg + b.izelDr + b.izelQr) - spB) - Math.abs((a.izelFg + a.izelDr + a.izelQr) - spA);
+        const getRowValues = (row) => {
+          const sapTot = row.sapFg + row.sapQr + row.sapDr + (includeDisSin ? (row.sapSin + row.sapDis) : 0);
+          const izelTot = row.izelFg + row.izelDr + row.izelQr + (includeDisSin ? (row.izelSin + row.izelDis) : 0);
+          return {
+            sku: row.sku,
+            sapTot,
+            izelTot,
+            netDiff: sapTot - izelTot,
+            sapFg: row.sapFg,
+            izelFg: row.izelFg,
+            diffFG: row.sapFg - row.izelFg,
+            sapDr: row.sapDr,
+            izelDr: row.izelDr,
+            diffDR: row.sapDr - row.izelDr,
+            sapQr: row.sapQr,
+            izelQr: row.izelQr,
+            diffQR: row.sapQr - row.izelQr,
+            sapDis: row.sapDis,
+            izelDis: row.izelDis,
+            diffDIS: row.sapDis - row.izelDis,
+            sapSin: row.sapSin,
+            izelSin: row.izelSin,
+            diffSIN: row.sapSin - row.izelSin
+          };
+        };
+
+        const vA = getRowValues(a);
+        const vB = getRowValues(b);
+
+        if (sortKey === 'sku') {
+          const cmp = vA.sku.localeCompare(vB.sku);
+          return sortAsc ? cmp : -cmp;
+        }
+
+        let valA = vA[sortKey] !== undefined ? vA[sortKey] : 0;
+        let valB = vB[sortKey] !== undefined ? vB[sortKey] : 0;
+
+        return sortAsc ? (valA - valB) : (valB - valA);
       });
 
       sorted.forEach(row => {
         if (q && !row.sku.toLowerCase().includes(q)) return;
 
-        const sapExtra = (row.dis + row.sin);
-        const sapTot = row.sapFg + row.sapQr + row.sapDr + (includeDisSin ? sapExtra : 0);
-        const izelTot = row.izelFg + row.izelDr + row.izelQr;
+        const sapTot = row.sapFg + row.sapQr + row.sapDr + (includeDisSin ? (row.sapDis + row.sapSin) : 0);
+        const izelTot = row.izelFg + row.izelDr + row.izelQr + (includeDisSin ? (row.izelDis + row.izelSin) : 0);
 
-        const netDiff = izelTot - sapTot;
-        const diffFG = row.izelFg - row.sapFg;
-        const diffDR = row.izelDr - row.sapDr;
-        const diffQR = row.izelQr - row.sapQr;
+        // Base SAP sobre IZEL para todos los estatus:
+        const netDiff = sapTot - izelTot;
+        const diffFG = row.sapFg - row.izelFg;
+        const diffDR = row.sapDr - row.izelDr;
+        const diffQR = row.sapQr - row.izelQr;
+        const diffDIS = row.sapDis - row.izelDis;
+        const diffSIN = row.sapSin - row.izelSin;
 
         const hasDiffFG = Math.abs(diffFG) > 0.001;
         const hasDiffDR = Math.abs(diffDR) > 0.001;
         const hasDiffQR = Math.abs(diffQR) > 0.001;
+        const hasDiffDIS = Math.abs(diffDIS) > 0.001;
+        const hasDiffSIN = Math.abs(diffSIN) > 0.001;
 
         if (onlyDiff && Math.abs(netDiff) < 0.001) return;
 
@@ -1150,12 +1319,14 @@
         if (!row.inSap) {
           locationBadge = `<span class="badge-status" style="background:#FEE4E2; color:#D92D20; border:1px solid #FECDCA;">NO EXISTE EN SAP</span>`;
         } else if (!row.inIzel) {
-          locationBadge = `<span class="badge-status" style="background:#FEE4E2; color:#D92D20; border:1px solid #FECDCA;">FALTANTE TOTAL EN IZEL</span>`;
+          locationBadge = `<span class="badge-status" style="background:#FEE4E2; color:#D92D20; border:1px solid #FECDCA;">FALTANTE EN IZEL</span>`;
         } else {
           const diffLocations = [];
           if (hasDiffFG) diffLocations.push('FG');
           if (hasDiffDR) diffLocations.push('DR');
           if (hasDiffQR) diffLocations.push('QR');
+          if (includeDisSin && hasDiffDIS) diffLocations.push('DIS');
+          if (includeDisSin && hasDiffSIN) diffLocations.push('SIN');
 
           if (diffLocations.length === 0) {
             locationBadge = `<span class="badge-status" style="background:#D1FADF; color:#037A48;">CUADRADO</span>`;
@@ -1168,11 +1339,11 @@
         let statusBadge = '<span class="badge-status" style="background:#D1FADF; color:#037A48;">Cuadrado</span>';
 
         if (netDiff > 0.001) {
-          diffClass = 'diff-pos';
-          statusBadge = '<span class="badge-status" style="background:#E0F2FE; color:#0070C0;">Sobrante Físico</span>';
-        } else if (netDiff < -0.001) {
           diffClass = 'diff-neg';
-          statusBadge = '<span class="badge-status" style="background:#FEE4E2; color:#D92D20;">Faltante Físico</span>';
+          statusBadge = '<span class="badge-status" style="background:#FEE4E2; color:#D92D20;">Faltante en Físico</span>';
+        } else if (netDiff < -0.001) {
+          diffClass = 'diff-pos';
+          statusBadge = '<span class="badge-status" style="background:#E0F2FE; color:#0070C0;">Sobrante en Físico</span>';
         }
 
         const tr = document.createElement('tr');
@@ -1187,7 +1358,7 @@
             <td style="text-align:center;">${statusBadge}</td>
           `;
         } else {
-          const getDiffColor = (val) => Math.abs(val) < 0.001 ? 'var(--green-ok)' : (val > 0 ? 'var(--blue-accent)' : 'var(--red-critical)');
+          const getDiffColor = (val) => Math.abs(val) < 0.001 ? 'var(--green-ok)' : (val > 0 ? 'var(--red-critical)' : 'var(--blue-accent)');
 
           tr.innerHTML = `
             <td class="col-group-border"><strong>${row.sku}</strong></td>
@@ -1213,8 +1384,21 @@
               ${(diffQR > 0 ? '+' : '') + formatNum(diffQR)}
             </td>
 
-            <!-- Totales e Informativas -->
-            <td class="num" style="color:var(--text-muted);">${formatNum(sapExtra)}</td>
+            <!-- Bloque DIS -->
+            <td class="num">${formatNum(row.sapDis)}</td>
+            <td class="num">${formatNum(row.izelDis)}</td>
+            <td class="num col-group-border" style="font-weight:700; color:${getDiffColor(diffDIS)};">
+              ${(diffDIS > 0 ? '+' : '') + formatNum(diffDIS)}
+            </td>
+
+            <!-- Bloque SIN -->
+            <td class="num">${formatNum(row.sapSin)}</td>
+            <td class="num">${formatNum(row.izelSin)}</td>
+            <td class="num col-group-border" style="font-weight:700; color:${getDiffColor(diffSIN)};">
+              ${(diffSIN > 0 ? '+' : '') + formatNum(diffSIN)}
+            </td>
+
+            <!-- Totales -->
             <td class="num" style="background:rgba(24,34,55,0.02); font-weight:700;"><strong>${formatNum(sapTot)}</strong></td>
             <td class="num"><strong>${formatNum(izelTot)}</strong></td>
             <td class="num ${diffClass}"><strong>${(netDiff > 0 ? '+' : '') + formatNum(netDiff)}</strong></td>
@@ -1232,17 +1416,17 @@
 
     function exportToCSV() {
       if (reconciledData.length === 0) return;
-      let csv = "SKU,SAP_FG,IZEL_FG,DIF_FG,SAP_DR,IZEL_DR,DIF_DR,SAP_QR,IZEL_QR,DIF_QR,DIS_SIN,TOTAL_SAP,TOTAL_IZEL,DIFERENCIA_NETA\n";
+      let csv = "SKU,SAP_FG,IZEL_FG,DIF_FG,SAP_DR,IZEL_DR,DIF_DR,SAP_QR,IZEL_QR,DIF_QR,SAP_DIS,IZEL_DIS,DIF_DIS,SAP_SIN,IZEL_SIN,DIF_SIN,TOTAL_SAP,TOTAL_IZEL,DIFERENCIA_NETA\n";
       reconciledData.forEach(r => {
-        const izelTot = r.izelFg + r.izelDr + r.izelQr;
-        const sapTot = r.sapFg + r.sapQr + r.sapDr + (includeDisSin ? (r.dis + r.sin) : 0);
-        csv += `${r.sku},${r.sapFg},${r.izelFg},${r.izelFg - r.sapFg},${r.sapDr},${r.izelDr},${r.izelDr - r.sapDr},${r.sapQr},${r.izelQr},${r.izelQr - r.sapQr},${r.dis + r.sin},${sapTot},${izelTot},${izelTot - sapTot}\n`;
+        const izelTot = r.izelFg + r.izelDr + r.izelQr + (includeDisSin ? (r.izelDis + r.izelSin) : 0);
+        const sapTot = r.sapFg + r.sapQr + r.sapDr + (includeDisSin ? (r.sapDis + r.sapSin) : 0);
+        csv += `${r.sku},${r.sapFg},${r.izelFg},${r.sapFg - r.izelFg},${r.sapDr},${r.izelDr},${r.sapDr - r.izelDr},${r.sapQr},${r.izelQr},${r.sapQr - r.izelQr},${r.sapDis},${r.izelDis},${r.sapDis - r.izelDis},${r.sapSin},${r.izelSin},${r.sapSin - r.izelSin},${sapTot},${izelTot},${sapTot - izelTot}\n`;
       });
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Conciliacion_Detallada_SAP_vs_IZEL_${includeDisSin ? 'Con_DIS_SIN' : 'Sin_DIS_SIN'}.csv`;
+      a.download = `Conciliacion_Detallada_5_Estatus_${includeDisSin ? 'Con_DIS_SIN' : 'Sin_DIS_SIN'}.csv`;
       a.click();
     }
 
@@ -1284,8 +1468,9 @@
           let ubic = String(row['Ubicacion'] || row['Ubicación'] || '').trim();
           let area = String(row['Area'] || row['Área'] || '').trim().toUpperCase();
           let lpn = String(row['LPN'] || row['Lpn'] || 'SIN LPN').trim();
+          let estatus = String(row['Estatus'] || 'FG').trim().toUpperCase();
           if (!sku || cant <= 0) return;
-          allRecords.push({ cant, sku, desc, estatus: "OK", ubic, area, fCad: "", diasVida: 365, batch: "", lpn });
+          allRecords.push({ cant, sku, desc, estatus, ubic, area, fCad: "", diasVida: 365, batch: "", lpn });
         });
         if (allRecords.length > 0) {
           const db = await abrirDBCompartidaBalance2();
@@ -1298,7 +1483,7 @@
           });
           localStorage.setItem("TRAXION_existenciasOrigen", nombreArchivo || "Balance 2");
           localStorage.setItem("TRAXION_existenciasUpdated", new Date().toISOString());
-          const compact = allRecords.map(r => [r.cant, r.sku, r.desc, r.estatus || "LIBRE", r.ubic, r.area, r.fCad, r.diasVida, r.batch, r.lpn]);
+          const compact = allRecords.map(r => [r.cant, r.sku, r.desc, r.estatus, r.ubic, r.area, r.fCad, r.diasVida, r.batch, r.lpn]);
           subirPaqueteCacheNubeBalance2("existencias", compact, nombreArchivo || "Balance 2");
         }
       } catch (e) {
@@ -1321,6 +1506,7 @@
             rawIzelData = resI.records.map(r => ({
               SKU: r.sku,
               Cantidad: r.cant,
+              Estatus: r.estatus,
               Area: r.area || r.ubic,
               Ubicacion: r.ubic
             }));
