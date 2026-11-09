@@ -366,28 +366,9 @@
         </button>
       </div>
 
-      <!-- Filter Buttons -->
-      <div class="flex items-center flex-wrap gap-1.5 text-xs">
-        <button onclick="setStatusFilter('ALL')" id="flt-ALL" 
-          class="px-3.5 py-1.5 rounded-xl bg-[#182237] text-white font-bold transition shadow-sm">
-          Todos
-        </button>
-        <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
-          class="px-3.5 py-1.5 rounded-xl bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] font-bold transition border border-slate-200">
-          Cuadrados (=0)
-        </button>
-        <button onclick="setStatusFilter('MISSING')" id="flt-MISSING" 
-          class="px-3.5 py-1.5 rounded-xl bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] font-bold transition border border-slate-200">
-          Faltante Físico (&gt;0)
-        </button>
-        <button onclick="setStatusFilter('SURPLUS')" id="flt-SURPLUS" 
-          class="px-3.5 py-1.5 rounded-xl bg-slate-50 text-[#F59E0B] hover:bg-[#FFFBEB] font-bold transition border border-slate-200">
-          Sobrante Físico (&lt;0)
-        </button>
-        <button onclick="setStatusFilter('BATCH_DIFF')" id="flt-BATCH_DIFF" 
-          class="px-3.5 py-1.5 rounded-xl bg-slate-50 text-[#64748B] hover:bg-slate-100 font-bold transition border border-slate-200">
-          Descuadre Lotes
-        </button>
+      <!-- Filter Buttons (Dynamic according to Module) -->
+      <div id="filter-container" class="flex items-center flex-wrap gap-1.5 text-xs">
+        <!-- Rendered dynamically via renderFilterButtons() -->
       </div>
 
     </section>
@@ -687,6 +668,60 @@
       limit: 50
     };
 
+    // Render filter buttons dynamically based on active module
+    function renderFilterButtons() {
+      const container = document.getElementById('filter-container');
+      if (!container) return;
+
+      if (AppData.currentModule === 'QI') {
+        container.innerHTML = `
+          <button onclick="setStatusFilter('ALL')" id="flt-ALL" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            Todos
+          </button>
+          <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
+            Cuadrados (=0)
+          </button>
+          <button onclick="setStatusFilter('SOLO_ONHOLD')" id="flt-SOLO_ONHOLD" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SOLO_ONHOLD' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#B5BD00] hover:bg-[#F7F8E7] border border-slate-200'} font-bold transition">
+            Solo On-Hold
+          </button>
+          <button onclick="setStatusFilter('SOLO_SAP')" id="flt-SOLO_SAP" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SOLO_SAP' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#182237] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            Solo SAP
+          </button>
+          <button onclick="setStatusFilter('SOLO_IZEL')" id="flt-SOLO_IZEL" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SOLO_IZEL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#0284C7] hover:bg-[#F0F9FF] border border-slate-200'} font-bold transition">
+            Solo Izel
+          </button>
+        `;
+      } else {
+        container.innerHTML = `
+          <button onclick="setStatusFilter('ALL')" id="flt-ALL" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            Todos
+          </button>
+          <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
+            Cuadrados (=0)
+          </button>
+          <button onclick="setStatusFilter('MISSING')" id="flt-MISSING" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'MISSING' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] border border-slate-200'} font-bold transition">
+            Faltante Físico (&gt;0)
+          </button>
+          <button onclick="setStatusFilter('SURPLUS')" id="flt-SURPLUS" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SURPLUS' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#F59E0B] hover:bg-[#FFFBEB] border border-slate-200'} font-bold transition">
+            Sobrante Físico (&lt;0)
+          </button>
+          <button onclick="setStatusFilter('BATCH_DIFF')" id="flt-BATCH_DIFF" 
+            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'BATCH_DIFF' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            Descuadre Lotes
+          </button>
+        `;
+      }
+    }
+
     // Toast Notification System
     function notify(msg, type = 'info') {
       const container = document.getElementById('toast-container');
@@ -728,6 +763,7 @@
     function switchOperationalModule(mod) {
       AppData.currentModule = mod;
       AppData.page = 1;
+      AppData.currentFilter = 'ALL';
 
       const btnQr = document.getElementById('mod-qr');
       const btnQi = document.getElementById('mod-qi');
@@ -757,6 +793,8 @@
         thOnHold.classList.remove('hidden');
         uploadGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4';
       }
+
+      renderFilterButtons();
 
       if (AppData.loaded.sap || AppData.loaded.onhold) {
         calculateReconciliation();
@@ -1637,19 +1675,7 @@
     function setStatusFilter(filter) {
       AppData.currentFilter = filter;
       AppData.page = 1;
-
-      ['ALL', 'MATCH', 'MISSING', 'SURPLUS', 'BATCH_DIFF'].forEach(f => {
-        const btn = document.getElementById(`flt-${f}`);
-        if (!btn) return;
-        if (f === filter) {
-          btn.classList.add('bg-[#182237]', 'text-white');
-          btn.classList.remove('bg-slate-50', 'text-[#64748B]');
-        } else {
-          btn.classList.remove('bg-[#182237]', 'text-white');
-          btn.classList.add('bg-slate-50');
-        }
-      });
-
+      renderFilterButtons();
       applyFilters();
     }
 
@@ -1670,14 +1696,28 @@
       document.getElementById('tab-count-mx20').textContent = AppData.items.filter(r => r.wh === 'MX20').length.toLocaleString();
       document.getElementById('tab-count-mx21').textContent = AppData.items.filter(r => r.wh === 'MX21').length.toLocaleString();
 
-      if (AppData.currentFilter === 'MATCH') {
-        list = list.filter(r => r.diffQty === 0);
-      } else if (AppData.currentFilter === 'MISSING') {
-        list = list.filter(r => r.diffQty > 0);
-      } else if (AppData.currentFilter === 'SURPLUS') {
-        list = list.filter(r => r.diffQty < 0);
-      } else if (AppData.currentFilter === 'BATCH_DIFF') {
-        list = list.filter(r => r.batchMismatch);
+      if (AppData.currentModule === 'QI') {
+        // Module 2 Filters: ALL, MATCH, SOLO_ONHOLD, SOLO_SAP, SOLO_IZEL
+        if (AppData.currentFilter === 'MATCH') {
+          list = list.filter(r => r.diffQty === 0);
+        } else if (AppData.currentFilter === 'SOLO_ONHOLD') {
+          list = list.filter(r => r.onHoldAdj > 0 && r.sapQty === 0 && r.izelQty === 0);
+        } else if (AppData.currentFilter === 'SOLO_SAP') {
+          list = list.filter(r => r.sapQty > 0 && r.onHoldAdj === 0 && r.izelQty === 0);
+        } else if (AppData.currentFilter === 'SOLO_IZEL') {
+          list = list.filter(r => r.izelQty > 0 && r.sapQty === 0 && r.onHoldAdj === 0);
+        }
+      } else {
+        // Module 1 Filters: ALL, MATCH, MISSING, SURPLUS, BATCH_DIFF
+        if (AppData.currentFilter === 'MATCH') {
+          list = list.filter(r => r.diffQty === 0);
+        } else if (AppData.currentFilter === 'MISSING') {
+          list = list.filter(r => r.diffQty > 0);
+        } else if (AppData.currentFilter === 'SURPLUS') {
+          list = list.filter(r => r.diffQty < 0);
+        } else if (AppData.currentFilter === 'BATCH_DIFF') {
+          list = list.filter(r => r.batchMismatch);
+        }
       }
 
       if (q) {
@@ -2013,6 +2053,11 @@
         closeCrossModal();
         closeEtlAuditModal();
       }
+    });
+
+    // Initial render of filters on load
+    window.addEventListener('DOMContentLoaded', () => {
+      renderFilterButtons();
     });
   </script>
 </body>
