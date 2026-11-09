@@ -271,63 +271,68 @@
     </section>
 
     <!-- 3. KPI CARDS (CLEAN EXECUTIVE 4-CARD GRID) -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       
       <!-- KPI 1: Total SKUs Auditados -->
-      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-w-[240px]">
         <div class="flex items-center justify-between">
           <span class="traxion-card-header text-[#64748B]">Total SKUs Auditados</span>
-          <div class="w-9 h-9 rounded-xl bg-slate-100 text-[#182237] flex items-center justify-center text-sm">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 text-[#182237] flex items-center justify-center text-sm">
             <i class="fa-solid fa-barcode"></i>
           </div>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <div id="kpi-total-skus" class="traxion-kpi-num text-[#0F172A]">0</div>
           <p class="text-[11px] text-[#64748B] mt-1 font-medium">Universo total analizado</p>
         </div>
       </div>
 
       <!-- KPI 2: SKUs Cuadrados -->
-      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-w-[240px]">
         <div class="flex items-center justify-between">
           <span class="traxion-card-header text-[#10B981]">SKUs Cuadrados</span>
-          <div class="w-9 h-9 rounded-xl bg-[#ECFDF5] text-[#10B981] flex items-center justify-center text-sm">
+          <div class="w-10 h-10 rounded-xl bg-[#ECFDF5] text-[#10B981] flex items-center justify-center text-sm">
             <i class="fa-solid fa-check"></i>
           </div>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <div class="flex items-baseline justify-between">
             <span id="kpi-matched-count" class="traxion-kpi-num text-[#10B981]">0</span>
-            <span id="kpi-matched-pct" class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#10B981]">0.0%</span>
+            <span id="kpi-matched-pct" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#10B981]">0.0%</span>
           </div>
           <p class="text-[11px] text-[#64748B] mt-1 font-medium">Coincidencia exacta de inventario</p>
         </div>
       </div>
 
       <!-- KPI 3: SKUs con Discrepancia -->
-      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-w-[240px]">
         <div class="flex items-center justify-between">
           <span class="traxion-card-header text-[#EF4444]">SKUs con Discrepancia</span>
-          <div class="w-9 h-9 rounded-xl bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center text-sm">
+          <div class="w-10 h-10 rounded-xl bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center text-sm">
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <div class="flex items-baseline justify-between">
             <span id="kpi-discrepancy-count" class="traxion-kpi-num text-[#EF4444]">0</span>
-            <span id="kpi-discrepancy-pct" class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#EF4444]">0.0%</span>
+            <span id="kpi-discrepancy-pct" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#FEF2F2] text-[#EF4444]">0.0%</span>
           </div>
-          <p class="text-[11px] text-[#64748B] mt-1 font-medium">
+          <!-- Subtítulo dinámico: Módulo 1 (Faltantes/Sobrantes) vs Módulo 2 (Solo On-Hold / Solo SAP / Solo Izel) -->
+          <p id="kpi-sub-text" class="text-[11px] text-[#64748B] mt-1.5 font-medium leading-relaxed">
             Faltantes: <strong id="kpi-sub-missing" class="text-[#EF4444]">0</strong> | Sobrantes: <strong id="kpi-sub-surplus" class="text-[#F59E0B]">0</strong>
+          </p>
+        </div>
+      </div>
+
       <!-- KPI 4: Impacto Neto de Cajas -->
-      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+      <div class="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow min-w-[240px]">
         <div class="flex items-center justify-between">
           <span class="traxion-card-header text-[#182237]">Balance Neto de Cajas</span>
-          <div class="w-9 h-9 rounded-xl bg-slate-100 text-[#182237] flex items-center justify-center text-sm">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 text-[#182237] flex items-center justify-center text-sm">
             <i class="fa-solid fa-scale-balanced"></i>
           </div>
         </div>
-        <div class="mt-3">
+        <div class="mt-4">
           <div class="flex items-baseline justify-between">
             <span id="kpi-net-units" class="traxion-kpi-num text-[#0F172A]">0</span>
             <span id="kpi-total-val" class="text-xs font-mono font-bold text-[#64748B]">$0.00</span>
@@ -1772,8 +1777,25 @@
 
       document.getElementById('kpi-discrepancy-count').textContent = discrepancyCount.toLocaleString();
       document.getElementById('kpi-discrepancy-pct').textContent = `${discPct}%`;
-      document.getElementById('kpi-sub-missing').textContent = missing.length.toLocaleString();
-      document.getElementById('kpi-sub-surplus').textContent = surplus.length.toLocaleString();
+
+      // Detalle de discrepancia adaptable al módulo activo
+      const subTextEl = document.getElementById('kpi-sub-text');
+      if (AppData.currentModule === 'QI') {
+        const soloOnHold = data.filter(r => r.onHoldAdj > 0 && r.sapQty === 0 && r.izelQty === 0).length;
+        const soloSap = data.filter(r => r.sapQty > 0 && r.onHoldAdj === 0 && r.izelQty === 0).length;
+        const soloIzel = data.filter(r => r.izelQty > 0 && r.sapQty === 0 && r.onHoldAdj === 0).length;
+
+        subTextEl.innerHTML = `
+          Solo On-Hold: <strong class="text-[#B5BD00]">${soloOnHold}</strong> | 
+          Solo SAP: <strong class="text-[#182237]">${soloSap}</strong> | 
+          Solo Izel: <strong class="text-[#0284C7]">${soloIzel}</strong>
+        `;
+      } else {
+        subTextEl.innerHTML = `
+          Faltantes: <strong class="text-[#EF4444]">${missing.length.toLocaleString()}</strong> | 
+          Sobrantes: <strong class="text-[#F59E0B]">${surplus.length.toLocaleString()}</strong>
+        `;
+      }
 
       const netEl = document.getElementById('kpi-net-units');
       if (netUnits > 0) {
