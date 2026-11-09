@@ -533,6 +533,21 @@
       return isNaN(n) ? 0 : n;
     }
 
+    // Helper to extract value checking multiple column name variants (case-insensitive & accents-free)
+    function findColumnValue(row, possibleNames) {
+      const keys = Object.keys(row);
+      const clean = str => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      
+      for (const target of possibleNames) {
+        const cleanTarget = clean(target);
+        const matchedKey = keys.find(k => clean(k) === cleanTarget);
+        if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
+          return row[matchedKey];
+        }
+      }
+      return null;
+    }
+
     function handleFile(ev, type) {
       const file = ev.target.files[0];
       if (!file) return;
@@ -581,16 +596,43 @@
       }
 
       if (type === 'SAP') {
-        AppData.sapRaw = rows.map(r => ({
-          planta: (r['Planta'] || r['Centro'] || '').trim().toUpperCase(),
-          sku: sanitizeSku(r['Material (SKU)'] || r['Material'] || r['SKU']),
-          desc: r['Descripcion'] || r['Descripción'] || '',
-          sapQty: parseNum(r['Cantidad SAP'] || r['Stock SAP'] || r['Cantidad']),
-          sapPallets: parseNum(r['Pallets SAP'] || r['Tarimas SAP']),
-          lotesSap: (r['Lotes WMS'] || r['Lote'] || '').trim(),
-          sapVal: parseNum(r['Valor SAP ($)'] || r['Valor SAP'] || r['Importe']),
-          impacto: parseNum(r['Impacto Discrepancia ($)'] || 0)
-        })).filter(r => r.sku !== '');
+        AppData.sapRaw = rows.map(r => {
+          // Robust column extraction covering 'BUM Quantity', 'Base Unit of Measure Quantity', etc.
+          const rawPlanta = findColumnValue(r, ['Planta', 'Plant', 'Centro', 'Werks', 'Almacen']) || '';
+          const rawSku = findColumnValue(r, ['Material (SKU)', 'Material', 'SKU', 'Codigo', 'Código', 'Cod. Material']) || '';
+          const rawDesc = findColumnValue(r, ['Descripcion', 'Descripción', 'Material Description', 'Texto breve de material', 'Description']) || '';
+          
+          const rawQty = findColumnValue(r, [
+            'BUM Quantity',
+            'BUM Qty',
+            'Base Unit of Measure Quantity',
+            'Cantidad SAP',
+            'Libre utilizacion',
+            'Libre utilización',
+            'Unrestricted',
+            'Stock Libre',
+            'Cantidad',
+            'Quantity',
+            'Stock',
+            'Qty'
+          ]);
+
+          const rawPallets = findColumnValue(r, ['Pallets SAP', 'Pallets', 'Tarimas', 'No. Pallets', 'Tarimas SAP', 'Pallet']);
+          const rawLotes = findColumnValue(r, ['Lotes WMS', 'Lote', 'Batch', 'Lotes', 'Lote SAP']) || '';
+          const rawVal = findColumnValue(r, ['Valor SAP ($)', 'Valor SAP', 'Valor', 'Importe', 'Total Value', 'Valor total', 'Importe ML']);
+          const rawImpacto = findColumnValue(r, ['Impacto Discrepancia ($)', 'Impacto', 'Discrepancia Valor']) || 0;
+
+          return {
+            planta: String(rawPlanta).trim().toUpperCase(),
+            sku: sanitizeSku(rawSku),
+            desc: String(rawDesc).trim(),
+            sapQty: parseNum(rawQty),
+            sapPallets: parseNum(rawPallets),
+            lotesSap: String(rawLotes).trim(),
+            sapVal: parseNum(rawVal),
+            impacto: parseNum(rawImpacto)
+          };
+        }).filter(r => r.sku !== '');
 
         AppData.loaded.sap = true;
         setUploadUI('sap', `${AppData.sapRaw.length.toLocaleString()} filas`, filename);
