@@ -206,11 +206,23 @@
         </button>
       </div>
 
-      <!-- Cross-Warehouse Transfer Warning -->
-      <div id="cross-alert-box" class="hidden items-center bg-[#FFFBEB] border border-[#F59E0B]/30 text-[#D97706] px-4 py-2 rounded-2xl text-xs font-semibold shadow-sm">
-        <i class="fa-solid fa-arrow-right-arrow-left mr-2 text-sm text-[#F59E0B]"></i>
-        <span id="cross-alert-msg">0 materiales detectados con posible cruce entre MX20 y MX21</span>
-      </div>
+      <!-- Cross-Warehouse Transfer Warning (Interactive / Clickable) -->
+      <button id="cross-alert-box" onclick="openCrossModal()" 
+        class="hidden items-center justify-between bg-[#FFFBEB] hover:bg-[#FEF3C7] border border-[#F59E0B]/40 hover:border-[#F59E0B] text-[#D97706] px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-sm transition-all duration-200 cursor-pointer active:scale-95 group text-left">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-[#F59E0B]/20 text-[#D97706] flex items-center justify-center text-sm group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+          </div>
+          <div>
+            <div id="cross-alert-msg" class="font-bold text-[#92400E]">0 materiales con posible traspaso cruzado</div>
+            <div class="text-[10px] text-[#B45309] font-normal">Faltante en una bodega compensado físicamente en la otra</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 ml-4 pl-3 border-l border-[#F59E0B]/30 text-[11px] font-bold text-[#B45309] group-hover:text-[#78350F]">
+          <span>Ver Desglose</span>
+          <i class="fa-solid fa-chevron-right text-[10px] group-hover:translate-x-0.5 transition-transform"></i>
+        </div>
+      </button>
     </section>
 
     <!-- 3. KPI CARDS (CLEAN EXECUTIVE 4-CARD GRID) -->
@@ -470,6 +482,52 @@
     </div>
   </div>
 
+  <!-- 7. MODAL: AUDITORÍA DE TRASPASOS CRUZADOS ENTRE MX20 Y MX21 -->
+  <div id="modal-cross" class="fixed inset-0 z-50 bg-[#182237]/65 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-[#182237] text-white flex items-center justify-between border-b-2 border-[#C0D838]">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-[#F59E0B] text-white flex items-center justify-center text-lg shadow-sm">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-white tracking-wide flex items-center gap-2">
+              AUDITORÍA DE TRASPASOS CRUZADOS (MX20 ⇄ MX21)
+              <span id="cross-modal-count-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#C0D838] text-[#182237]">0 SKUs</span>
+            </h3>
+            <p class="text-xs text-slate-300 mt-0.5">Discrepancias inversas donde el faltante de una planta existe físicamente como sobrante en la otra</p>
+          </div>
+        </div>
+        <button onclick="closeCrossModal()" class="text-slate-300 hover:text-white p-2 rounded-xl bg-slate-800 transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Explanatory Banner -->
+      <div class="px-6 py-3 bg-[#FFFBEB] border-b border-[#F59E0B]/20 flex items-center gap-3 text-xs text-[#92400E]">
+        <i class="fa-solid fa-circle-info text-base text-[#F59E0B] shrink-0"></i>
+        <span><strong>Criterio de Auditoría:</strong> Estos materiales presentan saldos con signos contrarios en el cálculo ($SAP - Izel$). Se recomienda regularizar mediante movimiento de traslado contable entre centros (MX20 ⇄ MX21) antes de aplicar cualquier merma o baja contable en SAP.</span>
+      </div>
+
+      <!-- Cards Container -->
+      <div id="cross-modal-content" class="overflow-y-auto p-6 space-y-4 flex-1 bg-slate-50">
+        <!-- Dynamic Cards populated via JS -->
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 bg-white border-t border-[#E2E8F0] flex items-center justify-between">
+        <span class="text-xs text-[#64748B]">
+          Fórmula rectora: $\text{Diferencia} = \text{SAP} - \text{Izel}$
+        </span>
+        <button onclick="closeCrossModal()" class="px-5 py-2 bg-[#182237] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs">
+          Cerrar Auditoría
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- CORE SCRIPT -->
   <script>
     const AppData = {
@@ -479,6 +537,7 @@
       loaded: { sap: false, mx20: false, mx21: false },
       items: [],
       filtered: [],
+      crossItems: [],
       currentWh: 'BOTH',
       currentFilter: 'ALL',
       searchTxt: '',
@@ -833,25 +892,220 @@
     function auditCrossTransfers() {
       const mx20 = AppData.items.filter(r => r.wh === 'MX20');
       const mx21 = AppData.items.filter(r => r.wh === 'MX21');
-      let crossFound = 0;
+      const cross = [];
 
-      mx20.forEach(item20 => {
-        if (item20.diffQty > 0) {
-          const partner21 = mx21.find(item21 => item21.sku === item20.sku && item21.diffQty < 0);
-          if (partner21) crossFound++;
+      // Check all SKUs in both warehouses
+      const allSkus = new Set([...mx20.map(r => r.sku), ...mx21.map(r => r.sku)]);
+
+      allSkus.forEach(sku => {
+        const item20 = mx20.find(r => r.sku === sku);
+        const item21 = mx21.find(r => r.sku === sku);
+
+        if (item20 && item21) {
+          const diff20 = item20.diffQty;
+          const diff21 = item21.diffQty;
+
+          // Case 1: Missing in MX20 (>0) and Surplus in MX21 (<0)
+          // Case 2: Surplus in MX20 (<0) and Missing in MX21 (>0)
+          if ((diff20 > 0 && diff21 < 0) || (diff20 < 0 && diff21 > 0)) {
+            const netDiff = diff20 + diff21; // Net remainder across both plants
+            const compensated = Math.min(Math.abs(diff20), Math.abs(diff21));
+
+            let diagnosis = '';
+            if (diff20 > 0 && diff21 < 0) {
+              diagnosis = `Faltante de ${diff20.toLocaleString()} u en Aquarius (MX20) compensado parcialmente por sobrante físico de ${Math.abs(diff21).toLocaleString()} u en Cetus (MX21). Se sugiere traslado de Cetus a Aquarius.`;
+            } else {
+              diagnosis = `Faltante de ${diff21.toLocaleString()} u en Cetus (MX21) compensado parcialmente por sobrante físico de ${Math.abs(diff20).toLocaleString()} u en Aquarius (MX20). Se sugiere traslado de Aquarius a Cetus.`;
+            }
+
+            cross.push({
+              sku,
+              desc: item20.desc || item21.desc,
+              item20,
+              item21,
+              netDiff,
+              compensated,
+              diagnosis
+            });
+          }
         }
       });
 
+      AppData.crossItems = cross;
+
       const alertBox = document.getElementById('cross-alert-box');
       const alertMsg = document.getElementById('cross-alert-msg');
-      if (crossFound > 0) {
-        alertMsg.textContent = `${crossFound} materiales identificados con posible traspaso cruzado entre MX20 y MX21.`;
+      if (cross.length > 0) {
+        alertMsg.textContent = `${cross.length} materiales con posible traspaso cruzado`;
         alertBox.classList.remove('hidden');
         alertBox.classList.add('flex');
       } else {
         alertBox.classList.add('hidden');
         alertBox.classList.remove('flex');
       }
+    }
+
+    function openCrossModal() {
+      if (!AppData.crossItems || AppData.crossItems.length === 0) {
+        notify('No hay traspasos cruzados detectados.', 'info');
+        return;
+      }
+
+      document.getElementById('cross-modal-count-badge').textContent = `${AppData.crossItems.length} SKUs`;
+      const container = document.getElementById('cross-modal-content');
+
+      let html = '';
+      AppData.crossItems.forEach(c => {
+        const i20 = c.item20;
+        const i21 = c.item21;
+
+        // Visual format for MX20
+        const isMissing20 = i20.diffQty > 0;
+        const statusClass20 = isMissing20 
+          ? 'bg-[#FEF2F2] border-[#EF4444]/30 text-[#EF4444]' 
+          : 'bg-[#FFFBEB] border-[#F59E0B]/30 text-[#D97706]';
+        const label20 = isMissing20 
+          ? `Faltante Físico (+${i20.diffQty.toLocaleString()} u)` 
+          : `Sobrante Físico (${i20.diffQty.toLocaleString()} u)`;
+
+        // Visual format for MX21
+        const isMissing21 = i21.diffQty > 0;
+        const statusClass21 = isMissing21 
+          ? 'bg-[#FEF2F2] border-[#EF4444]/30 text-[#EF4444]' 
+          : 'bg-[#FFFBEB] border-[#F59E0B]/30 text-[#D97706]';
+        const label21 = isMissing21 
+          ? `Faltante Físico (+${i21.diffQty.toLocaleString()} u)` 
+          : `Sobrante Físico (${i21.diffQty.toLocaleString()} u)`;
+
+        // Net Remainder Badge
+        let netBadge = '';
+        if (c.netDiff === 0) {
+          netBadge = '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#10B981] border border-[#10B981]/30"><i class="fa-solid fa-check mr-1"></i> Balance Totalmente Equilibrado (0 u netas)</span>';
+        } else if (c.netDiff > 0) {
+          netBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#FEF2F2] text-[#EF4444] border border-[#EF4444]/30"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Faltante Neto Global (+${c.netDiff.toLocaleString()} u)</span>`;
+        } else {
+          netBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-[#FFFBEB] text-[#D97706] border border-[#F59E0B]/30"><i class="fa-solid fa-boxes-stacked mr-1"></i> Sobrante Neto Global (${c.netDiff.toLocaleString()} u)</span>`;
+        }
+
+        html += `
+          <div class="bg-white rounded-2xl border border-[#E2E8F0] p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col space-y-4">
+            
+            <!-- SKU Header & Quick Filter Button -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+              <div class="flex items-center gap-3">
+                <span class="w-8 h-8 rounded-xl bg-[#182237] text-white flex items-center justify-center text-xs font-bold font-mono">
+                  <i class="fa-solid fa-box"></i>
+                </span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono font-black text-sm text-[#0F172A]">${c.sku}</span>
+                    ${netBadge}
+                  </div>
+                  <p class="text-xs text-[#64748B] font-medium mt-0.5">${c.desc}</p>
+                </div>
+              </div>
+
+              <!-- Quick action -->
+              <button onclick="filterBySkuAndClose('${c.sku}')" class="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-[#182237] text-[#0F172A] hover:text-white text-xs font-bold transition flex items-center gap-2 self-start sm:self-center shadow-xs">
+                <i class="fa-solid fa-filter text-[10px]"></i>
+                <span>Filtrar en Tabla</span>
+              </button>
+            </div>
+
+            <!-- Two Warehouses Side-by-Side Comparison -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-xs">
+              
+              <!-- MX20 Aquarius -->
+              <div class="p-3.5 rounded-xl border ${statusClass20} flex flex-col justify-between">
+                <div class="flex items-center justify-between pb-2 border-b border-black/5">
+                  <span class="font-bold flex items-center gap-1.5 text-[#0F172A] font-sans">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#0284C7]"></span>
+                    MX20 (Aquarius)
+                  </span>
+                  <span class="font-bold text-[11px]">${label20}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-2 pt-1 text-center">
+                  <div>
+                    <span class="text-[10px] text-[#64748B] block font-sans">SAP</span>
+                    <strong class="text-[#0F172A]">${i20.sapQty.toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-[#64748B] block font-sans">Izel</span>
+                    <strong class="text-[#0F172A]">${i20.izelQty.toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-[#64748B] block font-sans">Diferencia</span>
+                    <strong class="font-bold">${i20.diffQty > 0 ? '+' : ''}${i20.diffQty.toLocaleString()}</strong>
+                  </div>
+                </div>
+                <div class="mt-2.5 pt-2 border-t border-black/5 flex justify-between items-center text-[11px] font-sans">
+                  <span class="text-[#64748B]">Pallets (SAP / Izel): <strong>${i20.sapPallets} / ${i20.izelPallets}</strong></span>
+                  ${i20.drilldown.length > 0 ? `<button onclick="openModal('MX20', '${c.sku}')" class="text-[#0284C7] hover:underline font-bold text-[10px]"><i class="fa-solid fa-box mr-1"></i>Ver ${i20.drilldown.length} LPNs</button>` : ''}
+                </div>
+              </div>
+
+              <!-- MX21 Cetus -->
+              <div class="p-3.5 rounded-xl border ${statusClass21} flex flex-col justify-between">
+                <div class="flex items-center justify-between pb-2 border-b border-black/5">
+                  <span class="font-bold flex items-center gap-1.5 text-[#0F172A] font-sans">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#100848]"></span>
+                    MX21 (Cetus)
+                  </span>
+                  <span class="font-bold text-[11px]">${label21}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-2 pt-1 text-center">
+                  <div>
+                    <span class="text-[10px] text-[#64748B] block font-sans">SAP</span>
+                    <strong class="text-[#0F172A]">${i21.sapQty.toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-[#64748B] block font-sans">Izel</span>
+                    <strong class="text-[#0F172A]">${i21.izelQty.toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-[#64748B] block font-sans">Diferencia</span>
+                    <strong class="font-bold">${i21.diffQty > 0 ? '+' : ''}${i21.diffQty.toLocaleString()}</strong>
+                  </div>
+                </div>
+                <div class="mt-2.5 pt-2 border-t border-black/5 flex justify-between items-center text-[11px] font-sans">
+                  <span class="text-[#64748B]">Pallets (SAP / Izel): <strong>${i21.sapPallets} / ${i21.izelPallets}</strong></span>
+                  ${i21.drilldown.length > 0 ? `<button onclick="openModal('MX21', '${c.sku}')" class="text-[#100848] hover:underline font-bold text-[10px]"><i class="fa-solid fa-box mr-1"></i>Ver ${i21.drilldown.length} LPNs</button>` : ''}
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Operational Insight / Diagnosis Bar -->
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between text-[#0F172A]">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-lightbulb text-[#F59E0B] text-sm"></i>
+                <span><strong>Diagnóstico Operativo:</strong> ${c.diagnosis}</span>
+              </div>
+              <div class="text-[11px] text-[#64748B] font-mono shrink-0 ml-3">
+                Compensables: <strong class="text-[#10B981]">${c.compensated.toLocaleString()} u</strong>
+              </div>
+            </div>
+
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      document.getElementById('modal-cross').classList.remove('hidden');
+    }
+
+    function closeCrossModal() {
+      document.getElementById('modal-cross').classList.add('hidden');
+    }
+
+    function filterBySkuAndClose(sku) {
+      closeCrossModal();
+      switchWarehouse('BOTH');
+      setStatusFilter('ALL');
+      const input = document.getElementById('search-input');
+      input.value = sku;
+      applyFilters();
+      notify(`Filtrando resultados por SKU ${sku}`, 'info');
     }
 
     function switchWarehouse(wh) {
@@ -1220,7 +1474,10 @@
     }
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        closeModal();
+        closeCrossModal();
+      }
     });
   </script>
 </body>
