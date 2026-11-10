@@ -256,13 +256,13 @@
             </div>
             <div>
               <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Libro On-Hold Calidad</h3>
-              <p id="label-qi-onhold" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">Archivo .xlsx / .xls</p>
+              <p id="label-qi-onhold" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">3 Pestañas Oficiales</p>
             </div>
           </div>
           <span id="badge-qi-onhold" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-          <span>Hojas MFG, EMOS, PV, IMP...</span>
+          <span class="truncate">MFG, EMOS, IMPORTADOS</span>
           <i class="fa-solid fa-gear text-slate-400 group-hover:text-[#B5BD00] transition-colors"></i>
         </div>
       </div>
@@ -449,7 +449,7 @@
         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B]">
           <i class="fa-solid fa-magnifying-glass text-xs"></i>
         </div>
-        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Buscar por SKU, descripción o lote..."
+        <input type="text" id="search-input" oninput="applyFilters()" placeholder="Buscar por SKU, descripción, lote o pestaña..."
           class="w-full pl-10 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-[#0F172A] placeholder-[#64748B] focus:outline-none focus:ring-2 focus:ring-[#182237] focus:bg-white font-mono transition-all">
         <button onclick="clearSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#64748B] hover:text-[#0F172A]">
           <i class="fa-solid fa-xmark text-xs"></i>
@@ -475,11 +475,13 @@
               <th class="py-3.5 px-4 cursor-pointer hover:bg-slate-800 transition-colors" onclick="sortTable('sku')">
                 Material / SKU <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
               </th>
-              <th class="py-3.5 px-4 min-w-[220px]">Descripción</th>
+              <th class="py-3.5 px-4 min-w-[200px]">Descripción</th>
+              <th id="th-sheet-col" class="py-3.5 px-4 hidden text-left cursor-pointer hover:bg-slate-800 transition-colors" onclick="sortTable('onHoldSheet')">
+                Pestaña On-Hold <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
+              </th>
               <th class="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-800 transition-colors" onclick="sortTable('sapQty')">
                 Cajas SAP <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
               </th>
-              <!-- Columnas dinámicas de On-Hold cuando aplique -->
               <th id="th-onhold-col" class="py-3.5 px-4 text-right hidden cursor-pointer hover:bg-slate-800 transition-colors" onclick="sortTable('onHoldAdj')">
                 Cajas On-Hold <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
               </th>
@@ -487,9 +489,9 @@
                 Cajas Izel (WMS) <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
               </th>
               <th class="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-800 transition-colors" onclick="sortTable('diffQty')">
-                Dif. Cajas (SAP - Izel) <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
+                Dif. Cajas (Base - Izel) <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
               </th>
-              <th class="py-3.5 px-4 text-right">Pallets (SAP / Izel)</th>
+              <th class="py-3.5 px-4 text-right">Pallets (Base / Izel)</th>
               <th class="py-3.5 px-4 text-right cursor-pointer hover:bg-slate-800 transition-colors" onclick="sortTable('diffVal')">
                 Impacto ($ MXN) <i class="fa-solid fa-sort ml-1 text-slate-400"></i>
               </th>
@@ -500,7 +502,7 @@
           </thead>
           <tbody id="table-body" class="divide-y divide-slate-100 traxion-table-cell text-[#0F172A]">
             <tr>
-              <td colspan="12" class="text-center py-16 text-[#64748B]">
+              <td colspan="13" class="text-center py-16 text-[#64748B]">
                 <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl">
                   <i class="fa-solid fa-inbox"></i>
                 </div>
@@ -624,7 +626,7 @@
       <!-- Explanatory Banner -->
       <div class="px-6 py-3 bg-[#FFFBEB] border-b border-[#F59E0B]/20 flex items-center gap-3 text-xs text-[#92400E]">
         <i class="fa-solid fa-circle-info text-base text-[#F59E0B] shrink-0"></i>
-        <span><strong>Criterio de Auditoría:</strong> Estos materiales presentan saldos con signos contrarios en el cálculo ($SAP - Izel$). Se recomienda regularizar mediante movimiento de traslado contable entre centros (MX20 ⇄ MX21) antes de aplicar cualquier merma o baja contable en SAP.</span>
+        <span><strong>Criterio de Auditoría:</strong> Estos materiales presentan saldos con signos contrarios en el cálculo ($Base - Izel$). Se recomienda regularizar mediante movimiento de traslado contable entre centros (MX20 ⇄ MX21) antes de aplicar cualquier merma o baja contable en SAP.</span>
       </div>
 
       <!-- Cards Container -->
@@ -635,7 +637,7 @@
       <!-- Modal Footer -->
       <div class="px-6 py-3.5 bg-white border-t border-[#E2E8F0] flex items-center justify-between">
         <span class="text-xs text-[#64748B]">
-          Fórmula rectora: $\text{Diferencia} = \text{SAP} - \text{Izel}$
+          Fórmula rectora: $\text{Diferencia} = \text{Base} - \text{Izel}$
         </span>
         <button onclick="closeCrossModal()" class="px-5 py-2 bg-[#182237] hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs">
           Cerrar Auditoría
@@ -654,7 +656,7 @@
           </div>
           <div>
             <h3 class="font-bold text-sm text-white">Auditoría ETL · Libro On-Hold Excel</h3>
-            <p class="text-[11px] text-slate-300">Trazabilidad de hojas evaluadas, exclusiones y registros deduplicados</p>
+            <p class="text-[11px] text-slate-300">Pestañas autorizadas: MANUFACTURING ISSUES, EMOS, PV & OTHERS, IMPORTADOS & OTHERS</p>
           </div>
         </div>
         <button onclick="closeEtlAuditModal()" class="text-slate-300 hover:text-white p-2 rounded-xl bg-slate-800 transition">
@@ -681,13 +683,13 @@
 
         <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div class="px-4 py-2.5 bg-slate-100 text-xs font-bold text-slate-700 border-b border-slate-200">
-            Hojas Procesadas del Libro Excel
+            Pestañas Evaluadas del Libro Excel
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
               <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                 <tr>
-                  <th class="py-2 px-3">Hoja</th>
+                  <th class="py-2 px-3">Pestaña</th>
                   <th class="py-2 px-3 text-right">Filas Leídas</th>
                   <th class="py-2 px-3 text-right">Integrados</th>
                   <th class="py-2 px-3 text-right">Excluidos</th>
@@ -884,6 +886,7 @@
       const panelQi = document.getElementById('upload-panel-qi');
       const btnEtl = document.getElementById('btn-etl-audit');
       const thOnHold = document.getElementById('th-onhold-col');
+      const thSheet = document.getElementById('th-sheet-col');
       const pill = document.getElementById('module-pill');
       const desc = document.getElementById('module-desc');
 
@@ -899,6 +902,7 @@
         btnEtl.classList.add('hidden');
         btnEtl.classList.remove('flex');
         thOnHold.classList.add('hidden');
+        thSheet.classList.add('hidden');
 
         pill.textContent = 'MÓDULO 1 · CUARENTENA (QR)';
         pill.className = 'px-3 py-1 rounded-xl text-xs font-extrabold bg-[#182237] text-[#C0D838] tracking-wider uppercase';
@@ -920,13 +924,13 @@
           btnEtl.classList.remove('flex');
         }
         thOnHold.classList.remove('hidden');
+        thSheet.classList.remove('hidden');
 
         pill.textContent = 'MÓDULO 2 · CALIDAD / ON-HOLD (QI)';
         pill.className = 'px-3 py-1 rounded-xl text-xs font-extrabold bg-[#B5BD00] text-[#182237] tracking-wider uppercase';
-        desc.textContent = 'Conciliación tripartita de producto retenido: SAP Calidad + Libro On-Hold Excel vs WMS';
+        desc.textContent = 'Conciliación tripartita de producto retenido: SAP Calidad + Libro On-Hold Excel (3 pestañas oficiales) vs WMS';
       }
 
-      // Sincronizar input de búsqueda y warehouse de ese módulo
       document.getElementById('search-input').value = mod.searchTxt || '';
       renderWarehouseTabs();
       renderFilterButtons();
@@ -972,17 +976,21 @@
     }
 
     function sanitizeSku(v) {
-      if (!v) return '';
-      let str = String(v).trim().toUpperCase();
-      str = str.replace(/\.0+$/, '').replace(/["']/g, '');
-      if (/^\d+$/.test(str)) {
-        return str.replace(/^0+/, '') || '0';
+      if (v === null || v === undefined) return '';
+      let s = String(v).trim().toUpperCase();
+      s = s.replace(/\.0+$/, '');
+      s = s.replace(/["']/g, '');
+      // Excluir encabezados y etiquetas de totales de Excel
+      if (/^(TOTAL|SUBTOTAL|TOTALES|SUMA|MATERIAL|CODIGO|SKU|PLANT|PLANTA|WH)$/i.test(s)) return '';
+      if (!/^[A-Z0-9][A-Z0-9._\/-]*$/.test(s)) return '';
+      if (/^\d+$/.test(s)) {
+        return s.replace(/^0+/, '') || '0';
       }
-      return str;
+      return s;
     }
 
     function normalizeLote(loteRaw) {
-      if (!loteRaw) return 'VARIOS';
+      if (loteRaw === null || loteRaw === undefined) return 'VARIOS';
       let l = String(loteRaw).trim().toUpperCase();
       if (!l) return 'VARIOS';
       l = l.replace(/^(LOTE|LOT|LT|BATCH)\s*(\(LOTE\))?\s*[:#\-]?\s*/i, '');
@@ -1001,9 +1009,15 @@
 
     function parseNum(v) {
       if (v === undefined || v === null) return 0;
-      let s = String(v).replace(/,/g, '').replace(/\$/g, '').trim();
+      let s = String(v).replace(/["']/g, '').replace(/,/g, '').replace(/\$/g, '').trim();
       let n = parseFloat(s);
       return isNaN(n) ? 0 : n;
+    }
+
+    function esNumeroOnHold(valor) {
+      if (typeof valor === 'number') return Number.isFinite(valor);
+      const v = String(valor == null ? '' : valor).trim().replace(/,/g, '');
+      return v !== '' && Number.isFinite(Number(v));
     }
 
     function findColumnValue(row, possibleNames) {
@@ -1021,8 +1035,22 @@
     }
 
     // ==========================================
-    // ON-HOLD EXCEL ETL (PHASE 1 REPLICATION)
+    // ON-HOLD EXCEL ETL (3 PESTAÑAS AUTORIZADAS)
     // ==========================================
+    function isAuthorizedSheet(sheetName) {
+      const cleanName = String(sheetName || '')
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+
+      const isMfg = cleanName.includes('MANUFACTURING') && cleanName.includes('ISSUES');
+      const isEmos = cleanName.includes('EMOS') && cleanName.includes('PV');
+      const isImp = cleanName.includes('IMPORTADOS');
+
+      return isMfg || isEmos || isImp;
+    }
+
     function detectarColumnasOnHold(fila) {
       const map = { wh: -1, sku: -1, desc: -1, cajas: -1, lote: -1, pallets: -1 };
       const patrones = {
@@ -1059,6 +1087,11 @@
           const summary = [];
 
           workbook.SheetNames.forEach(sheetName => {
+            // FILTRO ESTRICTO: Solo las 3 pestañas autorizadas
+            if (!isAuthorizedSheet(sheetName)) {
+              return;
+            }
+
             const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
             if (!rawData || rawData.length === 0) return;
 
@@ -1082,7 +1115,7 @@
 
               const rawSku = r[map.sku];
               const sku = sanitizeSku(rawSku);
-              if (!sku || /^(TOTAL|SUBTOTAL|SKU|MATERIAL)$/.test(sku)) return;
+              if (!sku || sku.length < 3 || /^(TOTAL|SUBTOTAL|TOTALES|SUMA|SKU|MATERIAL)$/i.test(sku)) return;
 
               const rawwh = String(r[map.wh] ?? '');
               if (!rawwh.trim()) return;
@@ -1090,11 +1123,10 @@
               considered++;
               const wh = normalizeWh(rawwh);
               const rawQty = r[map.cajas];
-              const qty = parseNum(rawQty);
 
               let reason = '';
               if (!['MX20', 'MX21'].includes(wh)) reason = 'WH_FUERA_DE_ALCANCE';
-              else if (isNaN(qty) || qty < 0) reason = 'CANTIDAD_INVALIDA';
+              else if (!esNumeroOnHold(rawQty) || parseNum(rawQty) < 0) reason = 'CANTIDAD_INVALIDA';
 
               if (reason) {
                 excluded++;
@@ -1102,7 +1134,8 @@
                 return;
               }
 
-              const desc = map.desc >= 0 ? String(r[map.desc] ?? '') : '';
+              const qty = parseNum(rawQty);
+              const desc = map.desc >= 0 ? String(r[map.desc] ?? '').trim() : '';
               const lote = map.lote >= 0 ? normalizeLote(r[map.lote]) : 'VARIOS';
               const pallets = map.pallets >= 0 ? parseNum(r[map.pallets]) : 0;
 
@@ -1133,7 +1166,12 @@
             }
           });
 
-          // Inter-sheet Deduplication Engine (Exact Apps Script logic)
+          if (rows.length === 0) {
+            notify('No se encontraron registros de MX20/MX21 en las 3 pestañas oficiales de On-Hold.', 'warning');
+            return;
+          }
+
+          // Deduplicación Inter-hojas idéntica al Macro Quality
           const byKey = r => `${r.wh}|${r.sku}|${r.lote}`;
           const groups = new Map();
           rows.forEach(r => {
@@ -1200,7 +1238,7 @@
           document.getElementById('btn-etl-audit').classList.remove('hidden');
           document.getElementById('btn-etl-audit').classList.add('flex');
 
-          notify(`[Módulo 2] On-Hold cargado: ${rows.length.toLocaleString()} registros procesados, ${duplicates.length} duplicidades ajustadas.`, 'success');
+          notify(`[Módulo 2] On-Hold procesado: ${rows.length.toLocaleString()} registros válidos en 3 pestañas oficiales.`, 'success');
 
           calculateReconciliation('QI');
         } catch (err) {
@@ -1392,7 +1430,6 @@
         notify(`[Módulo ${modKey}] Izel MX21 cargado: ${modState.mx21Raw.length.toLocaleString()} tarimas`, 'success');
       }
 
-      // Se ejecuta el cálculo únicamente para el módulo al que pertenece el archivo
       if ((modState.loaded.sap || modState.loaded.onhold) && (modState.loaded.mx20 || modState.loaded.mx21)) {
         calculateReconciliation(modKey);
       }
@@ -1447,13 +1484,12 @@
         const onHoldGross = oh ? oh.gross : 0;
         const onHoldDeducted = oh ? oh.deducted : 0;
         const onHoldAdj = oh ? oh.adjusted : 0;
+        const onHoldSheet = oh ? Array.from(oh.sheets).join(', ') : 'N/A';
         const izelQty = i ? i.totalQty : 0;
 
-        // Base rectora: 
-        // Si estamos en Módulo 2 (QI) con On-Hold cargado, la base es On-Hold Ajustado (o SAP si no hay On-Hold).
-        // En Módulo 1 (QR), la base siempre es SAP.
+        // Base rectora: On-Hold Ajustado en QI (o SAP si no hay On-Hold). En QR es siempre SAP.
         const baseQty = (modKey === 'QI' && onHoldAdj > 0) ? onHoldAdj : sapQty;
-        const diffQty = baseQty - izelQty; // Regla rectora: Base - Izel
+        const diffQty = baseQty - izelQty;
 
         const sapPallets = s ? s.sapPallets : (oh ? oh.pallets : 0);
         const izelPallets = i ? i.pallets : 0;
@@ -1480,7 +1516,7 @@
         }
         const diffVal = diffQty * unitVal;
 
-        // Clasificación de Estatus
+        // Clasificación de Estatus acorde con Macro Quality
         let status = 'MATCH';
         let statusLabel = 'Cuadrado';
 
@@ -1492,16 +1528,17 @@
           statusLabel = (modKey === 'QI' && onHoldAdj > 0) ? 'Solo en On-Hold' : 'Solo en SAP';
         } else if (diffQty > 0) {
           status = 'MISSING';
-          statusLabel = 'Faltante en Izel';
+          statusLabel = diffQty <= 5 ? 'Revisar (≤5 cjas)' : 'Crítico (>5 cjas)';
         } else if (diffQty < 0) {
           status = 'SURPLUS';
-          statusLabel = 'Sobrante en Izel';
+          statusLabel = Math.abs(diffQty) <= 5 ? 'Revisar (≤5 cjas)' : 'Crítico (>5 cjas)';
         }
 
         list.push({
           wh,
           sku,
           desc,
+          onHoldSheet,
           sapQty,
           onHoldGross,
           onHoldDeducted,
@@ -1525,19 +1562,9 @@
     function calculateReconciliation(targetMod = AppData.currentModule) {
       const modState = AppData[targetMod];
 
-      // Aislamiento de filtros por módulo
-      const filterIzelRow = r => {
-        // En cada módulo, solo se evalúan las filas cargadas directamente en su propio slot
-        return true;
-      };
-
-      const filterSapRow = r => {
-        return true;
-      };
-
-      const filteredMx20 = modState.mx20Raw.filter(filterIzelRow);
-      const filteredMx21 = modState.mx21Raw.filter(filterIzelRow);
-      const filteredSap = modState.sapRaw.filter(filterSapRow);
+      const filteredMx20 = modState.mx20Raw;
+      const filteredMx21 = modState.mx21Raw;
+      const filteredSap = modState.sapRaw;
 
       const mapMx20 = groupIzel(filteredMx20);
       const mapMx21 = groupIzel(filteredMx21);
@@ -1578,12 +1605,14 @@
               deducted: 0,
               adjusted: 0,
               pallets: 0,
-              batches: new Set()
+              batches: new Set(),
+              sheets: new Set()
             });
           }
           const item = onHoldWh[wh].get(r.sku);
           item.gross += r.qty;
           item.pallets += r.pallets;
+          if (r.sheet) item.sheets.add(r.sheet);
           if (r.lote) item.batches.add(r.lote);
           if (!item.desc && r.desc) item.desc = r.desc;
         });
@@ -1866,6 +1895,7 @@
         list = list.filter(r => 
           r.sku.toLowerCase().includes(q) ||
           r.desc.toLowerCase().includes(q) ||
+          (r.onHoldSheet && r.onHoldSheet.toLowerCase().includes(q)) ||
           r.sapBatchesStr.toLowerCase().includes(q) ||
           r.izelBatchesStr.toLowerCase().includes(q)
         );
@@ -1961,12 +1991,12 @@
       const mod = getActiveModuleState();
       const list = mod.filtered;
       const total = list.length;
-      const isQI = AppData.currentModule === 'QI' && mod.loaded.onhold;
+      const isQI = AppData.currentModule === 'QI';
 
       if (total === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="${isQI ? 12 : 11}" class="text-center py-12 text-[#64748B]">
+            <td colspan="${isQI ? 13 : 11}" class="text-center py-12 text-[#64748B]">
               <i class="fa-solid fa-magnifying-glass text-2xl mb-2 text-slate-300 block"></i>
               No se encontraron datos o coincidencias para el módulo activo (${AppData.currentModule === 'QR' ? 'Cuarentena' : 'Calidad / On-Hold'}).
             </td>
@@ -2033,7 +2063,12 @@
           <tr class="hover:bg-slate-50 transition-colors">
             <td class="py-3 px-4">${whBadge}</td>
             <td class="py-3 px-4 font-bold font-mono text-[#0F172A]">${r.sku}</td>
-            <td class="py-3 px-4 text-[#0F172A] max-w-[220px] truncate" title="${r.desc}">${r.desc}</td>
+            <td class="py-3 px-4 text-[#0F172A] max-w-[200px] truncate" title="${r.desc}">${r.desc}</td>
+            ${isQI ? `
+              <td class="py-3 px-4 text-xs font-mono text-slate-500 max-w-[140px] truncate" title="${r.onHoldSheet}">
+                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[#182237] font-semibold text-[10px]">${r.onHoldSheet}</span>
+              </td>
+            ` : ''}
             <td class="py-3 px-4 text-right font-mono font-bold text-[#0F172A]">${r.sapQty.toLocaleString()}</td>
             ${isQI ? `
               <td class="py-3 px-4 text-right font-mono font-bold text-[#B5BD00]" title="Bruto: ${r.onHoldGross} | Descuento: -${r.onHoldDeducted}">
@@ -2140,18 +2175,19 @@
         return;
       }
 
-      const isQI = AppData.currentModule === 'QI' && mod.loaded.onhold;
+      const isQI = AppData.currentModule === 'QI';
 
       const headers = [
         'Modulo Operativo',
         'Planta',
         'Material (SKU)',
-        'Descripcion',
-        'Cajas SAP'
+        'Descripcion'
       ];
 
       if (isQI) {
-        headers.push('Cajas On-Hold Bruto', 'Descuento Duplicados', 'Cajas On-Hold Ajustado');
+        headers.push('Pestana On-Hold', 'Cajas SAP', 'Cajas On-Hold Bruto', 'Descuento Duplicados', 'Cajas On-Hold Ajustado');
+      } else {
+        headers.push('Cajas SAP');
       }
 
       headers.push(
@@ -2174,12 +2210,13 @@
           AppData.currentModule === 'QR' ? 'Cuarentena (QR)' : 'Calidad / On-Hold (QI)',
           r.wh,
           `"${r.sku}"`,
-          `"${(r.desc || '').replace(/"/g, '""')}"`,
-          r.sapQty
+          `"${(r.desc || '').replace(/"/g, '""')}"`
         ];
 
         if (isQI) {
-          row.push(r.onHoldGross, r.onHoldDeducted, r.onHoldAdj);
+          row.push(`"${r.onHoldSheet || 'N/A'}"`, r.sapQty, r.onHoldGross, r.onHoldDeducted, r.onHoldAdj);
+        } else {
+          row.push(r.sapQty);
         }
 
         row.push(
@@ -2220,7 +2257,6 @@
       }
     });
 
-    // Initial render of filters on load
     window.addEventListener('DOMContentLoaded', () => {
       renderFilterButtons();
       renderWarehouseTabs();
