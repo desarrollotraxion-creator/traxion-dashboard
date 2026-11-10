@@ -402,9 +402,9 @@
             <span id="kpi-discrepancy-count" class="traxion-kpi-num text-[#EF4444]">0</span>
             <span id="kpi-discrepancy-pct" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#FEF2F2] text-[#EF4444]">0.0%</span>
           </div>
-          <!-- Subtítulo dinámico: Módulo 1 (Faltantes/Sobrantes) vs Módulo 2 (Solo On-Hold / Solo SAP / Solo Izel) -->
+          <!-- Subtítulo dinámico: Módulo 1 (Diferencias SAP/Izel) vs Módulo 2 (Solo On-Hold / Solo SAP / Solo Izel) -->
           <p id="kpi-sub-text" class="text-[11px] text-[#64748B] mt-1.5 font-medium leading-relaxed">
-            Faltantes: <strong id="kpi-sub-missing" class="text-[#EF4444]">0</strong> | Sobrantes: <strong id="kpi-sub-surplus" class="text-[#F59E0B]">0</strong>
+            Diferencias SAP: <strong id="kpi-sub-missing" class="text-[#EF4444]">0</strong> | Diferencias Izel: <strong id="kpi-sub-surplus" class="text-[#F59E0B]">0</strong>
           </p>
         </div>
       </div>
@@ -826,15 +826,11 @@
           </button>
           <button onclick="setStatusFilter('MISSING')" id="flt-MISSING" 
             class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'MISSING' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] border border-slate-200'} font-bold transition">
-            Faltante Físico (&gt;0)
+            Diferencias SAP (&gt;0)
           </button>
           <button onclick="setStatusFilter('SURPLUS')" id="flt-SURPLUS" 
             class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'SURPLUS' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#F59E0B] hover:bg-[#FFFBEB] border border-slate-200'} font-bold transition">
-            Sobrante Físico (&lt;0)
-          </button>
-          <button onclick="setStatusFilter('BATCH_DIFF')" id="flt-BATCH_DIFF" 
-            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'BATCH_DIFF' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
-            Descuadre Lotes
+            Diferencias Izel (&lt;0)
           </button>
         `;
       }
@@ -1856,15 +1852,13 @@
           list = list.filter(r => r.izelQty > 0 && r.sapQty === 0 && r.onHoldAdj === 0);
         }
       } else {
-        // Module 1 Filters: ALL, MATCH, MISSING, SURPLUS, BATCH_DIFF
+        // Module 1 Filters: ALL, MATCH, MISSING (Diferencias SAP), SURPLUS (Diferencias Izel)
         if (mod.currentFilter === 'MATCH') {
           list = list.filter(r => r.diffQty === 0);
         } else if (mod.currentFilter === 'MISSING') {
           list = list.filter(r => r.diffQty > 0);
         } else if (mod.currentFilter === 'SURPLUS') {
           list = list.filter(r => r.diffQty < 0);
-        } else if (mod.currentFilter === 'BATCH_DIFF') {
-          list = list.filter(r => r.batchMismatch);
         }
       }
 
@@ -1934,8 +1928,8 @@
         `;
       } else {
         subTextEl.innerHTML = `
-          Faltantes: <strong class="text-[#EF4444]">${missing.length.toLocaleString()}</strong> | 
-          Sobrantes: <strong class="text-[#F59E0B]">${surplus.length.toLocaleString()}</strong>
+          Diferencias SAP: <strong class="text-[#EF4444]">${missing.length.toLocaleString()}</strong> | 
+          Diferencias Izel: <strong class="text-[#F59E0B]">${surplus.length.toLocaleString()}</strong>
         `;
       }
 
