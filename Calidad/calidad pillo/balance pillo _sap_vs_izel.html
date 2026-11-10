@@ -517,25 +517,33 @@
       <!-- Table Footer & Pagination -->
       <div class="px-5 py-3.5 bg-slate-50 border-t border-[#E2E8F0] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#64748B]">
         <div class="flex items-center space-x-2">
-          <span>Mostrando <strong id="pag-showing" class="text-[#0F172A]">0</strong> de <strong id="pag-total" class="text-[#0F172A]">0</strong> registros</span>
-          <span>•</span>
-          <label for="page-size">Filas:</label>
-          <select id="page-size" onchange="changePageSize(this.value)" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-[#0F172A] focus:outline-none">
-            <option value="25">25</option>
-            <option value="50" selected>50</option>
-            <option value="100">100</option>
-            <option value="500">500</option>
-          </select>
+          <span>Mostrando</span>
+          <span id="pag-showing" class="font-bold text-[#0F172A]">0</span>
+          <span>de</span>
+          <span id="pag-total" class="font-bold text-[#0F172A]">0</span>
+          <span>registros</span>
         </div>
 
-        <div class="flex items-center space-x-1.5">
-          <button id="btn-prev-page" onclick="prevPage()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-[#0F172A] font-medium transition shadow-xs">
-            <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
-          </button>
-          <span class="px-3 py-1.5 font-mono text-[#0F172A] bg-white border border-slate-200 rounded-lg font-bold shadow-xs" id="pag-info">1 / 1</span>
-          <button id="btn-next-page" onclick="nextPage()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-[#0F172A] font-medium transition shadow-xs">
-            Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
-          </button>
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-1">
+            <span class="text-[11px]">Por página:</span>
+            <select onchange="changePageSize(this.value)" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#182237]">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="500">500</option>
+            </select>
+          </div>
+
+          <div class="flex items-center space-x-1">
+            <button id="btn-prev-page" onclick="prevPage()" disabled class="disabled:opacity-30 disabled:cursor-not-allowed p-1.5 rounded-lg border border-slate-200 hover:bg-white text-[#0F172A] transition">
+              <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+            <span id="pag-info" class="font-mono px-2 py-1 rounded-md bg-white border border-slate-200 text-xs">1 / 1</span>
+            <button id="btn-next-page" onclick="nextPage()" disabled class="disabled:opacity-30 disabled:cursor-not-allowed p-1.5 rounded-lg border border-slate-200 hover:bg-white text-[#0F172A] transition">
+              <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -799,6 +807,11 @@
             class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
             Todos
           </button>
+          <button onclick="setStatusFilter('DISCREPANCY')" id="flt-DISCREPANCY" 
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'DISCREPANCY' ? 'bg-[#EF4444] text-white shadow-sm' : 'bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] border border-slate-200'} font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+            Con Discrepancia (≠0)
+          </button>
           <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
             class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
             Cuadrados (=0)
@@ -821,6 +834,11 @@
           <button onclick="setStatusFilter('ALL')" id="flt-ALL" 
             class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
             Todos
+          </button>
+          <button onclick="setStatusFilter('DISCREPANCY')" id="flt-DISCREPANCY" 
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'DISCREPANCY' ? 'bg-[#EF4444] text-white shadow-sm' : 'bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] border border-slate-200'} font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+            Con Discrepancia (≠0)
           </button>
           <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
             class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
@@ -1838,8 +1856,17 @@
 
     function filterTableBySku(sku) {
       closeCrossModal();
-      document.getElementById('search-input').value = sku;
-      applyFilters();
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.value = sku;
+        applyFilters();
+      }
+      notify(`Filtrando material ${sku} en la tabla principal`, 'info');
+    }
+
+    function filterDiscrepantOnly() {
+      setStatusFilter('DISCREPANCY');
+      notify('Filtrando únicamente SKUs con discrepancia de inventario', 'warning');
     }
 
     function setStatusFilter(filter) {
@@ -1870,8 +1897,10 @@
       document.getElementById('tab-count-mx21').textContent = mod.items.filter(r => r.wh === 'MX21').length.toLocaleString();
 
       if (AppData.currentModule === 'QI') {
-        // Module 2 Filters: ALL, MATCH, SOLO_ONHOLD, SOLO_SAP, SOLO_IZEL
-        if (mod.currentFilter === 'MATCH') {
+        // Module 2 Filters: ALL, DISCREPANCY, MATCH, SOLO_ONHOLD, SOLO_SAP, SOLO_IZEL
+        if (mod.currentFilter === 'DISCREPANCY') {
+          list = list.filter(r => r.diffQty !== 0);
+        } else if (mod.currentFilter === 'MATCH') {
           list = list.filter(r => r.diffQty === 0);
         } else if (mod.currentFilter === 'SOLO_ONHOLD') {
           list = list.filter(r => r.onHoldAdj > 0 && r.sapQty === 0 && r.izelQty === 0);
@@ -1881,8 +1910,10 @@
           list = list.filter(r => r.izelQty > 0 && r.sapQty === 0 && r.onHoldAdj === 0);
         }
       } else {
-        // Module 1 Filters: ALL, MATCH, MISSING (Diferencias SAP), SURPLUS (Diferencias Izel)
-        if (mod.currentFilter === 'MATCH') {
+        // Module 1 Filters: ALL, DISCREPANCY, MATCH, MISSING (Diferencias SAP), SURPLUS (Diferencias Izel)
+        if (mod.currentFilter === 'DISCREPANCY') {
+          list = list.filter(r => r.diffQty !== 0);
+        } else if (mod.currentFilter === 'MATCH') {
           list = list.filter(r => r.diffQty === 0);
         } else if (mod.currentFilter === 'MISSING') {
           list = list.filter(r => r.diffQty > 0);
@@ -2034,9 +2065,11 @@
         if (r.status === 'MATCH') {
           statusBadge = '<span class="traxion-badge-txt px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#10B981] inline-flex items-center gap-1"><i class="fa-solid fa-check text-[9px]"></i> Cuadrado</span>';
         } else if (r.status === 'MISSING') {
-          statusBadge = '<span class="traxion-badge-txt px-2.5 py-0.5 rounded-full bg-[#FEF2F2] text-[#EF4444] inline-flex items-center gap-1"><i class="fa-solid fa-arrow-trend-up text-[9px]"></i> Faltante</span>';
+          const isCritical = r.diffQty > 5;
+          statusBadge = `<span class="traxion-badge-txt px-2.5 py-0.5 rounded-full ${isCritical ? 'bg-[#FEF2F2] text-[#EF4444] border border-[#EF4444]/30 font-black' : 'bg-[#FFFBEB] text-[#D97706]'} inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[9px]"></i> ${r.statusLabel}</span>`;
         } else if (r.status === 'SURPLUS') {
-          statusBadge = '<span class="traxion-badge-txt px-2.5 py-0.5 rounded-full bg-[#FFFBEB] text-[#F59E0B] inline-flex items-center gap-1"><i class="fa-solid fa-arrow-trend-down text-[9px]"></i> Sobrante</span>';
+          const isCritical = Math.abs(r.diffQty) > 5;
+          statusBadge = `<span class="traxion-badge-txt px-2.5 py-0.5 rounded-full ${isCritical ? 'bg-[#FEF2F2] text-[#EF4444] border border-[#EF4444]/30 font-black' : 'bg-[#FFFBEB] text-[#D97706]'} inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-[9px]"></i> ${r.statusLabel}</span>`;
         } else if (r.status === 'ONLY_BASE') {
           statusBadge = `<span class="traxion-badge-txt px-2.5 py-0.5 rounded-full bg-slate-100 text-[#182237] inline-flex items-center gap-1"><i class="fa-solid fa-file-lines text-[9px]"></i> ${r.statusLabel}</span>`;
         } else if (r.status === 'ONLY_IZEL') {
