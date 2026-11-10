@@ -104,14 +104,14 @@
           <button id="mod-qr" onclick="switchOperationalModule('QR')" 
             class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all bg-[#C0D838] text-[#182237] shadow-sm flex items-center gap-2">
             <i class="fa-solid fa-shield-halved text-xs"></i>
-            <span>Cuarentena (QR)</span>
+            <span>Módulo 1: Cuarentena (QR)</span>
             <span id="badge-count-qr" class="px-1.5 py-0.5 rounded-md bg-[#182237] text-white text-[10px] font-mono">0</span>
           </button>
 
           <button id="mod-qi" onclick="switchOperationalModule('QI')" 
             class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all text-slate-300 hover:text-white flex items-center gap-2">
             <i class="fa-solid fa-microscope text-xs"></i>
-            <span>Calidad / On-Hold (QI)</span>
+            <span>Módulo 2: Calidad / On-Hold (QI)</span>
             <span id="badge-count-qi" class="px-1.5 py-0.5 rounded-md bg-slate-800 text-[10px] font-mono">0</span>
           </button>
         </div>
@@ -137,89 +137,174 @@
   <!-- MAIN DASHBOARD CONTENT -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1 flex flex-col space-y-6">
 
-    <!-- 1. FILE UPLOAD SECTION (ADAPTS FOR 3-SOURCE CONCILIATION) -->
-    <section id="upload-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- SUB-HEADER INDICATOR OF ACTIVE MODULE -->
+    <div id="module-banner" class="px-5 py-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <span id="module-pill" class="px-3 py-1 rounded-xl text-xs font-extrabold bg-[#182237] text-[#C0D838] tracking-wider uppercase">
+          MÓDULO 1 · CUARENTENA (QR)
+        </span>
+        <span id="module-desc" class="text-xs text-[#64748B]">
+          Auditoría directa entre SAP (Reporte Cuarentena) e Izel (Aquarius MX20 / Cetus MX21)
+        </span>
+      </div>
+      <div class="text-[11px] font-mono text-[#0F172A] flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+        Entorno Aislado e Independiente
+      </div>
+    </div>
+
+    <!-- 1. FILE UPLOAD SECTION: INDEPENDENT BY MODULE -->
+    <!-- PANEL UPLOAD MÓDULO 1: CUARENTENA (QR) -->
+    <section id="upload-panel-qr" class="grid grid-cols-1 md:grid-cols-3 gap-4">
       
-      <!-- Zone 1: SAP / SSR QR-QI -->
-      <div id="box-sap" class="relative group bg-white border border-[#E2E8F0] hover:border-[#182237] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
-        <input type="file" id="input-sap" accept=".csv,.txt" onchange="handleFile(event, 'SAP')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+      <!-- Zone 1: SAP Cuarentena -->
+      <div id="box-qr-sap" class="relative group bg-white border border-[#E2E8F0] hover:border-[#182237] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qr-sap" accept=".csv,.txt" onchange="handleFile(event, 'QR', 'sap')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-3">
-            <div id="icon-sap" class="w-10 h-10 rounded-xl bg-[#182237] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+            <div id="icon-qr-sap" class="w-10 h-10 rounded-xl bg-[#182237] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
               <i class="fa-solid fa-database"></i>
             </div>
             <div>
-              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Reporte Maestro SAP (SSR QR-QI)</h3>
-              <p id="label-sap" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">EXPORT_...csv</p>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">SAP Cuarentena (SSR QR)</h3>
+              <p id="label-qr-sap" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">EXPORT_...csv</p>
             </div>
           </div>
-          <span id="badge-sap" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+          <span id="badge-qr-sap" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-          <span>Arrastra o haz clic para subir</span>
+          <span>Arrastra o sube reporte SAP QR</span>
           <i class="fa-solid fa-arrow-up-from-bracket text-slate-400 group-hover:text-[#182237] transition-colors"></i>
         </div>
       </div>
 
-      <!-- Zone 2: Excel On-Hold (Visible in QI Module) -->
-      <div id="box-onhold" class="relative group bg-white border border-[#E2E8F0] hover:border-[#B5BD00] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md hidden flex-col justify-between">
-        <input type="file" id="input-onhold" accept=".xlsx,.xls" onchange="handleOnHoldExcel(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+      <!-- Zone 2: Izel MX20 Cuarentena -->
+      <div id="box-qr-mx20" class="relative group bg-white border border-[#E2E8F0] hover:border-[#0284C7] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qr-mx20" accept=".csv,.txt" onchange="handleFile(event, 'QR', 'mx20')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-3">
-            <div id="icon-onhold" class="w-10 h-10 rounded-xl bg-[#B5BD00] text-[#182237] flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
-              <i class="fa-solid fa-file-excel"></i>
-            </div>
-            <div>
-              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Libro On-Hold Calidad</h3>
-              <p id="label-onhold" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">Archivo .xlsx con hojas QA</p>
-            </div>
-          </div>
-          <span id="badge-onhold" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
-        </div>
-        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-          <span>Detecta MFG, EMOS, PV, IMP...</span>
-          <i class="fa-solid fa-gear text-slate-400 group-hover:text-[#B5BD00] transition-colors"></i>
-        </div>
-      </div>
-
-      <!-- Zone 3: Izel MX20 Aquarius -->
-      <div id="box-mx20" class="relative group bg-white border border-[#E2E8F0] hover:border-[#0284C7] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
-        <input type="file" id="input-mx20" accept=".csv,.txt" onchange="handleFile(event, 'MX20')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-        <div class="flex items-start justify-between">
-          <div class="flex items-center space-x-3">
-            <div id="icon-mx20" class="w-10 h-10 rounded-xl bg-[#0284C7] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+            <div id="icon-qr-mx20" class="w-10 h-10 rounded-xl bg-[#0284C7] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
               <i class="fa-solid fa-warehouse"></i>
             </div>
             <div>
-              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Izel Aquarius (MX20)</h3>
-              <p id="label-mx20" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">izelaquarius_...csv</p>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Izel Aquarius MX20 (QR)</h3>
+              <p id="label-qr-mx20" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">izelaquarius_...csv</p>
             </div>
           </div>
-          <span id="badge-mx20" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+          <span id="badge-qr-mx20" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-          <span>Detalle tarimas bodega MX20</span>
+          <span>Tarimas en Cuarentena MX20</span>
           <i class="fa-solid fa-arrow-up-from-bracket text-slate-400 group-hover:text-[#0284C7] transition-colors"></i>
         </div>
       </div>
 
-      <!-- Zone 4: Izel MX21 Cetus -->
-      <div id="box-mx21" class="relative group bg-white border border-[#E2E8F0] hover:border-[#100848] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
-        <input type="file" id="input-mx21" accept=".csv,.txt" onchange="handleFile(event, 'MX21')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+      <!-- Zone 3: Izel MX21 Cuarentena -->
+      <div id="box-qr-mx21" class="relative group bg-white border border-[#E2E8F0] hover:border-[#100848] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qr-mx21" accept=".csv,.txt" onchange="handleFile(event, 'QR', 'mx21')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-3">
-            <div id="icon-mx21" class="w-10 h-10 rounded-xl bg-[#100848] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+            <div id="icon-qr-mx21" class="w-10 h-10 rounded-xl bg-[#100848] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
               <i class="fa-solid fa-boxes-stacked"></i>
             </div>
             <div>
-              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Izel Cetus (MX21)</h3>
-              <p id="label-mx21" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">izelcetus_...csv</p>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Izel Cetus MX21 (QR)</h3>
+              <p id="label-qr-mx21" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">izelcetus_...csv</p>
             </div>
           </div>
-          <span id="badge-mx21" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+          <span id="badge-qr-mx21" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
         </div>
         <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
-          <span>Detalle tarimas bodega MX21</span>
+          <span>Tarimas en Cuarentena MX21</span>
+          <i class="fa-solid fa-arrow-up-from-bracket text-slate-400 group-hover:text-[#100848] transition-colors"></i>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- PANEL UPLOAD MÓDULO 2: CALIDAD / ON-HOLD (QI) -->
+    <section id="upload-panel-qi" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- Zone 1: SAP Calidad -->
+      <div id="box-qi-sap" class="relative group bg-white border border-[#E2E8F0] hover:border-[#182237] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qi-sap" accept=".csv,.txt" onchange="handleFile(event, 'QI', 'sap')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center space-x-3">
+            <div id="icon-qi-sap" class="w-10 h-10 rounded-xl bg-[#182237] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+              <i class="fa-solid fa-database"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">SAP Calidad (SSR QI)</h3>
+              <p id="label-qi-sap" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">EXPORT_...csv</p>
+            </div>
+          </div>
+          <span id="badge-qi-sap" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+          <span>Sube reporte SAP QI</span>
+          <i class="fa-solid fa-arrow-up-from-bracket text-slate-400 group-hover:text-[#182237] transition-colors"></i>
+        </div>
+      </div>
+
+      <!-- Zone 2: Libro On-Hold Excel -->
+      <div id="box-qi-onhold" class="relative group bg-white border border-[#E2E8F0] hover:border-[#B5BD00] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qi-onhold" accept=".xlsx,.xls" onchange="handleOnHoldExcel(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center space-x-3">
+            <div id="icon-qi-onhold" class="w-10 h-10 rounded-xl bg-[#B5BD00] text-[#182237] flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+              <i class="fa-solid fa-file-excel"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Libro On-Hold Calidad</h3>
+              <p id="label-qi-onhold" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">Archivo .xlsx / .xls</p>
+            </div>
+          </div>
+          <span id="badge-qi-onhold" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+          <span>Hojas MFG, EMOS, PV, IMP...</span>
+          <i class="fa-solid fa-gear text-slate-400 group-hover:text-[#B5BD00] transition-colors"></i>
+        </div>
+      </div>
+
+      <!-- Zone 3: Izel MX20 Calidad -->
+      <div id="box-qi-mx20" class="relative group bg-white border border-[#E2E8F0] hover:border-[#0284C7] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qi-mx20" accept=".csv,.txt" onchange="handleFile(event, 'QI', 'mx20')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center space-x-3">
+            <div id="icon-qi-mx20" class="w-10 h-10 rounded-xl bg-[#0284C7] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+              <i class="fa-solid fa-warehouse"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Izel Aquarius MX20 (QI)</h3>
+              <p id="label-qi-mx20" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">izelaquarius_...csv</p>
+            </div>
+          </div>
+          <span id="badge-qi-mx20" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+          <span>Tarimas en Calidad MX20</span>
+          <i class="fa-solid fa-arrow-up-from-bracket text-slate-400 group-hover:text-[#0284C7] transition-colors"></i>
+        </div>
+      </div>
+
+      <!-- Zone 4: Izel MX21 Calidad -->
+      <div id="box-qi-mx21" class="relative group bg-white border border-[#E2E8F0] hover:border-[#100848] rounded-2xl p-4 transition-all duration-200 shadow-sm hover:shadow-md flex flex-col justify-between">
+        <input type="file" id="input-qi-mx21" accept=".csv,.txt" onchange="handleFile(event, 'QI', 'mx21')" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center space-x-3">
+            <div id="icon-qi-mx21" class="w-10 h-10 rounded-xl bg-[#100848] text-white flex items-center justify-center text-base shadow-sm group-hover:scale-105 transition-transform">
+              <i class="fa-solid fa-boxes-stacked"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-[#0F172A] tracking-tight">Izel Cetus MX21 (QI)</h3>
+              <p id="label-qi-mx21" class="text-[11px] text-[#64748B] font-mono mt-0.5 truncate max-w-[180px]">izelcetus_...csv</p>
+            </div>
+          </div>
+          <span id="badge-qi-mx21" class="traxion-badge-txt px-2.5 py-1 rounded-full bg-slate-100 text-[#64748B]">Pendiente</span>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#64748B]">
+          <span>Tarimas en Calidad MX21</span>
           <i class="fa-solid fa-arrow-up-from-bracket text-slate-400 group-hover:text-[#100848] transition-colors"></i>
         </div>
       </div>
@@ -651,76 +736,104 @@
 
   <!-- CORE SCRIPT -->
   <script>
+    // ESTADO COMPLETAMENTE INDEPENDIENTE POR MÓDULO OPERATIVO
     const AppData = {
-      sapRaw: [],
-      onHoldRaw: [],
-      onHoldClean: [], // After ETL Phase 1
-      onHoldSummary: [],
-      onHoldDuplicates: [],
-      mx20Raw: [],
-      mx21Raw: [],
-      loaded: { sap: false, onhold: false, mx20: false, mx21: false },
-      currentModule: 'QR', // 'QR' (Cuarentena) or 'QI' (Calidad / On-Hold)
-      items: [],
-      filtered: [],
-      crossItems: [],
-      currentWh: 'BOTH',
-      currentFilter: 'ALL',
-      searchTxt: '',
-      sortKey: 'diffQty',
-      sortAsc: false,
-      page: 1,
-      limit: 50
+      currentModule: 'QR', // 'QR' (Cuarentena) o 'QI' (Calidad / On-Hold)
+      
+      // Módulo 1: Cuarentena (QR)
+      QR: {
+        sapRaw: [],
+        mx20Raw: [],
+        mx21Raw: [],
+        loaded: { sap: false, mx20: false, mx21: false },
+        items: [],
+        filtered: [],
+        crossItems: [],
+        currentWh: 'BOTH',
+        currentFilter: 'ALL',
+        searchTxt: '',
+        sortKey: 'diffQty',
+        sortAsc: false,
+        page: 1,
+        limit: 50
+      },
+
+      // Módulo 2: Calidad / On-Hold (QI)
+      QI: {
+        sapRaw: [],
+        onHoldRaw: [],
+        onHoldClean: null,
+        onHoldSummary: [],
+        onHoldDuplicates: [],
+        mx20Raw: [],
+        mx21Raw: [],
+        loaded: { sap: false, onhold: false, mx20: false, mx21: false },
+        items: [],
+        filtered: [],
+        crossItems: [],
+        currentWh: 'BOTH',
+        currentFilter: 'ALL',
+        searchTxt: '',
+        sortKey: 'diffQty',
+        sortAsc: false,
+        page: 1,
+        limit: 50
+      }
     };
+
+    function getActiveModuleState() {
+      return AppData[AppData.currentModule];
+    }
 
     // Render filter buttons dynamically based on active module
     function renderFilterButtons() {
       const container = document.getElementById('filter-container');
       if (!container) return;
+      const mod = getActiveModuleState();
 
       if (AppData.currentModule === 'QI') {
         container.innerHTML = `
           <button onclick="setStatusFilter('ALL')" id="flt-ALL" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
             Todos
           </button>
           <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
             Cuadrados (=0)
           </button>
           <button onclick="setStatusFilter('SOLO_ONHOLD')" id="flt-SOLO_ONHOLD" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SOLO_ONHOLD' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#B5BD00] hover:bg-[#F7F8E7] border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'SOLO_ONHOLD' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#B5BD00] hover:bg-[#F7F8E7] border border-slate-200'} font-bold transition">
             Solo On-Hold
           </button>
           <button onclick="setStatusFilter('SOLO_SAP')" id="flt-SOLO_SAP" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SOLO_SAP' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#182237] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'SOLO_SAP' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#182237] hover:bg-slate-100 border border-slate-200'} font-bold transition">
             Solo SAP
           </button>
           <button onclick="setStatusFilter('SOLO_IZEL')" id="flt-SOLO_IZEL" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SOLO_IZEL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#0284C7] hover:bg-[#F0F9FF] border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'SOLO_IZEL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#0284C7] hover:bg-[#F0F9FF] border border-slate-200'} font-bold transition">
             Solo Izel
           </button>
         `;
       } else {
         container.innerHTML = `
           <button onclick="setStatusFilter('ALL')" id="flt-ALL" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'ALL' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
             Todos
           </button>
           <button onclick="setStatusFilter('MATCH')" id="flt-MATCH" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'MATCH' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#10B981] hover:bg-[#ECFDF5] border border-slate-200'} font-bold transition">
             Cuadrados (=0)
           </button>
           <button onclick="setStatusFilter('MISSING')" id="flt-MISSING" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'MISSING' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'MISSING' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#EF4444] hover:bg-[#FEF2F2] border border-slate-200'} font-bold transition">
             Faltante Físico (&gt;0)
           </button>
           <button onclick="setStatusFilter('SURPLUS')" id="flt-SURPLUS" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'SURPLUS' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#F59E0B] hover:bg-[#FFFBEB] border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'SURPLUS' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#F59E0B] hover:bg-[#FFFBEB] border border-slate-200'} font-bold transition">
             Sobrante Físico (&lt;0)
           </button>
           <button onclick="setStatusFilter('BATCH_DIFF')" id="flt-BATCH_DIFF" 
-            class="px-3.5 py-1.5 rounded-xl ${AppData.currentFilter === 'BATCH_DIFF' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
+            class="px-3.5 py-1.5 rounded-xl ${mod.currentFilter === 'BATCH_DIFF' ? 'bg-[#182237] text-white shadow-sm' : 'bg-slate-50 text-[#64748B] hover:bg-slate-100 border border-slate-200'} font-bold transition">
             Descuadre Lotes
           </button>
         `;
@@ -765,52 +878,78 @@
       }, 3500);
     }
 
-    function switchOperationalModule(mod) {
-      AppData.currentModule = mod;
-      AppData.page = 1;
-      AppData.currentFilter = 'ALL';
+    function switchOperationalModule(targetMod) {
+      AppData.currentModule = targetMod;
+      const mod = getActiveModuleState();
 
       const btnQr = document.getElementById('mod-qr');
       const btnQi = document.getElementById('mod-qi');
-      const boxOnHold = document.getElementById('box-onhold');
+      const panelQr = document.getElementById('upload-panel-qr');
+      const panelQi = document.getElementById('upload-panel-qi');
       const btnEtl = document.getElementById('btn-etl-audit');
       const thOnHold = document.getElementById('th-onhold-col');
-      const uploadGrid = document.getElementById('upload-grid');
+      const pill = document.getElementById('module-pill');
+      const desc = document.getElementById('module-desc');
 
-      if (mod === 'QR') {
+      if (targetMod === 'QR') {
         btnQr.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all bg-[#C0D838] text-[#182237] shadow-sm flex items-center gap-2';
         btnQi.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all text-slate-300 hover:text-white flex items-center gap-2';
-        boxOnHold.classList.add('hidden');
-        boxOnHold.classList.remove('flex');
+        
+        panelQr.classList.remove('hidden');
+        panelQr.classList.add('grid');
+        panelQi.classList.add('hidden');
+        panelQi.classList.remove('grid');
+
         btnEtl.classList.add('hidden');
         btnEtl.classList.remove('flex');
         thOnHold.classList.add('hidden');
-        uploadGrid.className = 'grid grid-cols-1 md:grid-cols-3 gap-4';
+
+        pill.textContent = 'MÓDULO 1 · CUARENTENA (QR)';
+        pill.className = 'px-3 py-1 rounded-xl text-xs font-extrabold bg-[#182237] text-[#C0D838] tracking-wider uppercase';
+        desc.textContent = 'Auditoría directa entre SAP (Reporte Cuarentena) e Izel (Aquarius MX20 / Cetus MX21)';
       } else {
         btnQi.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all bg-[#C0D838] text-[#182237] shadow-sm flex items-center gap-2';
         btnQr.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all text-slate-300 hover:text-white flex items-center gap-2';
-        boxOnHold.classList.remove('hidden');
-        boxOnHold.classList.add('flex');
-        if (AppData.loaded.onhold) {
+
+        panelQi.classList.remove('hidden');
+        panelQi.classList.add('grid');
+        panelQr.classList.add('hidden');
+        panelQr.classList.remove('grid');
+
+        if (mod.loaded.onhold) {
           btnEtl.classList.remove('hidden');
           btnEtl.classList.add('flex');
+        } else {
+          btnEtl.classList.add('hidden');
+          btnEtl.classList.remove('flex');
         }
         thOnHold.classList.remove('hidden');
-        uploadGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4';
+
+        pill.textContent = 'MÓDULO 2 · CALIDAD / ON-HOLD (QI)';
+        pill.className = 'px-3 py-1 rounded-xl text-xs font-extrabold bg-[#B5BD00] text-[#182237] tracking-wider uppercase';
+        desc.textContent = 'Conciliación tripartita de producto retenido: SAP Calidad + Libro On-Hold Excel vs WMS';
       }
 
+      // Sincronizar input de búsqueda y warehouse de ese módulo
+      document.getElementById('search-input').value = mod.searchTxt || '';
+      renderWarehouseTabs();
       renderFilterButtons();
 
-      if (AppData.loaded.sap || AppData.loaded.onhold) {
-        calculateReconciliation();
+      if (mod.items.length > 0) {
+        document.getElementById('btn-export-top').removeAttribute('disabled');
+        document.getElementById('meta-update-time').textContent = `Módulo ${targetMod} | ${mod.items.length.toLocaleString()} SKUs`;
+      } else {
+        document.getElementById('btn-export-top').setAttribute('disabled', 'true');
+        document.getElementById('meta-update-time').textContent = `Módulo ${targetMod} | Sin conciliar`;
       }
-      notify(`Cambiado a Módulo de ${mod === 'QR' ? 'Cuarentena (QR)' : 'Calidad / On-Hold (QI)'}`, 'info');
+
+      auditCrossTransfers();
+      applyFilters();
+      notify(`Cambiado a Módulo ${targetMod === 'QR' ? '1: Cuarentena (QR)' : '2: Calidad / On-Hold (QI)'}`, 'info');
     }
 
-    function switchWarehouse(wh) {
-      AppData.currentWh = wh;
-      AppData.page = 1;
-
+    function renderWarehouseTabs() {
+      const mod = getActiveModuleState();
       const tabBoth = document.getElementById('tab-both');
       const tabMx20 = document.getElementById('tab-mx20');
       const tabMx21 = document.getElementById('tab-mx21');
@@ -819,14 +958,20 @@
         btn.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all text-[#64748B] hover:text-[#0F172A] flex items-center gap-2';
       });
 
-      if (wh === 'BOTH') {
+      if (mod.currentWh === 'BOTH') {
         tabBoth.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all bg-[#182237] text-white shadow-sm flex items-center gap-2';
-      } else if (wh === 'MX20') {
+      } else if (mod.currentWh === 'MX20') {
         tabMx20.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all bg-[#0284C7] text-white shadow-sm flex items-center gap-2';
-      } else if (wh === 'MX21') {
+      } else if (mod.currentWh === 'MX21') {
         tabMx21.className = 'px-4 py-2 rounded-xl text-xs font-bold transition-all bg-[#100848] text-white shadow-sm flex items-center gap-2';
       }
+    }
 
+    function switchWarehouse(wh) {
+      const mod = getActiveModuleState();
+      mod.currentWh = wh;
+      mod.page = 1;
+      renderWarehouseTabs();
       applyFilters();
     }
 
@@ -865,7 +1010,6 @@
       return isNaN(n) ? 0 : n;
     }
 
-    // Helper to extract value checking multiple column name variants (case-insensitive & accents-free)
     function findColumnValue(row, possibleNames) {
       const keys = Object.keys(row);
       const clean = str => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -913,11 +1057,6 @@
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-
-          const targetSheets = [
-            'MANUFACTURING ISSUES', 'EMOS', 'PV & OTHERS',
-            'EMOS, PV & OTHERS', 'IMPORTADOS & OTHERS', 'IMPORTADOS'
-          ];
 
           const rows = [];
           const audit = [];
@@ -1052,23 +1191,24 @@
             onHoldAdjustedMap.set(k, total);
           });
 
-          AppData.onHoldRaw = rows;
-          AppData.onHoldSummary = summary;
-          AppData.onHoldDuplicates = duplicates;
-          AppData.onHoldClean = { grossMap: onHoldGrossMap, adjustedMap: onHoldAdjustedMap };
-          AppData.loaded.onhold = true;
+          const modQI = AppData.QI;
+          modQI.onHoldRaw = rows;
+          modQI.onHoldSummary = summary;
+          modQI.onHoldDuplicates = duplicates;
+          modQI.onHoldClean = { grossMap: onHoldGrossMap, adjustedMap: onHoldAdjustedMap };
+          modQI.loaded.onhold = true;
 
           const totalDeducted = duplicates.reduce((a, d) => a + d.deducted, 0);
-          setUploadUI('onhold', `${rows.length.toLocaleString()} regs (${totalDeducted.toLocaleString()} cajas desc.)`, file.name);
+          setUploadUI('qi-onhold', `${rows.length.toLocaleString()} regs (${totalDeducted.toLocaleString()} cjas desc.)`, file.name);
 
           document.getElementById('btn-etl-audit').classList.remove('hidden');
           document.getElementById('btn-etl-audit').classList.add('flex');
 
-          notify(`ETL On-Hold completado: ${rows.length.toLocaleString()} registros extraídos, ${duplicates.length} duplicidades ajustadas.`, 'success');
+          notify(`[Módulo 2] On-Hold cargado: ${rows.length.toLocaleString()} registros procesados, ${duplicates.length} duplicidades ajustadas.`, 'success');
 
-          calculateReconciliation();
+          calculateReconciliation('QI');
         } catch (err) {
-          notify('Error al procesar libro Excel On-Hold: ' + err.message, 'error');
+          notify('[Módulo 2] Error al procesar Excel On-Hold: ' + err.message, 'error');
         }
       };
       reader.readAsArrayBuffer(file);
@@ -1077,15 +1217,16 @@
     function openEtlAuditModal() {
       const modal = document.getElementById('modal-etl-audit');
       if (!modal) return;
+      const modQI = AppData.QI;
 
-      document.getElementById('etl-stat-read').textContent = AppData.onHoldRaw.length.toLocaleString();
-      const validCount = AppData.onHoldRaw.filter(r => ['MX20', 'MX21'].includes(r.wh)).length;
+      document.getElementById('etl-stat-read').textContent = modQI.onHoldRaw.length.toLocaleString();
+      const validCount = modQI.onHoldRaw.filter(r => ['MX20', 'MX21'].includes(r.wh)).length;
       document.getElementById('etl-stat-valid').textContent = validCount.toLocaleString();
-      const totalDed = AppData.onHoldDuplicates.reduce((a, d) => a + d.deducted, 0);
+      const totalDed = modQI.onHoldDuplicates.reduce((a, d) => a + d.deducted, 0);
       document.getElementById('etl-stat-dup').textContent = totalDed.toLocaleString();
 
       const tbodySheets = document.getElementById('etl-table-sheets');
-      tbodySheets.innerHTML = AppData.onHoldSummary.map(s => `
+      tbodySheets.innerHTML = modQI.onHoldSummary.map(s => `
         <tr class="hover:bg-slate-50">
           <td class="py-1.5 px-3 font-bold text-slate-800">${s.sheet}</td>
           <td class="py-1.5 px-3 text-right">${s.totalRows}</td>
@@ -1098,10 +1239,10 @@
       `).join('');
 
       const tbodyDups = document.getElementById('etl-table-dups');
-      if (AppData.onHoldDuplicates.length === 0) {
+      if (modQI.onHoldDuplicates.length === 0) {
         tbodyDups.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-slate-400 font-sans">No se detectaron registros duplicados inter-hojas.</td></tr>`;
       } else {
-        tbodyDups.innerHTML = AppData.onHoldDuplicates.map(d => `
+        tbodyDups.innerHTML = modQI.onHoldDuplicates.map(d => `
           <tr class="hover:bg-slate-50">
             <td class="py-1.5 px-3 font-bold">${d.wh}</td>
             <td class="py-1.5 px-3 font-bold">${d.sku}</td>
@@ -1121,17 +1262,17 @@
       document.getElementById('modal-etl-audit').classList.add('hidden');
     }
 
-    function handleFile(ev, type) {
+    function handleFile(ev, targetModule, fileType) {
       const file = ev.target.files[0];
       if (!file) return;
 
       const fName = file.name.toLowerCase();
 
-      if (type === 'MX20' && (fName.includes('cetus') || fName.includes('mx21'))) {
-        notify('Advertencia: El archivo subido en MX20 parece ser Cetus (MX21).', 'warning');
+      if (fileType === 'mx20' && (fName.includes('cetus') || fName.includes('mx21'))) {
+        notify(`Advertencia [Módulo ${targetModule}]: El archivo subido en MX20 parece ser Cetus (MX21).`, 'warning');
       }
-      if (type === 'MX21' && (fName.includes('aquarius') || fName.includes('mx20'))) {
-        notify('Advertencia: El archivo subido en MX21 parece ser Aquarius (MX20).', 'warning');
+      if (fileType === 'mx21' && (fName.includes('aquarius') || fName.includes('mx20'))) {
+        notify(`Advertencia [Módulo ${targetModule}]: El archivo subido en MX21 parece ser Aquarius (MX20).`, 'warning');
       }
 
       const reader = new FileReader();
@@ -1152,24 +1293,26 @@
           skipEmptyLines: 'greedy',
           transformHeader: h => h.trim().replace(/^ï»¿/, ''),
           complete: function(res) {
-            ingestData(type, res.data, file.name);
+            ingestData(targetModule, fileType, res.data, file.name);
           },
           error: function(err) {
-            notify('Error al leer CSV: ' + err.message, 'error');
+            notify(`Error al leer CSV [Módulo ${targetModule}]: ` + err.message, 'error');
           }
         });
       };
       reader.readAsArrayBuffer(file);
     }
 
-    function ingestData(type, rows, filename) {
+    function ingestData(modKey, fileType, rows, filename) {
       if (!rows || rows.length === 0) {
         notify(`El archivo ${filename} no contiene filas utilizables.`, 'error');
         return;
       }
 
-      if (type === 'SAP') {
-        AppData.sapRaw = rows.map(r => {
+      const modState = AppData[modKey];
+
+      if (fileType === 'sap') {
+        modState.sapRaw = rows.map(r => {
           const rawPlanta = findColumnValue(r, ['Planta', 'Plant', 'Centro', 'Werks', 'Almacen']) || '';
           const rawSku = findColumnValue(r, ['Material (SKU)', 'Material', 'SKU', 'Codigo', 'Código', 'Cod. Material']) || '';
           const rawDesc = findColumnValue(r, ['Descripcion', 'Descripción', 'Material Description', 'Texto breve de material', 'Description']) || '';
@@ -1210,17 +1353,17 @@
           };
         }).filter(r => r.sku !== '');
 
-        AppData.loaded.sap = true;
-        setUploadUI('sap', `${AppData.sapRaw.length.toLocaleString()} filas`, filename);
-        notify(`SAP cargado: ${AppData.sapRaw.length.toLocaleString()} registros`, 'success');
+        modState.loaded.sap = true;
+        setUploadUI(`${modKey.toLowerCase()}-sap`, `${modState.sapRaw.length.toLocaleString()} filas`, filename);
+        notify(`[Módulo ${modKey}] SAP cargado: ${modState.sapRaw.length.toLocaleString()} registros`, 'success');
 
-      } else if (type === 'MX20') {
-        AppData.mx20Raw = rows.map(r => ({
+      } else if (fileType === 'mx20') {
+        modState.mx20Raw = rows.map(r => ({
           wh: 'MX20',
           sku: sanitizeSku(r['SKU'] || r['Material']),
           desc: r['Descripción'] || r['Descripcion'] || '',
           qty: parseNum(r['Cantidad'] || r['Stock'] || r['Cajas']),
-          status: (r['Estatus'] || 'QR').trim().toUpperCase(),
+          status: (r['Estatus'] || (modKey === 'QR' ? 'QR' : 'QI')).trim().toUpperCase(),
           almacen: (r['Almacen'] || r['Almacén'] || '').trim().toUpperCase(),
           ubicacion: r['Ubicacion'] || r['Ubicación'] || '',
           area: (r['Area'] || r['Área'] || '').trim().toUpperCase(),
@@ -1229,17 +1372,17 @@
           caducidad: r['F. Caducidad'] || ''
         })).filter(r => r.sku !== '');
 
-        AppData.loaded.mx20 = true;
-        setUploadUI('mx20', `${AppData.mx20Raw.length.toLocaleString()} tarimas`, filename);
-        notify(`Izel MX20 (Aquarius) cargado: ${AppData.mx20Raw.length.toLocaleString()} tarimas`, 'success');
+        modState.loaded.mx20 = true;
+        setUploadUI(`${modKey.toLowerCase()}-mx20`, `${modState.mx20Raw.length.toLocaleString()} tarimas`, filename);
+        notify(`[Módulo ${modKey}] Izel MX20 cargado: ${modState.mx20Raw.length.toLocaleString()} tarimas`, 'success');
 
-      } else if (type === 'MX21') {
-        AppData.mx21Raw = rows.map(r => ({
+      } else if (fileType === 'mx21') {
+        modState.mx21Raw = rows.map(r => ({
           wh: 'MX21',
           sku: sanitizeSku(r['SKU'] || r['Material']),
           desc: r['Descripción'] || r['Descripcion'] || '',
           qty: parseNum(r['Cantidad'] || r['Stock'] || r['Cajas']),
-          status: (r['Estatus'] || 'QR').trim().toUpperCase(),
+          status: (r['Estatus'] || (modKey === 'QR' ? 'QR' : 'QI')).trim().toUpperCase(),
           almacen: (r['Almacen'] || r['Almacén'] || '').trim().toUpperCase(),
           ubicacion: r['Ubicacion'] || r['Ubicación'] || '',
           area: (r['Area'] || r['Área'] || '').trim().toUpperCase(),
@@ -1248,23 +1391,26 @@
           caducidad: r['F. Caducidad'] || ''
         })).filter(r => r.sku !== '');
 
-        AppData.loaded.mx21 = true;
-        setUploadUI('mx21', `${AppData.mx21Raw.length.toLocaleString()} tarimas`, filename);
-        notify(`Izel MX21 (Cetus) cargado: ${AppData.mx21Raw.length.toLocaleString()} tarimas`, 'success');
+        modState.loaded.mx21 = true;
+        setUploadUI(`${modKey.toLowerCase()}-mx21`, `${modState.mx21Raw.length.toLocaleString()} tarimas`, filename);
+        notify(`[Módulo ${modKey}] Izel MX21 cargado: ${modState.mx21Raw.length.toLocaleString()} tarimas`, 'success');
       }
 
-      if ((AppData.loaded.sap || AppData.loaded.onhold) && (AppData.loaded.mx20 || AppData.loaded.mx21)) {
-        calculateReconciliation();
+      // Se ejecuta el cálculo únicamente para el módulo al que pertenece el archivo
+      if ((modState.loaded.sap || modState.loaded.onhold) && (modState.loaded.mx20 || modState.loaded.mx21)) {
+        calculateReconciliation(modKey);
       }
     }
 
-    function setUploadUI(key, msg, fName) {
-      const badge = document.getElementById(`badge-${key}`);
-      const label = document.getElementById(`label-${key}`);
-      const box = document.getElementById(`box-${key}`);
+    function setUploadUI(domId, msg, fName) {
+      const badge = document.getElementById(`badge-${domId}`);
+      const label = document.getElementById(`label-${domId}`);
+      const box = document.getElementById(`box-${domId}`);
 
-      badge.textContent = msg;
-      badge.className = 'traxion-badge-txt px-2.5 py-1 rounded-full bg-[#ECFDF5] text-[#10B981]';
+      if (badge) {
+        badge.textContent = msg;
+        badge.className = 'traxion-badge-txt px-2.5 py-1 rounded-full bg-[#ECFDF5] text-[#10B981]';
+      }
       if (label && fName) label.textContent = fName;
       if (box) box.classList.add('border-[#10B981]', 'bg-emerald-50/10');
     }
@@ -1293,7 +1439,7 @@
       return map;
     }
 
-    function processWhUnit(wh, sapMap, onHoldMap, izelMap, list) {
+    function processWhUnit(wh, sapMap, onHoldMap, izelMap, list, modKey) {
       const allSkus = new Set([...sapMap.keys(), ...onHoldMap.keys(), ...izelMap.keys()]);
 
       allSkus.forEach(sku => {
@@ -1307,10 +1453,11 @@
         const onHoldAdj = oh ? oh.adjusted : 0;
         const izelQty = i ? i.totalQty : 0;
 
-        // Base rectora: Si estamos en Calidad (QI) con On-Hold cargado, comparamos On-Hold Ajustado vs Izel,
-        // o SAP vs Izel según corresponda. La regla general de diferencia es Base - Izel.
-        const baseQty = AppData.currentModule === 'QI' && AppData.loaded.onhold && onHoldAdj > 0 ? onHoldAdj : sapQty;
-        const diffQty = baseQty - izelQty; // Rectoral Rule: Base - Izel
+        // Base rectora: 
+        // Si estamos en Módulo 2 (QI) con On-Hold cargado, la base es On-Hold Ajustado (o SAP si no hay On-Hold).
+        // En Módulo 1 (QR), la base siempre es SAP.
+        const baseQty = (modKey === 'QI' && onHoldAdj > 0) ? onHoldAdj : sapQty;
+        const diffQty = baseQty - izelQty; // Regla rectora: Base - Izel
 
         const sapPallets = s ? s.sapPallets : (oh ? oh.pallets : 0);
         const izelPallets = i ? i.pallets : 0;
@@ -1318,7 +1465,7 @@
 
         const desc = (s && s.desc) ? s.desc : ((oh && oh.desc) ? oh.desc : ((i && i.desc) ? i.desc : 'Sin descripción'));
 
-        // Batches comparison
+        // Comparación de Lotes
         const sapBatchesArr = s && s.lotesSap ? s.lotesSap.split(/[;,]+/).map(b => b.trim()).filter(Boolean) : (oh ? Array.from(oh.batches) : []);
         const izelBatchesArr = i ? Array.from(i.batches) : [];
         const sapBatchesStr = sapBatchesArr.join(', ');
@@ -1331,14 +1478,13 @@
           batchMismatch = ![...sSet].every(b => iSet.has(b)) || ![...iSet].every(b => sSet.has(b));
         }
 
-        // Unit value calculation for impact
         let unitVal = 0;
         if (s && s.sapQty > 0 && s.sapVal > 0) {
           unitVal = s.sapVal / s.sapQty;
         }
         const diffVal = diffQty * unitVal;
 
-        // Classification
+        // Clasificación de Estatus
         let status = 'MATCH';
         let statusLabel = 'Cuadrado';
 
@@ -1347,7 +1493,7 @@
           statusLabel = 'Solo en Izel';
         } else if ((s || oh) && !i) {
           status = 'ONLY_BASE';
-          statusLabel = AppData.currentModule === 'QI' && AppData.loaded.onhold ? 'Solo en On-Hold' : 'Solo en SAP';
+          statusLabel = (modKey === 'QI' && onHoldAdj > 0) ? 'Solo en On-Hold' : 'Solo en SAP';
         } else if (diffQty > 0) {
           status = 'MISSING';
           statusLabel = 'Faltante en Izel';
@@ -1380,11 +1526,116 @@
       });
     }
 
+    function calculateReconciliation(targetMod = AppData.currentModule) {
+      const modState = AppData[targetMod];
+
+      // Aislamiento de filtros por módulo
+      const filterIzelRow = r => {
+        // En cada módulo, solo se evalúan las filas cargadas directamente en su propio slot
+        return true;
+      };
+
+      const filterSapRow = r => {
+        return true;
+      };
+
+      const filteredMx20 = modState.mx20Raw.filter(filterIzelRow);
+      const filteredMx21 = modState.mx21Raw.filter(filterIzelRow);
+      const filteredSap = modState.sapRaw.filter(filterSapRow);
+
+      const mapMx20 = groupIzel(filteredMx20);
+      const mapMx21 = groupIzel(filteredMx21);
+
+      // Consolidar SAP por bodega
+      const sapWh = { 'MX20': new Map(), 'MX21': new Map() };
+      filteredSap.forEach(row => {
+        let wh = row.planta;
+        if (wh !== 'MX20' && wh !== 'MX21') {
+          wh = wh.includes('21') ? 'MX21' : 'MX20';
+        }
+        if (!sapWh[wh].has(row.sku)) {
+          sapWh[wh].set(row.sku, { ...row, planta: wh });
+        } else {
+          const curr = sapWh[wh].get(row.sku);
+          curr.sapQty += row.sapQty;
+          curr.sapPallets += row.sapPallets;
+          curr.sapVal += row.sapVal;
+          curr.impacto += row.impacto;
+          if (row.lotesSap && !curr.lotesSap.includes(row.lotesSap)) {
+            curr.lotesSap += ', ' + row.lotesSap;
+          }
+        }
+      });
+
+      // Consolidar On-Hold (solo aplica en QI)
+      const onHoldWh = { 'MX20': new Map(), 'MX21': new Map() };
+      if (targetMod === 'QI' && modState.loaded.onhold && modState.onHoldRaw.length > 0) {
+        modState.onHoldRaw.forEach(r => {
+          const wh = r.wh;
+          if (!onHoldWh[wh]) return;
+          if (!onHoldWh[wh].has(r.sku)) {
+            onHoldWh[wh].set(r.sku, {
+              wh,
+              sku: r.sku,
+              desc: r.desc,
+              gross: 0,
+              deducted: 0,
+              adjusted: 0,
+              pallets: 0,
+              batches: new Set()
+            });
+          }
+          const item = onHoldWh[wh].get(r.sku);
+          item.gross += r.qty;
+          item.pallets += r.pallets;
+          if (r.lote) item.batches.add(r.lote);
+          if (!item.desc && r.desc) item.desc = r.desc;
+        });
+
+        // Deduplicación por SKU
+        if (modState.onHoldDuplicates.length > 0) {
+          modState.onHoldDuplicates.forEach(dup => {
+            if (onHoldWh[dup.wh] && onHoldWh[dup.wh].has(dup.sku)) {
+              onHoldWh[dup.wh].get(dup.sku).deducted += dup.deducted;
+            }
+          });
+        }
+
+        ['MX20', 'MX21'].forEach(wh => {
+          onHoldWh[wh].forEach(item => {
+            item.adjusted = item.gross - item.deducted;
+          });
+        });
+      }
+
+      const reconciled = [];
+
+      if (modState.loaded.mx20 || sapWh['MX20'].size > 0 || onHoldWh['MX20'].size > 0) {
+        processWhUnit('MX20', sapWh['MX20'], onHoldWh['MX20'], mapMx20, reconciled, targetMod);
+      }
+      if (modState.loaded.mx21 || sapWh['MX21'].size > 0 || onHoldWh['MX21'].size > 0) {
+        processWhUnit('MX21', sapWh['MX21'], onHoldWh['MX21'], mapMx21, reconciled, targetMod);
+      }
+
+      modState.items = reconciled;
+      
+      const badgeTarget = targetMod === 'QR' ? 'badge-count-qr' : 'badge-count-qi';
+      document.getElementById(badgeTarget).textContent = reconciled.length.toLocaleString();
+
+      if (AppData.currentModule === targetMod) {
+        document.getElementById('btn-export-top').removeAttribute('disabled');
+        document.getElementById('meta-update-time').textContent = `Módulo ${targetMod} | ${new Date().toLocaleTimeString()} (${reconciled.length.toLocaleString()} SKUs)`;
+        auditCrossTransfers();
+        applyFilters();
+      }
+    }
+
     function auditCrossTransfers() {
+      const mod = getActiveModuleState();
       const mx20Items = new Map();
       const mx21Items = new Map();
 
-      AppData.items.forEach(r => {
+      mod.items.forEach(r => {
         if (r.wh === 'MX20') mx20Items.set(r.sku, r);
         if (r.wh === 'MX21') mx21Items.set(r.sku, r);
       });
@@ -1417,7 +1668,7 @@
         }
       });
 
-      AppData.crossItems = crosses;
+      mod.crossItems = crosses;
       const alertBox = document.getElementById('cross-alert-box');
       const alertMsg = document.getElementById('cross-alert-msg');
 
@@ -1432,16 +1683,17 @@
     }
 
     function openCrossModal() {
-      if (AppData.crossItems.length === 0) {
-        notify('No hay traspasos cruzados detectados entre MX20 y MX21.', 'info');
+      const mod = getActiveModuleState();
+      if (mod.crossItems.length === 0) {
+        notify('No hay traspasos cruzados detectados entre MX20 y MX21 en este módulo.', 'info');
         return;
       }
 
-      document.getElementById('cross-modal-count-badge').textContent = `${AppData.crossItems.length} SKUs Identificados`;
+      document.getElementById('cross-modal-count-badge').textContent = `${mod.crossItems.length} SKUs Identificados`;
       const container = document.getElementById('cross-modal-content');
 
       let html = '';
-      AppData.crossItems.forEach(c => {
+      mod.crossItems.forEach(c => {
         const d20 = c.d20;
         const d21 = c.d21;
 
@@ -1565,121 +1817,10 @@
       applyFilters();
     }
 
-    function calculateReconciliation() {
-      const targetMod = AppData.currentModule; // 'QR' or 'QI'
-
-      const filterIzelRow = r => {
-        const fullTxt = `${r.status} ${r.area} ${r.almacen}`.toUpperCase();
-        if (targetMod === 'QI') {
-          return fullTxt.includes('QI') || fullTxt.includes('CALIDAD') || fullTxt.includes('INSPECCION') || fullTxt.includes('INSP');
-        } else {
-          return fullTxt.includes('QR') || fullTxt.includes('CUARENTENA') || (!fullTxt.includes('QI') && !fullTxt.includes('CALIDAD'));
-        }
-      };
-
-      const filterSapRow = r => {
-        if (!r.statusTag) return true;
-        const st = r.statusTag.toUpperCase();
-        if (targetMod === 'QI') {
-          return st.includes('QI') || st.includes('CALIDAD') || st.includes('INSP');
-        } else {
-          return st.includes('QR') || st.includes('CUARENTENA') || (!st.includes('QI') && !st.includes('CALIDAD'));
-        }
-      };
-
-      const filteredMx20 = AppData.mx20Raw.filter(filterIzelRow);
-      const filteredMx21 = AppData.mx21Raw.filter(filterIzelRow);
-      const filteredSap = AppData.sapRaw.filter(filterSapRow);
-
-      const mapMx20 = groupIzel(filteredMx20);
-      const mapMx21 = groupIzel(filteredMx21);
-
-      // Consolidate SAP
-      const sapWh = { 'MX20': new Map(), 'MX21': new Map() };
-      filteredSap.forEach(row => {
-        let wh = row.planta;
-        if (wh !== 'MX20' && wh !== 'MX21') {
-          wh = wh.includes('21') ? 'MX21' : 'MX20';
-        }
-        if (!sapWh[wh].has(row.sku)) {
-          sapWh[wh].set(row.sku, { ...row, planta: wh });
-        } else {
-          const curr = sapWh[wh].get(row.sku);
-          curr.sapQty += row.sapQty;
-          curr.sapPallets += row.sapPallets;
-          curr.sapVal += row.sapVal;
-          curr.impacto += row.impacto;
-          if (row.lotesSap && !curr.lotesSap.includes(row.lotesSap)) {
-            curr.lotesSap += ', ' + row.lotesSap;
-          }
-        }
-      });
-
-      // Consolidate On-Hold by WH and SKU
-      const onHoldWh = { 'MX20': new Map(), 'MX21': new Map() };
-      if (AppData.loaded.onhold && AppData.onHoldRaw.length > 0) {
-        AppData.onHoldRaw.forEach(r => {
-          const wh = r.wh;
-          if (!onHoldWh[wh]) return;
-          if (!onHoldWh[wh].has(r.sku)) {
-            onHoldWh[wh].set(r.sku, {
-              wh,
-              sku: r.sku,
-              desc: r.desc,
-              gross: 0,
-              deducted: 0,
-              adjusted: 0,
-              pallets: 0,
-              batches: new Set()
-            });
-          }
-          const item = onHoldWh[wh].get(r.sku);
-          item.gross += r.qty;
-          item.pallets += r.pallets;
-          if (r.lote) item.batches.add(r.lote);
-          if (!item.desc && r.desc) item.desc = r.desc;
-        });
-
-        // Apply Deduplication adjustment per SKU
-        if (AppData.onHoldDuplicates.length > 0) {
-          AppData.onHoldDuplicates.forEach(dup => {
-            if (onHoldWh[dup.wh] && onHoldWh[dup.wh].has(dup.sku)) {
-              onHoldWh[dup.wh].get(dup.sku).deducted += dup.deducted;
-            }
-          });
-        }
-
-        ['MX20', 'MX21'].forEach(wh => {
-          onHoldWh[wh].forEach(item => {
-            item.adjusted = item.gross - item.deducted;
-          });
-        });
-      }
-
-      const reconciled = [];
-
-      if (AppData.loaded.mx20 || sapWh['MX20'].size > 0 || onHoldWh['MX20'].size > 0) {
-        processWhUnit('MX20', sapWh['MX20'], onHoldWh['MX20'], mapMx20, reconciled);
-      }
-      if (AppData.loaded.mx21 || sapWh['MX21'].size > 0 || onHoldWh['MX21'].size > 0) {
-        processWhUnit('MX21', sapWh['MX21'], onHoldWh['MX21'], mapMx21, reconciled);
-      }
-
-      AppData.items = reconciled;
-      
-      const badgeTarget = targetMod === 'QR' ? 'badge-count-qr' : 'badge-count-qi';
-      document.getElementById(badgeTarget).textContent = reconciled.length.toLocaleString();
-
-      document.getElementById('btn-export-top').removeAttribute('disabled');
-      document.getElementById('meta-update-time').textContent = `Módulo ${targetMod} | ${new Date().toLocaleTimeString()} (${reconciled.length.toLocaleString()} SKUs)`;
-
-      auditCrossTransfers();
-      applyFilters();
-    }
-
     function setStatusFilter(filter) {
-      AppData.currentFilter = filter;
-      AppData.page = 1;
+      const mod = getActiveModuleState();
+      mod.currentFilter = filter;
+      mod.page = 1;
       renderFilterButtons();
       applyFilters();
     }
@@ -1690,37 +1831,39 @@
     }
 
     function applyFilters() {
+      const mod = getActiveModuleState();
       const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
+      mod.searchTxt = q;
 
-      let list = AppData.items;
-      if (AppData.currentWh !== 'BOTH') {
-        list = list.filter(r => r.wh === AppData.currentWh);
+      let list = mod.items;
+      if (mod.currentWh !== 'BOTH') {
+        list = list.filter(r => r.wh === mod.currentWh);
       }
 
-      document.getElementById('tab-count-both').textContent = AppData.items.length.toLocaleString();
-      document.getElementById('tab-count-mx20').textContent = AppData.items.filter(r => r.wh === 'MX20').length.toLocaleString();
-      document.getElementById('tab-count-mx21').textContent = AppData.items.filter(r => r.wh === 'MX21').length.toLocaleString();
+      document.getElementById('tab-count-both').textContent = mod.items.length.toLocaleString();
+      document.getElementById('tab-count-mx20').textContent = mod.items.filter(r => r.wh === 'MX20').length.toLocaleString();
+      document.getElementById('tab-count-mx21').textContent = mod.items.filter(r => r.wh === 'MX21').length.toLocaleString();
 
       if (AppData.currentModule === 'QI') {
         // Module 2 Filters: ALL, MATCH, SOLO_ONHOLD, SOLO_SAP, SOLO_IZEL
-        if (AppData.currentFilter === 'MATCH') {
+        if (mod.currentFilter === 'MATCH') {
           list = list.filter(r => r.diffQty === 0);
-        } else if (AppData.currentFilter === 'SOLO_ONHOLD') {
+        } else if (mod.currentFilter === 'SOLO_ONHOLD') {
           list = list.filter(r => r.onHoldAdj > 0 && r.sapQty === 0 && r.izelQty === 0);
-        } else if (AppData.currentFilter === 'SOLO_SAP') {
+        } else if (mod.currentFilter === 'SOLO_SAP') {
           list = list.filter(r => r.sapQty > 0 && r.onHoldAdj === 0 && r.izelQty === 0);
-        } else if (AppData.currentFilter === 'SOLO_IZEL') {
+        } else if (mod.currentFilter === 'SOLO_IZEL') {
           list = list.filter(r => r.izelQty > 0 && r.sapQty === 0 && r.onHoldAdj === 0);
         }
       } else {
         // Module 1 Filters: ALL, MATCH, MISSING, SURPLUS, BATCH_DIFF
-        if (AppData.currentFilter === 'MATCH') {
+        if (mod.currentFilter === 'MATCH') {
           list = list.filter(r => r.diffQty === 0);
-        } else if (AppData.currentFilter === 'MISSING') {
+        } else if (mod.currentFilter === 'MISSING') {
           list = list.filter(r => r.diffQty > 0);
-        } else if (AppData.currentFilter === 'SURPLUS') {
+        } else if (mod.currentFilter === 'SURPLUS') {
           list = list.filter(r => r.diffQty < 0);
-        } else if (AppData.currentFilter === 'BATCH_DIFF') {
+        } else if (mod.currentFilter === 'BATCH_DIFF') {
           list = list.filter(r => r.batchMismatch);
         }
       }
@@ -1734,22 +1877,22 @@
         );
       }
 
-      const scopeData = AppData.currentWh === 'BOTH' 
-        ? AppData.items 
-        : AppData.items.filter(r => r.wh === AppData.currentWh);
+      const scopeData = mod.currentWh === 'BOTH' 
+        ? mod.items 
+        : mod.items.filter(r => r.wh === mod.currentWh);
       
       updateKPICards(scopeData);
 
       list.sort((a, b) => {
-        let va = a[AppData.sortKey];
-        let vb = b[AppData.sortKey];
+        let va = a[mod.sortKey];
+        let vb = b[mod.sortKey];
         if (typeof va === 'string') {
-          return AppData.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+          return mod.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
         }
-        return AppData.sortAsc ? (va - vb) : (vb - va);
+        return mod.sortAsc ? (va - vb) : (vb - va);
       });
 
-      AppData.filtered = list;
+      mod.filtered = list;
       renderTable();
     }
 
@@ -1778,7 +1921,6 @@
       document.getElementById('kpi-discrepancy-count').textContent = discrepancyCount.toLocaleString();
       document.getElementById('kpi-discrepancy-pct').textContent = `${discPct}%`;
 
-      // Detalle de discrepancia adaptable al módulo activo
       const subTextEl = document.getElementById('kpi-sub-text');
       if (AppData.currentModule === 'QI') {
         const soloOnHold = data.filter(r => r.onHoldAdj > 0 && r.sapQty === 0 && r.izelQty === 0).length;
@@ -1822,16 +1964,17 @@
 
     function renderTable() {
       const tbody = document.getElementById('table-body');
-      const list = AppData.filtered;
+      const mod = getActiveModuleState();
+      const list = mod.filtered;
       const total = list.length;
-      const isQI = AppData.currentModule === 'QI' && AppData.loaded.onhold;
+      const isQI = AppData.currentModule === 'QI' && mod.loaded.onhold;
 
       if (total === 0) {
         tbody.innerHTML = `
           <tr>
             <td colspan="${isQI ? 12 : 11}" class="text-center py-12 text-[#64748B]">
               <i class="fa-solid fa-magnifying-glass text-2xl mb-2 text-slate-300 block"></i>
-              No se encontraron coincidencias para los filtros aplicados.
+              No se encontraron datos o coincidencias para el módulo activo (${AppData.currentModule === 'QR' ? 'Cuarentena' : 'Calidad / On-Hold'}).
             </td>
           </tr>
         `;
@@ -1841,11 +1984,11 @@
         return;
       }
 
-      const totalPages = Math.ceil(total / AppData.limit) || 1;
-      if (AppData.page > totalPages) AppData.page = totalPages;
+      const totalPages = Math.ceil(total / mod.limit) || 1;
+      if (mod.page > totalPages) mod.page = totalPages;
 
-      const start = (AppData.page - 1) * AppData.limit;
-      const end = Math.min(start + AppData.limit, total);
+      const start = (mod.page - 1) * mod.limit;
+      const end = Math.min(start + mod.limit, total);
       const rows = list.slice(start, end);
 
       let html = '';
@@ -1921,43 +2064,48 @@
       tbody.innerHTML = html;
       document.getElementById('pag-showing').textContent = `${(start + 1).toLocaleString()}-${end.toLocaleString()}`;
       document.getElementById('pag-total').textContent = total.toLocaleString();
-      document.getElementById('pag-info').textContent = `${AppData.page} / ${totalPages}`;
-      document.getElementById('btn-prev-page').disabled = (AppData.page === 1);
-      document.getElementById('btn-next-page').disabled = (AppData.page === totalPages);
+      document.getElementById('pag-info').textContent = `${mod.page} / ${totalPages}`;
+      document.getElementById('btn-prev-page').disabled = (mod.page === 1);
+      document.getElementById('btn-next-page').disabled = (mod.page === totalPages);
     }
 
     function prevPage() {
-      if (AppData.page > 1) {
-        AppData.page--;
+      const mod = getActiveModuleState();
+      if (mod.page > 1) {
+        mod.page--;
         renderTable();
       }
     }
     function nextPage() {
-      const max = Math.ceil(AppData.filtered.length / AppData.limit) || 1;
-      if (AppData.page < max) {
-        AppData.page++;
+      const mod = getActiveModuleState();
+      const max = Math.ceil(mod.filtered.length / mod.limit) || 1;
+      if (mod.page < max) {
+        mod.page++;
         renderTable();
       }
     }
     function changePageSize(sz) {
-      AppData.limit = parseInt(sz, 10);
-      AppData.page = 1;
+      const mod = getActiveModuleState();
+      mod.limit = parseInt(sz, 10);
+      mod.page = 1;
       renderTable();
     }
     function sortTable(key) {
-      if (AppData.sortKey === key) {
-        AppData.sortAsc = !AppData.sortAsc;
+      const mod = getActiveModuleState();
+      if (mod.sortKey === key) {
+        mod.sortAsc = !mod.sortAsc;
       } else {
-        AppData.sortKey = key;
-        AppData.sortAsc = (key !== 'diffQty' && key !== 'sapQty' && key !== 'onHoldAdj');
+        mod.sortKey = key;
+        mod.sortAsc = (key !== 'diffQty' && key !== 'sapQty' && key !== 'onHoldAdj');
       }
       applyFilters();
     }
 
     function openModal(wh, sku) {
-      const item = AppData.items.find(r => r.wh === wh && r.sku === sku);
+      const mod = getActiveModuleState();
+      const item = mod.items.find(r => r.wh === wh && r.sku === sku);
       if (!item || item.drilldown.length === 0) {
-        notify('Sin tarimas físicas registradas en Izel para este SKU.', 'info');
+        notify('Sin tarimas físicas registradas en Izel para este SKU en este módulo.', 'info');
         return;
       }
 
@@ -1991,13 +2139,14 @@
     }
 
     function exportDataToCSV() {
-      const data = AppData.filtered.length > 0 ? AppData.filtered : AppData.items;
+      const mod = getActiveModuleState();
+      const data = mod.filtered.length > 0 ? mod.filtered : mod.items;
       if (data.length === 0) {
-        notify('No hay datos para exportar.', 'warning');
+        notify('No hay datos para exportar en este módulo.', 'warning');
         return;
       }
 
-      const isQI = AppData.currentModule === 'QI' && AppData.loaded.onhold;
+      const isQI = AppData.currentModule === 'QI' && mod.loaded.onhold;
 
       const headers = [
         'Modulo Operativo',
@@ -2061,7 +2210,7 @@
       const a = document.createElement("a");
       const now = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "_");
       a.href = url;
-      a.download = `Conciliacion_${AppData.currentModule}_Traxion_SAP_OnHold_Izel_${AppData.currentWh}_${now}.csv`;
+      a.download = `Conciliacion_${AppData.currentModule}_Traxion_SAP_OnHold_Izel_${mod.currentWh}_${now}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -2080,6 +2229,7 @@
     // Initial render of filters on load
     window.addEventListener('DOMContentLoaded', () => {
       renderFilterButtons();
+      renderWarehouseTabs();
     });
   </script>
 </body>
