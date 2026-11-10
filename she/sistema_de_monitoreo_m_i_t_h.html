@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAXIÓN | Tablero de Control Operativo - M.I.T.H Termo</title>
+  
+  <!-- Google Fonts: Montserrat (Estándar tipográfico institucional) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS (xlsx) CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Montserrat', 'Arial', 'sans-serif'],
+          },
+          colors: {
+            traxion: {
+              navy: '#182237',
+              deepNavy: '#100848',
+              lime: '#C0D838',
+              limeAlt: '#cbd51b',
+              limeLight: '#D0E934',
+              bg: '#F4F6F8',
+              card: '#FFFFFF',
+              border: '#E5E7EB',
+              textPrimary: '#1D2939',
+              textSecondary: '#6B7280',
+              danger: '#D92D20',
+              dangerBg: '#FEE4E2',
+              warning: '#E07A00',
+              warningBg: '#FEF0C7',
+              success: '#037A48',
+              successBg: '#D1FADF',
+              blueAction: '#0070C0'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Montserrat', Arial, sans-serif;
+      background-color: #F4F6F8;
+      color: #1D2939;
+    }
+    /* Institutional custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F4F6F8;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-[#C0D838] selection:text-[#182237]">
+
+  <!-- LÍNEA DE ACENTO INSTITUCIONAL SUPERIOR (TRAXIÓN LIME) -->
+  <div class="h-1.5 w-full bg-[#C0D838]"></div>
+
+  <!-- HEADER INSTITUCIONAL CONFORME A PROCEDIMIENTO TSE-09-SIGEO-PR -->
+  <header class="bg-[#182237] text-white shadow-md sticky top-0 z-40 border-b border-[#100848]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
+      
+      <!-- Logo y Título Institucional -->
+      <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+        <div class="flex items-center gap-3">
+          <!-- Logo Traxión Vectorial Autorizado -->
+          <div class="bg-white py-1 px-3 rounded shadow-sm flex flex-col items-center justify-center">
+            <span class="text-[#182237] font-extrabold text-base tracking-[0.22em] leading-none">TRAXION</span>
+            <span class="text-[#6B7280] font-semibold text-[7px] tracking-[0.25em] mt-0.5 leading-none">VIDA EN MOVIMIENTO</span>
+          </div>
+          
+          <div class="h-9 w-px bg-slate-700 hidden sm:block"></div>
+
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-[20px] md:text-[22px] font-extrabold text-white tracking-wide uppercase leading-tight">
+                MONITOREO M.I.T.H
+              </h1>
+              <span class="bg-[#C0D838] text-[#182237] font-bold text-[10px] px-2 py-0.5 rounded tracking-wider uppercase">
+                TSE-09
+              </span>
+            </div>
+            <p class="text-[#cbd5e1] text-[12px] font-normal flex items-center gap-1.5">
+              <span>Sensor Termohigrómetro</span>
+              <span>•</span>
+              <span id="headerSyncDate" class="text-slate-300">Actualización: 10-11-2026</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Acciones y Filtro Global -->
+      <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+        <div class="flex items-center bg-[#100848] border border-slate-700 px-3 py-1.5 rounded-lg text-xs">
+          <i data-lucide="calendar" class="w-4 h-4 text-[#C0D838] mr-2"></i>
+          <span class="text-slate-300 font-medium mr-2">Día:</span>
+          <select id="selectDayFilter" class="bg-transparent text-[#C0D838] font-bold text-xs focus:outline-none cursor-pointer">
+            <option value="all" class="bg-[#182237] text-white">Todos los días</option>
+          </select>
+        </div>
+
+        <button id="btnOpenUploader" class="flex items-center gap-2 bg-[#0070C0] hover:bg-[#005c9e] text-white text-[12px] font-bold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-all shadow-sm active:scale-95">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span>Cargar Excel</span>
+        </button>
+
+        <button id="btnExportCSV" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white text-[12px] font-bold px-3 py-2 rounded-lg transition-all border border-slate-600" title="Descargar Resumen Diario">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span class="hidden md:inline">Exportar CSV</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- BARRA DE NAVEGACIÓN DE VISTAS (TEMPERATURA Y HUMEDAD) -->
+  <nav class="bg-white border-b border-[#E5E7EB] shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+      <div class="flex gap-2 sm:gap-6 text-[12px] font-bold uppercase tracking-wider">
+        <button id="viewBtnGeneral" onclick="switchMainView('general')" class="py-3 px-2 border-b-2 border-[#182237] text-[#182237] flex items-center gap-2 transition font-bold">
+          <i data-lucide="layout-dashboard" class="w-4 h-4 text-[#C0D838]"></i>
+          <span>Vista General</span>
+        </button>
+        <button id="viewBtnTemp" onclick="switchMainView('temp')" class="py-3 px-2 border-b-2 border-transparent text-[#6B7280] hover:text-[#182237] flex items-center gap-2 transition">
+          <i data-lucide="thermometer" class="w-4 h-4 text-[#E07A00]"></i>
+          <span>Matriz Temperatura (°C)</span>
+        </button>
+        <button id="viewBtnHum" onclick="switchMainView('hum')" class="py-3 px-2 border-b-2 border-transparent text-[#6B7280] hover:text-[#182237] flex items-center gap-2 transition">
+          <i data-lucide="droplets" class="w-4 h-4 text-[#0070C0]"></i>
+          <span>Matriz Humedad (%RH)</span>
+        </button>
+      </div>
+
+      <div class="hidden md:flex items-center gap-2 text-[11px] text-[#6B7280]">
+        <span class="w-2.5 h-2.5 rounded-full bg-[#C0D838] border border-[#182237]/30"></span>
+        <span id="activeViewIndicator">Vista: Monitoreo General</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+
+    <!-- SECCIÓN VISTA GENERAL: SENSOR SELECCIONADO + ACCESO DIRECTO + 4 TARJETAS KPI (SOLO EN GENERAL) -->
+    <div id="generalViewCardsWrapper" class="space-y-6">
+      
+      <!-- Banner Sensor Activo y Pastillas de Acceso Directo 1-7 -->
+      <section class="bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <span class="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider block">Sensor Seleccionado</span>
+          <h2 id="activeSensorNameDisplay" class="text-[17px] md:text-[19px] font-extrabold text-[#182237] mt-0.5">
+            1. CB Jaula de reacondicionado (Nivel 3)
+          </h2>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-[11px] font-bold text-[#6B7280] mr-1 uppercase">Acceso directo:</span>
+          <button onclick="selectActiveSensor(1)" id="btnPill-1" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-[#182237] text-[#C0D838] border border-[#182237] transition">1</button>
+          <button onclick="selectActiveSensor(2)" id="btnPill-2" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition">2</button>
+          <button onclick="selectActiveSensor(3)" id="btnPill-3" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition">3</button>
+          <button onclick="selectActiveSensor(4)" id="btnPill-4" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition">4</button>
+          <button onclick="selectActiveSensor(5)" id="btnPill-5" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition">5</button>
+          <button onclick="selectActiveSensor(6)" id="btnPill-6" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition">6</button>
+          <button onclick="selectActiveSensor(7)" id="btnPill-7" class="w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition">7</button>
+        </div>
+      </section>
+
+      <!-- 4 Tarjetas KPI -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1: Temperatura -->
+        <div class="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] font-bold uppercase tracking-wider text-[#6B7280]">Última Temperatura</span>
+            <div class="w-9 h-9 rounded-full bg-amber-50 border border-amber-200 text-[#E07A00] flex items-center justify-center">
+              <i data-lucide="thermometer" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div id="kpiCurrentTemp" class="text-[30px] font-extrabold text-[#182237] leading-none">-- °C</div>
+            <p id="kpiLastTime" class="text-[11px] text-[#6B7280] mt-1.5 font-medium">Sincronizando...</p>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+            <span id="kpiTempMin" class="text-[#0070C0] font-bold">Mín: --</span>
+            <span id="kpiTempMax" class="text-[#D92D20] font-bold">Máx: --</span>
+            <span id="kpiTempAvg" class="text-slate-600 font-bold">Prom: --</span>
+          </div>
+        </div>
+
+        <!-- KPI 2: Humedad -->
+        <div class="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] font-bold uppercase tracking-wider text-[#6B7280]">Última Humedad</span>
+            <div class="w-9 h-9 rounded-full bg-blue-50 border border-blue-200 text-[#0070C0] flex items-center justify-center">
+              <i data-lucide="droplets" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div id="kpiCurrentHum" class="text-[30px] font-extrabold text-[#182237] leading-none">-- %RH</div>
+            <p class="text-[11px] text-[#6B7280] mt-1.5 font-medium">Sensor activo</p>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+            <span id="kpiHumMin" class="text-[#0070C0] font-bold">Mín: --</span>
+            <span id="kpiHumMax" class="text-[#037A48] font-bold">Máx: --</span>
+            <span id="kpiHumAvg" class="text-slate-600 font-bold">Prom: --</span>
+          </div>
+        </div>
+
+        <!-- KPI 3: Total Registros -->
+        <div class="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] font-bold uppercase tracking-wider text-[#6B7280]">Muestras del Sensor</span>
+            <div class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-[#182237] flex items-center justify-center">
+              <i data-lucide="database" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div id="kpiTotalSamples" class="text-[30px] font-extrabold text-[#182237] leading-none">0</div>
+            <p class="text-[11px] text-[#6B7280] mt-1.5 font-medium">Hoja "TERMO"</p>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+            <span id="kpiDaysCount" class="text-slate-600 font-bold">Días procesados: --</span>
+            <span class="text-[#037A48] font-bold">Sincronizado</span>
+          </div>
+        </div>
+
+        <!-- KPI 4: Punto de Rocío / Estatus -->
+        <div class="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] font-bold uppercase tracking-wider text-[#6B7280]">Estatus & Rocío Est.</span>
+            <div id="statusBadgeBg" class="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 text-[#037A48] flex items-center justify-center">
+              <i id="statusIcon" data-lucide="shield-check" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div id="kpiDewPoint" class="text-[30px] font-extrabold text-[#182237] leading-none">-- °C</div>
+            <p class="text-[11px] text-[#6B7280] mt-1.5 font-medium">Magnus-Tetens (Condensación)</p>
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+            <span class="text-slate-500 font-medium">Semaforización:</span>
+            <span id="kpiStatusTag" class="text-[#037A48] font-bold">Operación Normal</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Gráfico de Telemetría para el sensor activo en Vista General -->
+      <section class="bg-white border border-[#E5E7EB] rounded-xl shadow-xs p-5">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-[#E5E7EB] gap-2">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-4 bg-[#182237] rounded-xs"></div>
+            <h3 class="text-[13px] font-bold text-[#182237] uppercase tracking-wide">
+              Comportamiento Temporal: <span id="chartSensorTitleLabel">Sensor 1</span>
+            </h3>
+          </div>
+          <div class="flex items-center gap-4 text-xs font-semibold">
+            <span class="flex items-center gap-1.5 text-[#E07A00]">
+              <span class="w-3 h-0.5 bg-[#E07A00]"></span> Temp (°C)
+            </span>
+            <span class="flex items-center gap-1.5 text-[#0070C0]">
+              <span class="w-3 h-0.5 bg-[#0070C0]"></span> Hum (%RH)
+            </span>
+          </div>
+        </div>
+        <div class="relative h-[320px] w-full mt-3">
+          <canvas id="telemetryChart"></canvas>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- SECCIÓN: MATRIZ ESTILO GOOGLE SHEETS PARA LOS 7 SENSORES (EN GENERAL, TEMPERATURA Y HUMEDAD) -->
+    <section id="matrixTableSection" class="bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-5">
+      <div class="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 border-b border-[#E5E7EB] gap-2">
+        <div class="flex items-center gap-2.5">
+          <div id="sectionAccentBar" class="w-3 h-5 bg-[#C0D838] rounded-xs"></div>
+          <div>
+            <h3 id="matrixTableMainTitle" class="text-[14px] font-bold text-[#182237] uppercase tracking-wide">
+              Matriz Consolidada de 7 Termómetros
+            </h3>
+            <p class="text-[12px] text-[#6B7280]" id="matrixTableSubtitle">
+              Resumen diario por sensor: Promedio, Mínimo y Máximo por fecha
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] bg-yellow-100 text-yellow-800 font-bold px-2.5 py-1 rounded border border-yellow-300">
+            Fila 2: Sensores 1 al 7 (Amarillo)
+          </span>
+          <span class="text-[11px] bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded">
+            7 Termómetros activos
+          </span>
+        </div>
+      </div>
+
+      <!-- Tabla Contenedora con Scroll Horizontal para abarcar los 7 sensores -->
+      <div class="overflow-x-auto mt-4 max-h-[650px] border border-[#E5E7EB] rounded-lg">
+        <table class="w-full text-center border-collapse text-[11px]">
+          <!-- Fila 1: Título de Variable (TEMPERATURA / HUMEDAD) -->
+          <thead class="sticky top-0 z-20">
+            <tr class="bg-[#182237] text-white font-extrabold uppercase text-xs tracking-wider border-b border-[#100848]">
+              <th rowspan="3" class="py-3 px-3 text-left bg-[#100848] sticky left-0 z-30 min-w-[120px] border-r border-slate-700">
+                Fecha
+              </th>
+              <th colspan="21" class="py-2.5 px-2 text-center text-[#C0D838] tracking-[0.2em] font-extrabold text-[13px]" id="matrixVariableHeader">
+                TEMPERATURA
+              </th>
+            </tr>
+            <!-- Fila 2: Sensores en Amarillo (Sensor 1 a Sensor 7) exacto al Sheet -->
+            <tr class="bg-[#FFFF00] text-[#182237] font-extrabold text-[12px] border-b border-amber-300 uppercase tracking-wide">
+              <th colspan="3" class="py-2 px-2 border-r border-amber-400">Sensor 1</th>
+              <th colspan="3" class="py-2 px-2 border-r border-amber-400">Sensor 2</th>
+              <th colspan="3" class="py-2 px-2 border-r border-amber-400">Sensor 3</th>
+              <th colspan="3" class="py-2 px-2 border-r border-amber-400">Sensor 4</th>
+              <th colspan="3" class="py-2 px-2 border-r border-amber-400">Sensor 5</th>
+              <th colspan="3" class="py-2 px-2 border-r border-amber-400">Sensor 6</th>
+              <th colspan="3" class="py-2 px-2">Sensor 7</th>
+            </tr>
+            <!-- Fila 3: Nombre del área + Subcolumnas [PROM / MIN / MAX] -->
+            <tr class="bg-slate-100 text-[#182237] font-bold text-[10px] border-b border-[#E5E7EB]">
+              <!-- S1 -->
+              <th class="py-2 px-1 bg-amber-50/70 text-slate-800 border-r border-slate-300">1. CB Jaula de reacondicionado (Nivel 3)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#D92D20] border-r-2 border-slate-400 font-extrabold">MAX</th>
+              <!-- S2 -->
+              <th class="py-2 px-1 bg-slate-50 text-slate-800 border-r border-slate-300">2. Oficina de operaciones (Nivel 1)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-slate-50 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-slate-50 text-[#D92D20] border-r-2 border-slate-400 font-extrabold">MAX</th>
+              <!-- S3 -->
+              <th class="py-2 px-1 bg-amber-50/70 text-slate-800 border-r border-slate-300">3. Cuarto de aerosoles (Nivel 3)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#D92D20] border-r-2 border-slate-400 font-extrabold">MAX</th>
+              <!-- S4 -->
+              <th class="py-2 px-1 bg-slate-50 text-slate-800 border-r border-slate-300">4. Comedor (Nivel 1)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-slate-50 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-slate-50 text-[#D92D20] border-r-2 border-slate-400 font-extrabold">MAX</th>
+              <!-- S5 -->
+              <th class="py-2 px-1 bg-amber-50/70 text-slate-800 border-r border-slate-300">5. Rack J (Nivel 3)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#D92D20] border-r-2 border-slate-400 font-extrabold">MAX</th>
+              <!-- S6 -->
+              <th class="py-2 px-1 bg-slate-50 text-slate-800 border-r border-slate-300">6. Isla 9 09I50 (Nivel 2)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-slate-50 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-slate-50 text-[#D92D20] border-r-2 border-slate-400 font-extrabold">MAX</th>
+              <!-- S7 -->
+              <th class="py-2 px-1 bg-amber-50/70 text-slate-800 border-r border-slate-300">7. Isla 9 09I50 (Nivel 1)<br><span class="text-[#182237] font-extrabold">PROM</span></th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#0070C0] border-r border-slate-300 font-extrabold">MIN</th>
+              <th class="py-2 px-1 bg-amber-50/70 text-[#D92D20] font-extrabold">MAX</th>
+            </tr>
+          </thead>
+          <tbody id="matrixTableBody" class="divide-y divide-[#E5E7EB] font-medium text-[#1D2939]">
+            <!-- Filas dinámicas por fecha -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PIE DE PÁGINA INSTITUCIONAL FORMAL -->
+  <footer class="bg-white border-t border-[#E5E7EB] py-4 mt-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-[#6B7280]">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-[#182237]">TRAXIÓN</span>
+        <span>•</span>
+        <span>Procedimiento TSE-09-SIGEO-PR Dashboards / Tableros de Control Operativo</span>
+      </div>
+      <div>
+        <span>7 Termómetros Configurados: Almacén y Operaciones</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- MODAL: CARGADOR DE ARCHIVOS EXCEL (CON SELECCIÓN PREVIA DEL TERMÓMETRO) -->
+  <div id="uploadModal" class="fixed inset-0 bg-[#182237]/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-[#E5E7EB] rounded-xl max-w-lg w-full p-6 shadow-2xl relative">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-[#E5E7EB]">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full bg-[#182237] text-white flex items-center justify-center">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-[#182237] text-[14px] uppercase tracking-wide">Cargar Archivo de Termohigrómetro</h3>
+            <p class="text-[11px] text-[#6B7280]">Formato de entrada compatible (.xlsx / .xls)</p>
+          </div>
+        </div>
+        <button id="btnCloseModal" class="text-[#6B7280] hover:text-[#182237] p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4">
+        
+        <!-- PASO 1: SELECCIÓN OBLIGATORIA DEL TERMÓMETRO DESTINO -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3.5">
+          <label for="modalSensorTarget" class="block text-xs font-bold uppercase tracking-wider text-[#182237] mb-1.5">
+            1. ¿A cuál de los 7 termómetros pertenece este archivo?
+          </label>
+          <select id="modalSensorTarget" class="w-full bg-white border border-amber-300 rounded-lg p-2.5 text-xs font-bold text-[#182237] focus:outline-none focus:ring-2 focus:ring-[#0070C0]">
+            <option value="1">Sensor 1: CB Jaula de reacondicionado (Nivel 3)</option>
+            <option value="2">Sensor 2: Oficina de operaciones (Nivel 1)</option>
+            <option value="3">Sensor 3: Cuarto de aerosoles (Nivel 3)</option>
+            <option value="4">Sensor 4: Comedor (Nivel 1)</option>
+            <option value="5">Sensor 5: Rack J (Nivel 3)</option>
+            <option value="6">Sensor 6: Isla 9 09I50 (Nivel 2)</option>
+            <option value="7">Sensor 7: Isla 9 09I50 (Nivel 1)</option>
+          </select>
+          <p class="text-[10px] text-amber-800 mt-1">Los datos se almacenarán y graficarán para el sensor elegido.</p>
+        </div>
+
+        <p class="text-[12px] text-[#6B7280] leading-relaxed">
+          2. Seleccione el archivo exportado de su equipo registrador. Se procesará la pestaña 
+          <strong class="text-[#182237]">"Lista"</strong> extrayendo Tiempo, Temperatura y Humedad.
+        </p>
+
+        <!-- Dropzone de arrastre -->
+        <div id="dropZone" class="border-2 border-dashed border-[#E5E7EB] hover:border-[#0070C0] bg-[#F4F6F8] rounded-xl p-6 text-center cursor-pointer transition">
+          <input type="file" id="fileInput" accept=".xlsx, .xls" class="hidden" />
+          <i data-lucide="upload-cloud" class="w-9 h-9 text-[#6B7280] mx-auto mb-2"></i>
+          <p class="text-[13px] font-bold text-[#182237]">Haga clic aquí o arrastre su archivo Excel</p>
+          <p class="text-[11px] text-[#6B7280] mt-1">Soporta libros XLSX / XLS del termohigrómetro</p>
+        </div>
+
+        <div id="uploadStatus" class="text-[11px] p-3 rounded-lg hidden font-medium"></div>
+
+        <div class="flex justify-end gap-3 pt-2">
+          <button id="btnCancelUpload" class="px-4 py-2 text-[12px] font-bold text-[#6B7280] hover:text-[#182237] transition">
+            Cancelar
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LÓGICA DE APLICACIÓN Y MOTOR DE DATOS DE LOS 7 SENSORES -->
+  <script>
+    // --- CATÁLOGO OFICIAL DE LOS 7 SENSORES TRAXIÓN ---
+    const SENSORS_CATALOG = {
+      1: { id: 1, name: "CB Jaula de reacondicionado (Nivel 3)", short: "1. CB Jaula (N3)", tag: "Sensor 1" },
+      2: { id: 2, name: "Oficina de operaciones (Nivel 1)", short: "2. Oficina (N1)", tag: "Sensor 2" },
+      3: { id: 3, name: "Cuarto de aerosoles (Nivel 3)", short: "3. Aerosoles (N3)", tag: "Sensor 3" },
+      4: { id: 4, name: "Comedor (Nivel 1)", short: "4. Comedor (N1)", tag: "Sensor 4" },
+      5: { id: 5, name: "Rack J (Nivel 3)", short: "5. Rack J (N3)", tag: "Sensor 5" },
+      6: { id: 6, name: "Isla 9 09I50 (Nivel 2)", short: "6. Isla 9 (N2)", tag: "Sensor 6" },
+      7: { id: 7, name: "Isla 9 09I50 (Nivel 1)", short: "7. Isla 9 (N1)", tag: "Sensor 7" }
+    };
+
+    // Almacén en memoria indexado por sensor
+    const sensorsDataStore = {
+      1: { raw: [], daily: [] },
+      2: { raw: [], daily: [] },
+      3: { raw: [], daily: [] },
+      4: { raw: [], daily: [] },
+      5: { raw: [], daily: [] },
+      6: { raw: [], daily: [] },
+      7: { raw: [], daily: [] }
+    };
+
+    let activeSensorId = 1;      // Sensor visualizado en tarjetas/gráfico de la Vista General
+    let selectedDay = 'all';      // 'all' o 'DD-MM-AAAA'
+    let activeViewMode = 'general'; // 'general' | 'temp' | 'hum'
+    let chartInstance = null;
+
+    // Datos semilla representativos para ilustrar la matriz
+    const seedBase = [
+      { tiempo: "20-03-2024 13:12:27", temp: 28.2, humed: 25.5 },
+      { tiempo: "20-03-2024 16:12:27", temp: 28.3, humed: 24.0 },
+      { tiempo: "20-03-2024 20:12:27", temp: 27.3, humed: 25.3 },
+      { tiempo: "21-03-2024 04:12:27", temp: 25.4, humed: 25.6 },
+      { tiempo: "21-03-2024 08:12:27", temp: 37.5, humed: 16.3 },
+      { tiempo: "21-03-2024 12:12:27", temp: 30.6, humed: 21.4 },
+      { tiempo: "21-03-2024 16:12:27", temp: 32.6, humed: 19.8 },
+      { tiempo: "22-03-2024 04:12:27", temp: 23.8, humed: 30.7 },
+      { tiempo: "22-03-2024 12:12:27", temp: 30.8, humed: 20.7 },
+      { tiempo: "22-03-2024 16:12:27", temp: 32.4, humed: 15.4 },
+      { tiempo: "23-03-2024 04:12:27", temp: 23.1, humed: 34.6 },
+      { tiempo: "23-03-2024 15:12:27", temp: 34.0, humed: 22.8 },
+      { tiempo: "24-03-2024 07:12:27", temp: 22.0, humed: 36.2 },
+      { tiempo: "24-03-2024 15:12:27", temp: 31.6, humed: 11.2 },
+      { tiempo: "25-03-2024 07:12:27", temp: 22.2, humed: 22.3 },
+      { tiempo: "25-03-2024 16:12:27", temp: 30.0, humed: 12.1 }
+    ];
+
+    function initSeedData() {
+      for (let s = 1; s <= 7; s++) {
+        const offsetTemp = (s === 2 ? -2.5 : s === 4 ? 0.8 : s === 3 ? 1.5 : (s - 1) * 0.4);
+        const offsetHum = (s === 2 ? 6.0 : s === 4 ? 4.5 : (s % 2 === 0 ? -3.0 : 2.0));
+
+        const sensorRows = seedBase.map(item => ({
+          tiempo: item.tiempo,
+          temp: Number((item.temp + offsetTemp).toFixed(1)),
+          humed: Number(Math.max(10, item.humed + offsetHum).toFixed(1))
+        }));
+
+        const computed = computeAggregations(sensorRows);
+        sensorsDataStore[s] = {
+          raw: computed.validRecords,
+          daily: computed.resumen
+        };
+      }
+    }
+
+    // Replicación exacta del cálculo en el Apps Script
+    function computeAggregations(filas) {
+      const agrupacionPorDia = {};
+      const validRecords = [];
+
+      filas.forEach(item => {
+        const tiempoStr = item.tiempo ? String(item.tiempo).trim() : '';
+        const temp = parseFloat(item.temp);
+        const hum = parseFloat(item.humed);
+
+        if (tiempoStr !== '') {
+          validRecords.push({
+            tiempo: tiempoStr,
+            temp: isNaN(temp) ? null : temp,
+            humed: isNaN(hum) ? null : hum
+          });
+
+          const fecha = tiempoStr.split(' ')[0];
+          if (!agrupacionPorDia[fecha]) {
+            agrupacionPorDia[fecha] = { temps: [], hums: [] };
+          }
+          if (!isNaN(temp)) agrupacionPorDia[fecha].temps.push(temp);
+          if (!isNaN(hum)) agrupacionPorDia[fecha].hums.push(hum);
+        }
+      });
+
+      const resumen = [];
+      for (const fechaKey in agrupacionPorDia) {
+        const temps = agrupacionPorDia[fechaKey].temps;
+        const hums = agrupacionPorDia[fechaKey].hums;
+
+        const tempProm = temps.length > 0 ? (temps.reduce((a, b) => a + b, 0) / temps.length) : null;
+        const tempMin = temps.length > 0 ? Math.min(...temps) : null;
+        const tempMax = temps.length > 0 ? Math.max(...temps) : null;
+
+        const humProm = hums.length > 0 ? (hums.reduce((a, b) => a + b, 0) / hums.length) : null;
+        const humMin = hums.length > 0 ? Math.min(...hums) : null;
+        const humMax = hums.length > 0 ? Math.max(...hums) : null;
+
+        resumen.push({
+          fecha: fechaKey,
+          tempProm: tempProm !== null ? Number(tempProm.toFixed(2)) : null,
+          tempMin: tempMin !== null ? Number(tempMin.toFixed(2)) : null,
+          tempMax: tempMax !== null ? Number(tempMax.toFixed(2)) : null,
+          humProm: humProm !== null ? Number(humProm.toFixed(2)) : null,
+          humMin: humMin !== null ? Number(humMin.toFixed(2)) : null,
+          humMax: humMax !== null ? Number(humMax.toFixed(2)) : null
+        });
+      }
+
+      return { validRecords, resumen };
+    }
+
+    // Cálculo del punto de rocío (Magnus-Tetens)
+    function calculateDewPoint(temp, hum) {
+      if (temp === null || hum === null || hum <= 0) return null;
+      const a = 17.27;
+      const b = 237.7;
+      const alpha = ((a * temp) / (b + temp)) + Math.log(hum / 100);
+      return (b * alpha) / (a - alpha);
+    }
+
+    // Selección de sensor en Vista General
+    window.selectActiveSensor = function(id) {
+      activeSensorId = id;
+      for (let s = 1; s <= 7; s++) {
+        const pill = document.getElementById(`btnPill-${s}`);
+        if (pill) {
+          if (s === id) {
+            pill.className = 'w-8 h-8 rounded-lg font-extrabold text-xs bg-[#182237] text-[#C0D838] border border-[#182237] transition shadow-xs';
+          } else {
+            pill.className = 'w-8 h-8 rounded-lg font-extrabold text-xs bg-slate-100 text-[#182237] hover:bg-slate-200 border border-slate-300 transition';
+          }
+        }
+      }
+      const sInfo = SENSORS_CATALOG[id];
+      document.getElementById('activeSensorNameDisplay').textContent = `${sInfo.id}. ${sInfo.name}`;
+      document.getElementById('chartSensorTitleLabel').textContent = `${sInfo.tag}: ${sInfo.short}`;
+      updateGeneralKPIs();
+      renderGeneralChart();
+    };
+
+    // Alternar entre las vistas
+    window.switchMainView = function(view) {
+      activeViewMode = view;
+
+      const btnGen = document.getElementById('viewBtnGeneral');
+      const btnTemp = document.getElementById('viewBtnTemp');
+      const btnHum = document.getElementById('viewBtnHum');
+      const indicator = document.getElementById('activeViewIndicator');
+      const accentBar = document.getElementById('sectionAccentBar');
+      const matrixVarHeader = document.getElementById('matrixVariableHeader');
+      const matrixSub = document.getElementById('matrixTableSubtitle');
+      const generalCardsWrapper = document.getElementById('generalViewCardsWrapper');
+
+      [btnGen, btnTemp, btnHum].forEach(b => {
+        b.className = 'py-3 px-2 border-b-2 border-transparent text-[#6B7280] hover:text-[#182237] flex items-center gap-2 transition';
+      });
+
+      if (view === 'general') {
+        // En Vista General: se muestran las tarjetas KPI y gráfico
+        generalCardsWrapper.classList.remove('hidden');
+        btnGen.className = 'py-3 px-2 border-b-2 border-[#182237] text-[#182237] flex items-center gap-2 transition font-bold';
+        indicator.textContent = 'Vista: Monitoreo General';
+        accentBar.className = 'w-3 h-5 bg-[#C0D838] rounded-xs';
+        matrixVarHeader.textContent = 'TEMPERATURA Y HUMEDAD (CONSOLIDADO)';
+        matrixSub.textContent = 'Resumen consolidado por sensor para los 7 termómetros';
+        updateGeneralKPIs();
+        renderGeneralChart();
+      } else if (view === 'temp') {
+        // En Pestaña Temperatura: se ocultan las tarjetas KPI para dejar la matriz limpia
+        generalCardsWrapper.classList.add('hidden');
+        btnTemp.className = 'py-3 px-2 border-b-2 border-[#182237] text-[#182237] flex items-center gap-2 transition font-bold';
+        indicator.textContent = 'Vista: Matriz Temperatura (°C)';
+        accentBar.className = 'w-3 h-5 bg-[#C0D838] rounded-xs';
+        matrixVarHeader.textContent = 'TEMPERATURA';
+        matrixSub.textContent = 'Resumen diario por sensor: Promedio, Mínimo y Máximo de Temperatura (°C)';
+      } else if (view === 'hum') {
+        // En Pestaña Humedad: se ocultan las tarjetas KPI para dejar la matriz limpia
+        generalCardsWrapper.classList.add('hidden');
+        btnHum.className = 'py-3 px-2 border-b-2 border-[#0070C0] text-[#0070C0] flex items-center gap-2 transition font-bold';
+        indicator.textContent = 'Vista: Matriz Humedad (%RH)';
+        accentBar.className = 'w-3 h-5 bg-[#0070C0] rounded-xs';
+        matrixVarHeader.textContent = 'HUMEDAD';
+        matrixSub.textContent = 'Resumen diario por sensor: Promedio, Mínimo y Máximo de Humedad Relativa (%RH)';
+      }
+
+      renderSevenSensorsMatrix();
+    };
+
+    function updateGeneralKPIs() {
+      const store = sensorsDataStore[activeSensorId];
+      let rawData = store.raw || [];
+      if (selectedDay !== 'all') {
+        rawData = rawData.filter(d => d.tiempo && d.tiempo.startsWith(selectedDay));
+      }
+
+      if (!rawData.length) {
+        document.getElementById('kpiCurrentTemp').textContent = '-- °C';
+        document.getElementById('kpiCurrentHum').textContent = '-- %RH';
+        document.getElementById('kpiLastTime').textContent = 'Sin datos en este filtro';
+        document.getElementById('kpiTempMin').textContent = 'Mín: --';
+        document.getElementById('kpiTempMax').textContent = 'Máx: --';
+        document.getElementById('kpiTempAvg').textContent = 'Prom: --';
+        document.getElementById('kpiHumMin').textContent = 'Mín: --';
+        document.getElementById('kpiHumMax').textContent = 'Máx: --';
+        document.getElementById('kpiHumAvg').textContent = 'Prom: --';
+        document.getElementById('kpiTotalSamples').textContent = '0';
+        document.getElementById('kpiDaysCount').textContent = 'Días: 0';
+        document.getElementById('kpiDewPoint').textContent = '-- °C';
+        return;
+      }
+
+      const latest = rawData[rawData.length - 1];
+      const validTemps = rawData.map(d => d.temp).filter(t => t !== null);
+      const validHums = rawData.map(d => d.humed).filter(h => h !== null);
+
+      const minT = validTemps.length ? Math.min(...validTemps) : null;
+      const maxT = validTemps.length ? Math.max(...validTemps) : null;
+      const avgT = validTemps.length ? (validTemps.reduce((a, b) => a + b, 0) / validTemps.length) : null;
+
+      const minH = validHums.length ? Math.min(...validHums) : null;
+      const maxH = validHums.length ? Math.max(...validHums) : null;
+      const avgH = validHums.length ? (validHums.reduce((a, b) => a + b, 0) / validHums.length) : null;
+
+      document.getElementById('kpiCurrentTemp').textContent = latest.temp !== null ? `${latest.temp.toFixed(1)} °C` : '-- °C';
+      document.getElementById('kpiCurrentHum').textContent = latest.humed !== null ? `${latest.humed.toFixed(1)} %RH` : '-- %RH';
+      document.getElementById('kpiLastTime').textContent = latest.tiempo;
+
+      document.getElementById('kpiTempMin').textContent = `Mín: ${minT !== null ? minT.toFixed(1) + '°' : '--'}`;
+      document.getElementById('kpiTempMax').textContent = `Máx: ${maxT !== null ? maxT.toFixed(1) + '°' : '--'}`;
+      document.getElementById('kpiTempAvg').textContent = `Prom: ${avgT !== null ? avgT.toFixed(1) + '°' : '--'}`;
+
+      document.getElementById('kpiHumMin').textContent = `Mín: ${minH !== null ? minH.toFixed(1) + '%' : '--'}`;
+      document.getElementById('kpiHumMax').textContent = `Máx: ${maxH !== null ? maxH.toFixed(1) + '%' : '--'}`;
+      document.getElementById('kpiHumAvg').textContent = `Prom: ${avgH !== null ? avgH.toFixed(1) + '%' : '--'}`;
+
+      document.getElementById('kpiTotalSamples').textContent = rawData.length.toLocaleString();
+      document.getElementById('kpiDaysCount').textContent = `Días procesados: ${store.daily.length}`;
+
+      const dew = calculateDewPoint(latest.temp, latest.humed);
+      document.getElementById('kpiDewPoint').textContent = dew !== null ? `${dew.toFixed(1)} °C` : '-- °C';
+
+      // Semáforo de estatus institucional
+      const badgeBg = document.getElementById('statusBadgeBg');
+      const badgeTag = document.getElementById('kpiStatusTag');
+      if (latest.temp > 35 || (latest.humed && latest.humed > 75)) {
+        badgeBg.className = 'w-9 h-9 rounded-full bg-red-50 border border-red-200 text-[#D92D20] flex items-center justify-center';
+        badgeTag.className = 'text-[#D92D20] font-bold';
+        badgeTag.textContent = 'Condición Crítica';
+      } else if (latest.temp > 30 || (latest.humed && latest.humed > 60)) {
+        badgeBg.className = 'w-9 h-9 rounded-full bg-amber-50 border border-amber-200 text-[#E07A00] flex items-center justify-center';
+        badgeTag.className = 'text-[#E07A00] font-bold';
+        badgeTag.textContent = 'En Observación';
+      } else {
+        badgeBg.className = 'w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 text-[#037A48] flex items-center justify-center';
+        badgeTag.className = 'text-[#037A48] font-bold';
+        badgeTag.textContent = 'Operación Normal';
+      }
+    }
+
+    function renderGeneralChart() {
+      const canvas = document.getElementById('telemetryChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const store = sensorsDataStore[activeSensorId];
+      let rawData = store.raw || [];
+      if (selectedDay !== 'all') {
+        rawData = rawData.filter(d => d.tiempo && d.tiempo.startsWith(selectedDay));
+      }
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: rawData.map(d => {
+            const parts = d.tiempo.split(' ');
+            return parts.length > 1 ? `${parts[0].slice(0, 5)} ${parts[1].slice(0, 5)}` : d.tiempo;
+          }),
+          datasets: [
+            {
+              label: 'Temperatura (°C)',
+              data: rawData.map(d => d.temp),
+              borderColor: '#E07A00',
+              backgroundColor: 'rgba(224, 122, 0, 0.08)',
+              yAxisID: 'yTemp',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 2.5
+            },
+            {
+              label: 'Humedad (%RH)',
+              data: rawData.map(d => d.humed),
+              borderColor: '#0070C0',
+              backgroundColor: 'rgba(0, 112, 192, 0.08)',
+              yAxisID: 'yHum',
+              tension: 0.3,
+              borderWidth: 2,
+              pointRadius: 2.5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              grid: { color: 'rgba(229, 231, 235, 0.7)' },
+              ticks: { color: '#6B7280', font: { size: 10 } }
+            },
+            yTemp: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Temp (°C)', color: '#E07A00', font: { size: 11, weight: 'bold' } },
+              grid: { color: 'rgba(229, 231, 235, 0.7)' },
+              ticks: { color: '#E07A00' }
+            },
+            yHum: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'Humedad (%RH)', color: '#0070C0', font: { size: 11, weight: 'bold' } },
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#0070C0' }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    function updateUI() {
+      populateDaySelector();
+      if (activeViewMode === 'general') {
+        updateGeneralKPIs();
+        renderGeneralChart();
+      }
+      renderSevenSensorsMatrix();
+    }
+
+    function populateDaySelector() {
+      const select = document.getElementById('selectDayFilter');
+      const currentVal = select.value;
+      
+      const allDatesSet = new Set();
+      for (let s = 1; s <= 7; s++) {
+        sensorsDataStore[s].daily.forEach(d => allDatesSet.add(d.fecha));
+      }
+      const days = Array.from(allDatesSet);
+
+      select.innerHTML = '<option value="all" class="bg-[#182237] text-white">Todos los días</option>' + 
+        days.map(d => `<option value="${d}" class="bg-[#182237] text-white">${d}</option>`).join('');
+
+      if (days.includes(currentVal) || currentVal === 'all') {
+        select.value = currentVal;
+      }
+    }
+
+    // Renderizar la matriz completa de los 7 sensores
+    function renderSevenSensorsMatrix() {
+      const tbody = document.getElementById('matrixTableBody');
+
+      const allDatesSet = new Set();
+      for (let s = 1; s <= 7; s++) {
+        sensorsDataStore[s].daily.forEach(d => allDatesSet.add(d.fecha));
+      }
+      let datesList = Array.from(allDatesSet);
+
+      if (selectedDay !== 'all') {
+        datesList = datesList.filter(d => d === selectedDay);
+      }
+
+      if (!datesList.length) {
+        tbody.innerHTML = `<tr><td colspan="22" class="text-center py-8 text-[#6B7280]">No hay registros para mostrar en la fecha seleccionada.</td></tr>`;
+        return;
+      }
+
+      const isHumMode = activeViewMode === 'hum';
+
+      tbody.innerHTML = datesList.map(fecha => {
+        let colsHTML = '';
+
+        for (let s = 1; s <= 7; s++) {
+          const sDaily = sensorsDataStore[s].daily.find(d => d.fecha === fecha);
+
+          if (isHumMode) {
+            const prom = sDaily && sDaily.humProm !== null ? `${sDaily.humProm.toFixed(1)}%` : '';
+            const min = sDaily && sDaily.humMin !== null ? `${sDaily.humMin.toFixed(1)}%` : '';
+            const max = sDaily && sDaily.humMax !== null ? `${sDaily.humMax.toFixed(1)}%` : '';
+
+            colsHTML += `
+              <td class="py-2.5 px-1 font-semibold text-[#182237] border-r border-[#E5E7EB]">${prom}</td>
+              <td class="py-2.5 px-1 font-medium text-[#0070C0] border-r border-[#E5E7EB]">${min}</td>
+              <td class="py-2.5 px-1 font-semibold text-[#037A48] border-r-2 border-slate-300">${max}</td>
+            `;
+          } else {
+            const prom = sDaily && sDaily.tempProm !== null ? `${sDaily.tempProm.toFixed(1)}°` : '';
+            const min = sDaily && sDaily.tempMin !== null ? `${sDaily.tempMin.toFixed(1)}°` : '';
+            const max = sDaily && sDaily.tempMax !== null ? `${sDaily.tempMax.toFixed(1)}°` : '';
+
+            colsHTML += `
+              <td class="py-2.5 px-1 font-semibold text-[#182237] border-r border-[#E5E7EB]">${prom}</td>
+              <td class="py-2.5 px-1 font-medium text-[#0070C0] border-r border-[#E5E7EB]">${min}</td>
+              <td class="py-2.5 px-1 font-semibold text-[#D92D20] border-r-2 border-slate-300">${max}</td>
+            `;
+          }
+        }
+
+        const isRowSelected = selectedDay === fecha;
+
+        return `
+          <tr class="hover:bg-slate-50 transition ${isRowSelected ? 'bg-amber-50/60 font-bold' : ''}">
+            <td class="py-2.5 px-3 text-left font-bold text-[#182237] bg-slate-50 sticky left-0 z-10 border-r border-slate-300 whitespace-nowrap">
+              ${fecha}
+            </td>
+            ${colsHTML}
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Carga de archivo Excel
+    function handleFile(file) {
+      const targetSensorId = parseInt(document.getElementById('modalSensorTarget').value, 10);
+      const targetSensorInfo = SENSORS_CATALOG[targetSensorId];
+
+      const statusDiv = document.getElementById('uploadStatus');
+      statusDiv.classList.remove('hidden', 'bg-[#FEE4E2]', 'text-[#D92D20]', 'bg-[#D1FADF]', 'text-[#037A48]');
+      statusDiv.classList.add('bg-blue-50', 'text-[#0070C0]');
+      statusDiv.textContent = `Leyendo "${file.name}" para ${targetSensorInfo.tag}: ${targetSensorInfo.short}...`;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          let sheetName = 'Lista';
+          if (!workbook.SheetNames.includes(sheetName)) {
+            sheetName = workbook.SheetNames[0];
+            statusDiv.textContent = `Aviso: Pestaña "Lista" no hallada. Leyendo "${sheetName}"...`;
+          }
+
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonSheet = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+
+          const extractedRows = [];
+          for (let i = 1; i < jsonSheet.length; i++) {
+            const row = jsonSheet[i];
+            if (row && row.length > 1) {
+              extractedRows.push({
+                tiempo: row[1] || '',
+                temp: row[2] || '',
+                humed: row[3] || ''
+              });
+            }
+          }
+
+          if (!extractedRows.length) {
+            throw new Error('No se encontraron registros válidos en las columnas B, C y D.');
+          }
+
+          const result = computeAggregations(extractedRows);
+
+          sensorsDataStore[targetSensorId] = {
+            raw: result.validRecords,
+            daily: result.resumen
+          };
+
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            statusDiv.textContent = `Guardando en Google Sheets (${targetSensorInfo.tag})...`;
+            google.script.run
+              .withSuccessHandler(function(res) {
+                statusDiv.className = 'text-[11px] p-3 rounded-lg bg-[#D1FADF] text-[#037A48] font-bold';
+                statusDiv.textContent = res;
+                updateUI();
+                setTimeout(() => closeModal(), 1800);
+              })
+              .withFailureHandler(function(err) {
+                statusDiv.className = 'text-[11px] p-3 rounded-lg bg-[#FEF0C7] text-[#E07A00] font-bold';
+                statusDiv.textContent = 'Actualizado localmente. Error en Google Sheets: ' + err.message;
+                updateUI();
+              })
+              .procesarDatosTermo(extractedRows, targetSensorId);
+          } else {
+            statusDiv.className = 'text-[11px] p-3 rounded-lg bg-[#D1FADF] text-[#037A48] font-bold';
+            statusDiv.textContent = `¡Procesado exitoso! Se actualizaron los datos en ${targetSensorInfo.tag}.`;
+            updateUI();
+            setTimeout(() => closeModal(), 1400);
+          }
+
+        } catch (err) {
+          statusDiv.className = 'text-[11px] p-3 rounded-lg bg-[#FEE4E2] text-[#D92D20] font-bold';
+          statusDiv.textContent = `Error al procesar: ${err.message}`;
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Exportar CSV
+    function exportToCSV() {
+      const allDatesSet = new Set();
+      for (let s = 1; s <= 7; s++) {
+        sensorsDataStore[s].daily.forEach(d => allDatesSet.add(d.fecha));
+      }
+      const dates = Array.from(allDatesSet);
+      if (!dates.length) return;
+
+      let csv = 'Fecha';
+      for (let s = 1; s <= 7; s++) {
+        csv += `,S${s}_${SENSORS_CATALOG[s].tag}_TempProm,S${s}_TempMin,S${s}_TempMax,S${s}_HumProm,S${s}_HumMin,S${s}_HumMax`;
+      }
+      csv += '\n';
+
+      dates.forEach(f => {
+        let line = `${f}`;
+        for (let s = 1; s <= 7; s++) {
+          const row = sensorsDataStore[s].daily.find(d => d.fecha === f);
+          line += `,${row?.tempProm ?? ''},${row?.tempMin ?? ''},${row?.tempMax ?? ''},${row?.humProm ?? ''},${row?.humMin ?? ''},${row?.humMax ?? ''}`;
+        }
+        csv += line + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `TRAXION_7Termometros_Matriz_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Modal
+    const modal = document.getElementById('uploadModal');
+    function openModal() { modal.classList.remove('hidden'); }
+    function closeModal() { modal.classList.add('hidden'); }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+
+      initSeedData();
+      updateUI();
+
+      document.getElementById('btnOpenUploader').addEventListener('click', openModal);
+      document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+      document.getElementById('btnCancelUpload').addEventListener('click', closeModal);
+
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput');
+
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-[#0070C0]', 'bg-blue-50/50');
+      });
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-[#0070C0]', 'bg-blue-50/50');
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-[#0070C0]', 'bg-blue-50/50');
+        if (e.dataTransfer.files.length) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      document.getElementById('selectDayFilter').addEventListener('change', (e) => {
+        selectedDay = e.target.value;
+        updateUI();
+      });
+
+      document.getElementById('btnExportCSV').addEventListener('click', exportToCSV);
+    });
+  </script>
+</body>
+</html>
