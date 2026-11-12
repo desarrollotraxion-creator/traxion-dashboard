@@ -250,6 +250,8 @@
   .kpi.kpi-naranja{ border-left-color: var(--clr-naranja); }
   .kpi.kpi-amarillo{ border-left-color: var(--clr-amarillo); }
   .kpi.kpi-verde{ border-left-color: var(--clr-verde); }
+  .kpi.kpi-azul{ border-left-color: var(--clr-azul); }
+  .kpi.kpi-morado{ border-left-color: #8B5CF6; }
   .kpi.kpi-traxion{ border-left-color: var(--accent-traxion); }
 
   .kpi .label{
@@ -387,6 +389,7 @@
   .badge-amarillo{ background: var(--bg-amarillo); color: var(--clr-amarillo); }
   .badge-verde{ background: var(--bg-verde); color: var(--clr-verde); }
   .badge-azul{ background: var(--bg-azul); color: var(--clr-azul); }
+  .badge-purple{ background: #F3E8FF; color: #6B21A8; border: 1px solid #D8B4FE; }
 
   .empty-state{ padding: 40px 10px; text-align: center; color: var(--text-muted); font-size: 13px; }
   .table-foot{
@@ -543,7 +546,7 @@
   <!-- Pestañas de Navegación -->
   <nav class="nav-tabs">
     <button class="nav-tab active" onclick="cambiarPestana('tab-semaforo', this)">🚦 1. Semáforo de Caducidades</button>
-    <button class="nav-tab" onclick="cambiarPestana('tab-movimientos', this)">📦 2. Clasificación Movimientos (601 / 643)</button>
+    <button class="nav-tab" onclick="cambiarPestana('tab-movimientos', this)">📦 2. Clasificación de SKUs (Nacional / Expo / Homologado)</button>
     <button class="nav-tab" onclick="cambiarPestana('tab-peps', this)">📋 3. Picking List PEPS (Reglas Vigencia)</button>
   </nav>
 
@@ -572,7 +575,8 @@
       <div class="seg" id="segMercadoFilter">
         <button class="active" onclick="filtrarMercado('ALL', this)">Todos</button>
         <button onclick="filtrarMercado('NACIONAL', this)">Nacional</button>
-        <button onclick="filtrarMercado('EXPORTACION', this)">Exportación</button>
+        <button onclick="filtrarMercado('EXPORTACION', this)">Expo</button>
+        <button onclick="filtrarMercado('HOMOLOGADO', this)">Homologado</button>
       </div>
 
       <span class="status-tag" id="statusTagSemaforo">Carga el reporte de existencia para procesar</span>
@@ -716,55 +720,55 @@
 
 
   <!-- ========================================================================= -->
-  <!-- PESTAÑA 2: CLASIFICACIÓN MOVIMIENTOS 601 / 643                            -->
+  <!-- PESTAÑA 2: CLASIFICACIÓN DE SKUS (NACIONAL / EXPO / HOMOLOGADO)           -->
   <!-- ========================================================================= -->
   <div id="tab-movimientos" class="view-pane">
 
     <div class="filterbar">
       <span class="flabel">Archivo</span>
-      <input type="file" id="fileMovimientos" accept=".csv, .xlsx, .xls" onchange="manejarMovimientos(this.files[0])" />
-      <button class="btn-action" onclick="document.getElementById('fileMovimientos').click()">📁 Cargar Clavs Homologadas (.csv)</button>
-      <button class="btn-action btn-export" id="btnExportMovs" onclick="descargarExcelMovs()" style="display:none;">📥 Exportar Movimientos (.xlsx)</button>
+      <input type="file" id="fileMovimientos" accept=".csv, .xlsx, .xls" onchange="manejarArchivoSKUs(this.files[0])" />
+      <button class="btn-action" onclick="document.getElementById('fileMovimientos').click()">📁 Cargar Archivo SKUs (.csv / .xlsx)</button>
+      <button class="btn-action btn-export" id="btnExportMovs" onclick="descargarExcelMovs()" style="display:none;">📥 Exportar Catálogo (.xlsx)</button>
 
-      <span class="flabel" style="margin-left:14px;">Filtrar Grupo:</span>
+      <span class="flabel" style="margin-left:14px;">Filtrar Tipo:</span>
       <div class="seg" id="segMovGroup">
         <button class="active" onclick="filtrarGrupoMov('ALL', this)">Todos</button>
-        <button onclick="filtrarGrupoMov('SOLO_601', this)">Solo 601 (Nacional)</button>
-        <button onclick="filtrarGrupoMov('SOLO_643', this)">Solo 643 (Exportación)</button>
-        <button onclick="filtrarGrupoMov('AMBOS', this)">Repetidos (Mixto)</button>
+        <button onclick="filtrarGrupoMov('NACIONAL', this)">Nacional</button>
+        <button onclick="filtrarGrupoMov('EXPO', this)">Expo</button>
+        <button onclick="filtrarGrupoMov('HOMOLOGADO', this)">Homologado</button>
       </div>
 
-      <span class="status-tag" id="statusTagMovs">Carga el archivo CSV de movimientos para sincronizar mercado</span>
+      <span class="status-tag" id="statusTagMovs">Carga el archivo con columnas Material y Tipo para clasificar mercado</span>
     </div>
 
     <section class="kpis">
       <div class="kpi kpi-traxion">
-        <div class="label">Total SKUs en Movimientos</div>
+        <div class="label">Total SKUs Clasificados</div>
         <div class="value" id="kpiMovTotalSkus">0</div>
-        <div class="foot">subtotales removidos</div>
+        <div class="foot">catálogo maestro activo</div>
       </div>
       <div class="kpi kpi-azul">
-        <div class="label">Solo 601 (Nacional)</div>
-        <div class="value" id="kpiMovSolo601" style="color:var(--clr-azul);">0</div>
-        <div class="foot">ventas domésticas</div>
+        <div class="label">Nacional</div>
+        <div class="value" id="kpiMovNacional" style="color:var(--clr-azul);">0</div>
+        <div class="foot">mercado doméstico</div>
       </div>
       <div class="kpi kpi-naranja">
-        <div class="label">Solo 643 (Exportación)</div>
-        <div class="value" id="kpiMovSolo643" style="color:var(--clr-naranja);">0</div>
-        <div class="foot">traslados intercompany</div>
+        <div class="label">Expo</div>
+        <div class="value" id="kpiMovExpo" style="color:var(--clr-naranja);">0</div>
+        <div class="foot">exportación (&lt;365 d crítico)</div>
       </div>
-      <div class="kpi kpi-amarillo">
-        <div class="label">Repetidos (Mixto)</div>
-        <div class="value" id="kpiMovAmbos" style="color:var(--clr-amarillo);">0</div>
-        <div class="foot">ambos flujos registrados</div>
+      <div class="kpi kpi-morado">
+        <div class="label">Homologado</div>
+        <div class="value" id="kpiMovHomologado" style="color:#7C3AED;">0</div>
+        <div class="foot">material homologado</div>
       </div>
     </section>
 
     <section class="table-card">
       <div class="table-head">
         <div>
-          <h2>Resumen Consolidado de Salidas SAP por Material</h2>
-          <span style="font-size:12px; color:var(--text-secondary);">Depuración automática de subtotales</span>
+          <h2>Catálogo Maestro de Clasificación de SKUs</h2>
+          <span style="font-size:12px; color:var(--text-secondary);">Identificación directa por Material y Tipo de Mercado</span>
         </div>
         <div class="table-search">
           <input type="text" id="searchMovs" placeholder="Buscar por SKU o descripción..." oninput="renderTablaMovimientos()" />
@@ -775,26 +779,22 @@
         <table>
           <thead>
             <tr>
-              <th>Clasificación</th>
+              <th style="width:60px;">#</th>
+              <th>Tipo / Clasificación</th>
               <th>Material (SKU)</th>
               <th>Descripción del Material</th>
-              <th>Eventos 601</th>
-              <th>Piezas 601</th>
-              <th>Eventos 643</th>
-              <th>Piezas 643</th>
-              <th>Total Eventos</th>
-              <th>Total Piezas Salida</th>
+              <th>Estatus en Inventario Actual</th>
             </tr>
           </thead>
           <tbody id="bodyMovimientos">
-            <tr><td colspan="9" class="empty-state">Carga el archivo CSV de movimientos para visualizar el resumen</td></tr>
+            <tr><td colspan="5" class="empty-state">Carga el archivo con columnas Material y Tipo para visualizar el catálogo</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="table-foot">
         <span id="footCountMovs">0 materiales clasificados</span>
-        <span>Colgate Querétaro · Control de Salidas</span>
+        <span>Colgate Querétaro · Catálogo de Materiales</span>
       </div>
     </section>
 
@@ -923,10 +923,17 @@ let FILTRO_SEMAFORO_ESTATUS = 'ALL';
 let charts = {};
 
 function determinarMercado(sku) {
-  const mov = MAPA_SKU_MERCADO[sku];
-  if (!mov) return "NACIONAL"; // Regla: NaN o sin registro cuenta como Nacional
-  if (mov.has601 && mov.has643) return "MIXTO";
-  if (mov.has643 && !mov.has601) return "EXPORTACION";
+  if (!sku) return "NACIONAL";
+  const s = String(sku).trim();
+  const item = MAPA_SKU_MERCADO[s];
+  if (!item) return "NACIONAL"; // Regla: sin registro cuenta como Nacional
+  if (item.tipo) {
+    if (item.tipo === "EXPO" || item.tipo === "EXPORTACION") return "EXPORTACION";
+    if (item.tipo === "HOMOLOGADO") return "HOMOLOGADO";
+    return "NACIONAL";
+  }
+  if (item.has601 && item.has643) return "MIXTO";
+  if (item.has643 && !item.has601) return "EXPORTACION";
   return "NACIONAL";
 }
 
@@ -1047,7 +1054,7 @@ function procesarSemaforo(rows) {
     }
 
     // Regla especial de exportación < 365 días
-    const esExportCritico = (mercado === "EXPORTACION" && diasWMS < 365);
+    const esExportCritico = ((mercado === "EXPORTACION" || mercado === "EXPO") && diasWMS < 365);
 
     DATA_SEMAFORO_ORIGINAL.push({
       semaforo, meses, sku, descripcion, cantidad,
@@ -1058,6 +1065,22 @@ function procesarSemaforo(rows) {
 
   document.getElementById('btnExportSemaforo').style.display = 'inline-flex';
   document.getElementById('statusTagSemaforo').textContent = `✅ Procesados ${DATA_SEMAFORO_ORIGINAL.length.toLocaleString('es-MX')} registros correctamente`;
+
+  // Si el catálogo de SKUs ya está cargado, vincular descripciones
+  if (DATA_MOVIMIENTOS && DATA_MOVIMIENTOS.length > 0) {
+    const dMap = {};
+    DATA_SEMAFORO_ORIGINAL.forEach(r => {
+      if (r.sku && r.descripcion && !dMap[r.sku]) dMap[r.sku] = r.descripcion;
+    });
+    let cambiosDesc = false;
+    DATA_MOVIMIENTOS.forEach(m => {
+      if ((!m.descripcion || m.descripcion === '—') && dMap[m.material]) {
+        m.descripcion = dMap[m.material];
+        cambiosDesc = true;
+      }
+    });
+    if (cambiosDesc) renderTablaMovimientos();
+  }
 
   refrescarVistaSemaforo();
 
@@ -1090,7 +1113,7 @@ function refrescarVistaSemaforo() {
 
   DATA_SEMAFORO_ORIGINAL.forEach(r => {
     r.mercado = determinarMercado(r.sku);
-    r.esExportCritico = (r.mercado === "EXPORTACION" && r.diasWMS < 365);
+    r.esExportCritico = ((r.mercado === "EXPORTACION" || r.mercado === "EXPO") && r.diasWMS < 365);
   });
 
   let listaFiltrada = DATA_SEMAFORO_ORIGINAL;
@@ -1101,7 +1124,11 @@ function refrescarVistaSemaforo() {
   }
 
   if (FILTRO_MERCADO_ACTIVO !== 'ALL') {
-    listaFiltrada = listaFiltrada.filter(r => r.mercado === FILTRO_MERCADO_ACTIVO);
+    if (FILTRO_MERCADO_ACTIVO === 'EXPORTACION' || FILTRO_MERCADO_ACTIVO === 'EXPO') {
+      listaFiltrada = listaFiltrada.filter(r => r.mercado === 'EXPORTACION' || r.mercado === 'EXPO');
+    } else {
+      listaFiltrada = listaFiltrada.filter(r => r.mercado === FILTRO_MERCADO_ACTIVO);
+    }
   }
 
   const cRojo = [], cExpCritico = [], cNaranja = [], cAmarillo = [], cVerde = [];
@@ -1232,9 +1259,15 @@ function renderTablaSemaforo(lista) {
     }
 
     let badgeMercado = '';
-    if (r.mercado === 'EXPORTACION') badgeMercado = '<span class="badge badge-amarillo">EXPORTACIÓN</span>';
-    else if (r.mercado === 'MIXTO') badgeMercado = '<span class="badge badge-naranja">MIXTO</span>';
-    else badgeMercado = '<span class="badge badge-azul">NACIONAL</span>';
+    if (r.mercado === 'EXPORTACION' || r.mercado === 'EXPO') {
+      badgeMercado = '<span class="badge badge-naranja">EXPO</span>';
+    } else if (r.mercado === 'HOMOLOGADO') {
+      badgeMercado = '<span class="badge badge-purple">HOMOLOGADO</span>';
+    } else if (r.mercado === 'MIXTO') {
+      badgeMercado = '<span class="badge badge-amarillo">MIXTO</span>';
+    } else {
+      badgeMercado = '<span class="badge badge-azul">NACIONAL</span>';
+    }
 
     h += `<tr>
       <td>${badgeSemaforo}</td>
@@ -1283,135 +1316,185 @@ function descargarExcelSemaforo() {
 
 
 /* ========================================================================= */
-/* 2. CLASIFICACIÓN DE MOVIMIENTOS 601 / 643                                 */
+/* 2. CLASIFICACIÓN DE SKUS (NACIONAL / EXPO / HOMOLOGADO)                   */
 /* ========================================================================= */
 let FILTRO_MOV_GRUPO = 'ALL';
 
-function manejarMovimientos(file) {
+function manejarArchivoSKUs(file) {
   if (!file) return;
   const tag = document.getElementById('statusTagMovs');
   tag.textContent = `Analizando "${file.name}"...`;
 
+  const ext = file.name.split('.').pop().toLowerCase();
   const reader = new FileReader();
+
   reader.onload = function(e) {
     setTimeout(() => {
       try {
-        const text = e.target.result;
-        procesarCSVClavs(text);
+        let rows = [];
+        if (ext === 'csv') {
+          rows = parseCSV(e.target.result);
+        } else {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+          rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" });
+        }
+        procesarArchivoSKUs(rows);
       } catch (err) {
         tag.textContent = "Error al procesar: " + err.message;
       }
     }, 40);
   };
-  reader.readAsText(file, 'UTF-8');
+
+  if (ext === 'csv') reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
 }
 
-function procesarCSVClavs(text) {
-  const lines = text.split(/\r\n|\n/);
-  if (lines.length <= 1) return;
+// Alias de retrocompatibilidad
+window.manejarMovimientos = manejarArchivoSKUs;
 
-  const sep = lines[0].includes(';') && !lines[0].includes(',') ? ';' : ',';
-  const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
-
-  const idxMat = headers.findIndex(h => /material/i.test(h) && !/doc|desc/i.test(h));
-  const idxDesc = headers.findIndex(h => /description/i.test(h));
-  const idxMov = headers.findIndex(h => /movement type/i.test(h) && !/text/i.test(h));
-  const idxQty = headers.findIndex(h => /quantity/i.test(h));
-
-  MAPA_SKU_MERCADO = {};
-
-  for (let i = 1; i < lines.length; i++) {
-    const linea = lines[i].trim();
-    if (!linea) continue;
-
-    const partes = linea.split(sep);
-    if (partes.length < 4) continue;
-
-    const rawMat = partes[idxMat !== -1 ? idxMat : 3]?.replace(/"/g, '').trim();
-    const rawMov = partes[idxMov !== -1 ? idxMov : 2]?.replace(/"/g, '').trim();
-    const rawQty = parseFloat(partes[idxQty !== -1 ? idxQty : 5]?.replace(/"/g, '').trim()) || 0;
-    const rawDesc = partes[idxDesc !== -1 ? idxDesc : 4]?.replace(/"/g, '').trim() || "";
-
-    if (!rawMat || rawMat === "NaN" || !rawMov || isNaN(parseInt(rawMov))) continue;
-
-    const movType = parseInt(rawMov);
-    if (movType !== 601 && movType !== 643) continue;
-
-    if (!MAPA_SKU_MERCADO[rawMat]) {
-      MAPA_SKU_MERCADO[rawMat] = {
-        material: rawMat,
-        descripcion: rawDesc,
-        has601: false,
-        has643: false,
-        count601: 0,
-        qty601: 0,
-        count643: 0,
-        qty643: 0
-      };
-    }
-
-    const item = MAPA_SKU_MERCADO[rawMat];
-    if (!item.descripcion && rawDesc) item.descripcion = rawDesc;
-
-    if (movType === 601) {
-      item.has601 = true;
-      item.count601 += 1;
-      item.qty601 += rawQty;
-    } else if (movType === 643) {
-      item.has643 = true;
-      item.count643 += 1;
-      item.qty643 += rawQty;
-    }
+function procesarArchivoSKUs(rows) {
+  if (!rows || rows.length <= 1) {
+    document.getElementById('statusTagMovs').textContent = "El archivo está vacío o no contiene filas.";
+    return;
   }
 
+  const headers = rows[0].map(h => String(h || '').trim());
+  const idxMat = headers.findIndex(h => /^(material|sku|codigo)/i.test(h) || (/material/i.test(h) && !/doc|desc/i.test(h)));
+  const idxTipo = headers.findIndex(h => /^(tipo|mercado|clasificaci[oó]n)/i.test(h));
+  const idxDesc = headers.findIndex(h => /^(descripci[oó]n|description)/i.test(h));
+  const idxMov = headers.findIndex(h => /movement type/i.test(h) && !/text/i.test(h));
+
+  // Retrocompatibilidad con reportes anteriores de salidas SAP
+  if (idxMov !== -1 && idxTipo === -1) {
+    procesarFilasMovimientosSAP(rows);
+    return;
+  }
+
+  // Diccionario de descripciones del Semáforo si ya fue cargado
+  const descMap = {};
+  if (DATA_SEMAFORO_ORIGINAL && DATA_SEMAFORO_ORIGINAL.length > 0) {
+    DATA_SEMAFORO_ORIGINAL.forEach(r => {
+      if (r.sku && r.descripcion && !descMap[r.sku]) descMap[r.sku] = r.descripcion;
+    });
+  }
+
+  MAPA_SKU_MERCADO = {};
   DATA_MOVIMIENTOS = [];
-  let cnt601 = 0, cnt643 = 0, cntAmbos = 0;
+  let cntNac = 0, cntExpo = 0, cntHom = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const fila = rows[i];
+    if (!fila || !fila.length) continue;
+
+    const rawMat = String(fila[idxMat !== -1 ? idxMat : 0] || '').trim();
+    if (!rawMat || rawMat === "NaN" || /^material$/i.test(rawMat)) continue;
+
+    const rawTipo = String(fila[idxTipo !== -1 ? idxTipo : 1] || '').trim().toUpperCase();
+    const rawDesc = idxDesc !== -1 ? String(fila[idxDesc] || '').trim() : '';
+
+    let tipoNormalizado = "NACIONAL";
+    if (/EXPO|EXPORTACI/i.test(rawTipo)) tipoNormalizado = "EXPO";
+    else if (/HOMOLOG/i.test(rawTipo)) tipoNormalizado = "HOMOLOGADO";
+    else tipoNormalizado = "NACIONAL";
+
+    const descFinal = rawDesc || descMap[rawMat] || "";
+
+    MAPA_SKU_MERCADO[rawMat] = {
+      material: rawMat,
+      tipo: tipoNormalizado,
+      descripcion: descFinal
+    };
+  }
 
   Object.values(MAPA_SKU_MERCADO).forEach(m => {
-    let grupo = "";
-    if (m.has601 && m.has643) {
-      grupo = "AMBOS";
-      cntAmbos++;
-    } else if (m.has601) {
-      grupo = "SOLO_601";
-      cnt601++;
-    } else if (m.has643) {
-      grupo = "SOLO_643";
-      cnt643++;
-    }
+    if (m.tipo === "EXPO") cntExpo++;
+    else if (m.tipo === "HOMOLOGADO") cntHom++;
+    else cntNac++;
 
     DATA_MOVIMIENTOS.push({
-      grupo,
       material: m.material,
-      descripcion: m.descripcion,
-      count601: m.count601,
-      qty601: m.qty601,
-      count643: m.count643,
-      qty643: m.qty643,
-      totalMovs: m.count601 + m.count643,
-      totalQty: m.qty601 + m.qty643
+      tipo: m.tipo,
+      descripcion: m.descripcion || "—"
     });
   });
 
-  DATA_MOVIMIENTOS.sort((a,b) => {
-    if (a.grupo === "AMBOS" && b.grupo !== "AMBOS") return -1;
-    if (b.grupo === "AMBOS" && a.grupo !== "AMBOS") return 1;
-    return b.totalMovs - a.totalMovs;
-  });
+  const ordenTipo = { 'HOMOLOGADO': 1, 'EXPO': 2, 'NACIONAL': 3 };
+  DATA_MOVIMIENTOS.sort((a,b) => (ordenTipo[a.tipo] || 9) - (ordenTipo[b.tipo] || 9) || a.material.localeCompare(b.material));
 
   document.getElementById('kpiMovTotalSkus').textContent = DATA_MOVIMIENTOS.length.toLocaleString('es-MX');
-  document.getElementById('kpiMovSolo601').textContent = cnt601.toLocaleString('es-MX');
-  document.getElementById('kpiMovSolo643').textContent = cnt643.toLocaleString('es-MX');
-  document.getElementById('kpiMovAmbos').textContent = cntAmbos.toLocaleString('es-MX');
+  document.getElementById('kpiMovNacional').textContent = cntNac.toLocaleString('es-MX');
+  document.getElementById('kpiMovExpo').textContent = cntExpo.toLocaleString('es-MX');
+  document.getElementById('kpiMovHomologado').textContent = cntHom.toLocaleString('es-MX');
 
-  document.getElementById('statusTagMovs').textContent = `✅ Procesados ${DATA_MOVIMIENTOS.length.toLocaleString('es-MX')} materiales limpios`;
+  document.getElementById('statusTagMovs').textContent = `✅ Clasificados ${DATA_MOVIMIENTOS.length.toLocaleString('es-MX')} materiales (${cntNac} Nacional, ${cntExpo} Expo, ${cntHom} Homologado)`;
   document.getElementById('btnExportMovs').style.display = 'inline-flex';
 
   renderTablaMovimientos();
 
-  if (DATA_SEMAFORO_ORIGINAL.length > 0) {
+  // Si Semáforo ya estaba cargado, refrescar clasificación de mercado inmediatamente
+  if (DATA_SEMAFORO_ORIGINAL && DATA_SEMAFORO_ORIGINAL.length > 0) {
     refrescarVistaSemaforo();
   }
+}
+
+function procesarFilasMovimientosSAP(rows) {
+  const headers = rows[0].map(h => String(h || '').trim());
+  const idxMat = headers.findIndex(h => /material/i.test(h) && !/doc|desc/i.test(h));
+  const idxDesc = headers.findIndex(h => /description/i.test(h));
+  const idxMov = headers.findIndex(h => /movement type/i.test(h) && !/text/i.test(h));
+
+  MAPA_SKU_MERCADO = {};
+  DATA_MOVIMIENTOS = [];
+  let cntNac = 0, cntExpo = 0, cntHom = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const fila = rows[i];
+    if (!fila || !fila.length) continue;
+    const rawMat = String(fila[idxMat !== -1 ? idxMat : 3] || '').trim();
+    const rawMov = parseInt(fila[idxMov !== -1 ? idxMov : 2]);
+    const rawDesc = idxDesc !== -1 ? String(fila[idxDesc] || '').trim() : '';
+
+    if (!rawMat || isNaN(rawMov)) continue;
+    if (rawMov !== 601 && rawMov !== 643) continue;
+
+    if (!MAPA_SKU_MERCADO[rawMat]) {
+      MAPA_SKU_MERCADO[rawMat] = {
+        material: rawMat,
+        tipo: rawMov === 643 ? "EXPO" : "NACIONAL",
+        has601: rawMov === 601,
+        has643: rawMov === 643,
+        descripcion: rawDesc
+      };
+    } else {
+      const item = MAPA_SKU_MERCADO[rawMat];
+      if (rawMov === 601) item.has601 = true;
+      if (rawMov === 643) item.has643 = true;
+      if (item.has643) item.tipo = "EXPO";
+      if (!item.descripcion && rawDesc) item.descripcion = rawDesc;
+    }
+  }
+
+  Object.values(MAPA_SKU_MERCADO).forEach(m => {
+    if (m.tipo === "EXPO") cntExpo++;
+    else cntNac++;
+    DATA_MOVIMIENTOS.push({
+      material: m.material,
+      tipo: m.tipo,
+      descripcion: m.descripcion || "—"
+    });
+  });
+
+  DATA_MOVIMIENTOS.sort((a,b) => a.material.localeCompare(b.material));
+
+  document.getElementById('kpiMovTotalSkus').textContent = DATA_MOVIMIENTOS.length.toLocaleString('es-MX');
+  document.getElementById('kpiMovNacional').textContent = cntNac.toLocaleString('es-MX');
+  document.getElementById('kpiMovExpo').textContent = cntExpo.toLocaleString('es-MX');
+  document.getElementById('kpiMovHomologado').textContent = cntHom.toLocaleString('es-MX');
+
+  document.getElementById('statusTagMovs').textContent = `✅ Procesados ${DATA_MOVIMIENTOS.length.toLocaleString('es-MX')} materiales (Movs SAP)`;
+  document.getElementById('btnExportMovs').style.display = 'inline-flex';
+  renderTablaMovimientos();
+  if (DATA_SEMAFORO_ORIGINAL.length > 0) refrescarVistaSemaforo();
 }
 
 function filtrarGrupoMov(grupo, btn) {
@@ -1428,16 +1511,24 @@ function renderTablaMovimientos() {
 
   let lista = DATA_MOVIMIENTOS;
   if (FILTRO_MOV_GRUPO !== 'ALL') {
-    lista = lista.filter(d => d.grupo === FILTRO_MOV_GRUPO);
+    lista = lista.filter(d => d.tipo === FILTRO_MOV_GRUPO);
   }
   if (q) {
-    lista = lista.filter(d => d.material.toLowerCase().includes(q) || d.descripcion.toLowerCase().includes(q));
+    lista = lista.filter(d => d.material.toLowerCase().includes(q) || (d.descripcion && d.descripcion.toLowerCase().includes(q)));
   }
 
   if (!lista.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No se encontraron materiales</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No se encontraron materiales</td></tr>';
     document.getElementById('footCountMovs').textContent = '0 materiales';
     return;
+  }
+
+  // Mapa rápido de inventario si ya se cargó Semáforo de Existencias
+  const enInventarioMap = {};
+  if (DATA_SEMAFORO_ORIGINAL && DATA_SEMAFORO_ORIGINAL.length > 0) {
+    DATA_SEMAFORO_ORIGINAL.forEach(r => {
+      enInventarioMap[r.sku] = (enInventarioMap[r.sku] || 0) + (parseFloat(r.cantidad) || 0);
+    });
   }
 
   let h = '';
@@ -1446,55 +1537,54 @@ function renderTablaMovimientos() {
   for (let i = 0; i < limite; i++) {
     const r = lista[i];
     let tag = '';
-    if (r.grupo === 'AMBOS') tag = '<span class="badge badge-amarillo">MIXTO (601 Y 643)</span>';
-    else if (r.grupo === 'SOLO_601') tag = '<span class="badge badge-azul">NACIONAL (601)</span>';
-    else tag = '<span class="badge badge-naranja">EXPORTACIÓN (643)</span>';
+    if (r.tipo === 'EXPO') {
+      tag = '<span class="badge badge-naranja">EXPO</span>';
+    } else if (r.tipo === 'HOMOLOGADO') {
+      tag = '<span class="badge badge-purple">HOMOLOGADO</span>';
+    } else {
+      tag = '<span class="badge badge-azul">NACIONAL</span>';
+    }
+
+    const cant = enInventarioMap[r.material];
+    let colInv = '<span style="color:var(--text-muted); font-size:11px;">Sin existencia actual</span>';
+    if (cant !== undefined && cant > 0) {
+      colInv = `<span class="badge badge-verde">En Existencia (${cant.toLocaleString('es-MX')} pzas)</span>`;
+    }
 
     h += `<tr>
+      <td style="color:var(--text-muted); font-size:11px;">${i + 1}</td>
       <td>${tag}</td>
       <td class="num bold">${r.material}</td>
-      <td>${r.descripcion}</td>
-      <td class="num">${r.count601.toLocaleString('es-MX')}</td>
-      <td class="num">${Math.abs(r.qty601).toLocaleString('es-MX')}</td>
-      <td class="num">${r.count643.toLocaleString('es-MX')}</td>
-      <td class="num">${Math.abs(r.qty643).toLocaleString('es-MX')}</td>
-      <td class="num bold">${r.totalMovs.toLocaleString('es-MX')}</td>
-      <td class="num bold">${Math.abs(r.totalQty).toLocaleString('es-MX')}</td>
+      <td>${r.descripcion || '—'}</td>
+      <td>${colInv}</td>
     </tr>`;
   }
 
   tbody.innerHTML = h;
-  document.getElementById('footCountMovs').textContent = `Mostrando ${limite.toLocaleString('es-MX')} de ${lista.length.toLocaleString('es-MX')} materiales`;
+  document.getElementById('footCountMovs').textContent = `Mostrando ${limite.toLocaleString('es-MX')} de ${lista.length.toLocaleString('es-MX')} materiales clasificados`;
 }
 
 function descargarExcelMovs() {
   if (!DATA_MOVIMIENTOS.length) return;
 
   const headers = [
-    "CLASIFICACIÓN", "MATERIAL (SKU)", "DESCRIPCIÓN", 
-    "EVENTOS 601", "PIEZAS 601", "EVENTOS 643", "PIEZAS 643",
-    "TOTAL EVENTOS", "TOTAL PIEZAS SALIDA"
+    "#", "TIPO / CLASIFICACIÓN", "MATERIAL (SKU)", "DESCRIPCIÓN"
   ];
 
   const rows = [headers];
-  DATA_MOVIMIENTOS.forEach(r => {
+  DATA_MOVIMIENTOS.forEach((r, idx) => {
     rows.push([
-      r.grupo === 'AMBOS' ? 'MIXTO (601 Y 643)' : (r.grupo === 'SOLO_601' ? 'NACIONAL (SOLO 601)' : 'EXPORTACIÓN (SOLO 643)'),
+      idx + 1,
+      r.tipo,
       r.material,
-      r.descripcion,
-      r.count601,
-      Math.abs(r.qty601),
-      r.count643,
-      Math.abs(r.qty643),
-      r.totalMovs,
-      Math.abs(r.totalQty)
+      r.descripcion || ""
     ]);
   });
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, "CLASIFICACION_MOVIMIENTOS");
-  XLSX.writeFile(wb, "Clasificacion_Movimientos_601_643.xlsx");
+  XLSX.utils.book_append_sheet(wb, ws, "CATALOGO_SKUS");
+  XLSX.writeFile(wb, "Catalogo_SKUs_Nacional_Expo_Homologado.xlsx");
 }
 
 /* ========================================================================= */
