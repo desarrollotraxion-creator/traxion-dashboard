@@ -543,7 +543,7 @@
         </div>
     </footer>
 
-    <!-- Lógica JS Unificada: Semáforo + Incidencias + Notificación Col R + Operador Col AD -->
+    <!-- Lógica JS Unificada: Semáforo + Incidencias + Notificación Col R + Operador Col AD + Protección N,O,P,Q -->
     <script>
         function refreshIcons() {
             if (window.lucide) window.lucide.createIcons();
@@ -562,7 +562,7 @@
         // Semáforo y Trazabilidad
         let shipmentPriorityMap = new Map();
         let viajesFinalizadosSet = new Set();
-        let autoNotifiedCargaTrips = new Set(); // Registro automático de viajes completados
+        let autoNotifiedCargaTrips = new Set();
         const SEMAFORO_ENDPOINT = "https://script.google.com/macros/s/AKfycbyEpS1XaTEAysiB2WIhKqX7xyyHp32_kJtfYJ76PbRxSME8RqRvb8Evc0dp-7bjSn9MXQ/exec";
 
         // Auditor y Turno
@@ -731,10 +731,13 @@
                     boxes: parseQuantity(item[9]),
                     colK: parseQuantity(item[10]),
                     colN: String(item[13] || "").trim().toUpperCase(),
+                    rawN: String(item[13] || "").trim(),
+                    rawO: String(item[14] || "").trim(),
                     colP: String(item[15] || "").trim(),
+                    rawQ: String(item[16] || "").trim(),
                     colH: String(item[7] || "").trim(),
-                    operator: String(item[8] || "").trim(), // Col I: AYUDANTE GENERAL
-                    colR: String(item[17] || "").trim()    // Col R: FECHA NOTIFICACIÓN
+                    operator: String(item[8] || "").trim(),
+                    colR: String(item[17] || "").trim()
                 };
             } else if (typeof item === 'object' && item !== null) {
                 const norm = {};
@@ -748,14 +751,17 @@
                 const desc = String(norm.descripcion || norm.desc || norm.colg || norm.col6 || "").trim();
                 const boxes = parseQuantity(norm.cajasesperadas ?? norm.cajas ?? norm.boxes ?? norm.colj ?? norm.col9 ?? 0);
                 const colK = parseQuantity(norm.cajasfaltantesafectadas ?? norm.cajasfaltantes ?? norm.faltantes ?? norm.faltante ?? norm.diferencia ?? norm.cajasafectadas ?? norm.affectedboxes ?? norm.colk ?? norm.col10 ?? 0);
-                const colN = String(norm.estadoauditoria || norm.estado || norm.status || norm.coln || norm.col13 || "").trim().toUpperCase();
-                const colP = String(norm.tipoincidencia || norm.incidencia || norm.colp || norm.col15 || norm.motivo || "").trim();
+                const rawN = String(norm.estaus || norm.estatus || norm.estadoauditoria || norm.estado || norm.status || norm.coln || norm.col13 || "").trim();
+                const colN = rawN.toUpperCase();
+                const rawO = String(norm.fechadeauditado || norm.fechaauditado || norm.timestamp || norm.colo || norm.col14 || "").trim();
+                const colP = String(norm.incidencia || norm.tipoincidencia || norm.colp || norm.col15 || norm.motivo || "").trim();
+                const rawQ = String(norm.auditorregistro || norm.auditor || norm.colq || norm.col16 || "").trim();
                 const colH = String(norm.observaciones || norm.obs || norm.colh || norm.col7 || "").trim();
                 const operator = String(norm.ayudantegeneral || norm.ayudante || norm.operador || norm.usuario || norm.coli || norm.col8 || "").trim();
                 const colR = String(norm.colr || norm.col17 || norm.fechanotificacion || norm.notificado || norm.fechayhoranotificado || norm.horanotificacion || "").trim();
-                return { trip, lpn, sku, desc, boxes, colK, colN, colP, colH, operator, colR };
+                return { trip, lpn, sku, desc, boxes, colK, colN, rawN, rawO, colP, rawQ, colH, operator, colR };
             }
-            return { trip: "", lpn: "", sku: "", desc: "", boxes: 0, colK: 0, colN: "", colP: "", colH: "", operator: "", colR: "" };
+            return { trip: "", lpn: "", sku: "", desc: "", boxes: 0, colK: 0, colN: "", rawN: "", rawO: "", colP: "", rawQ: "", colH: "", operator: "", colR: "" };
         }
 
         function extractIncidenceFromSheetItem(item) {
@@ -1006,7 +1012,7 @@
             if (prodIncEl) prodIncEl.textContent = incidencesCount;
 
             refreshIcons();
-            checkAutoListoParaCarga(); // Evaluación automática inmediata
+            checkAutoListoParaCarga();
         }
 
         function toggleTrip(tripCode) {
@@ -1220,8 +1226,6 @@
                     `;
                     if (!isCompleted && !tripHasIncidences) borderHighlight = 'border-l-4 border-l-[#037A48] border-slate-200';
                 }
-
-                const yaNotificadoCarga = semInfo.estatusArmado && semInfo.estatusArmado.includes("LISTO PARA CARGA");
 
                 const card = document.createElement('div');
                 card.className = `w-full rounded-xl transition overflow-hidden shadow-xs border-2 ${
@@ -1666,7 +1670,9 @@
                 else auditedBoxesSession = Math.max(0, auditedBoxesSession - sku.boxes);
             }
 
+            const prevState = sheetAuditStatusMap.get(`${tripCode}_${lpn}_${skuKey}`) || {};
             const stateObj = {
+                ...prevState,
                 isAudited: sku.isAudited,
                 status: sku.status,
                 hasIncidence: sku.hasIncidence,
@@ -1732,7 +1738,9 @@
             skuData.status = 'PENDIENTE';
             skuData.hasIncidence = true;
 
+            const prevState = sheetAuditStatusMap.get(`${trip}_${lpn}_${skuKey}`) || {};
             const stateObj = {
+                ...prevState,
                 isAudited: false,
                 status: 'PENDIENTE',
                 hasIncidence: true,
@@ -1776,7 +1784,9 @@
                 skuData.status = 'AUDITADO';
                 skuData.hasIncidence = false;
 
+                const prevState = sheetAuditStatusMap.get(`${trip}_${lpn}_${skuKey}`) || {};
                 const stateObj = {
+                    ...prevState,
                     isAudited: true,
                     status: 'AUDITADO',
                     hasIncidence: false,
@@ -1926,7 +1936,7 @@
                     lpnRaw = String(row[4] || '').trim();
                     skuRaw = String(row[5] || '').trim();
                     descRaw = String(row[6] || '').trim();
-                    operatorRaw = String(row[8] || '').trim(); // Col I en formato auditoría
+                    operatorRaw = String(row[8] || '').trim();
                     qtyRaw = row[9] !== undefined ? row[9] : 0;
                     rowIncidenceInfo = extractIncidenceFromSheetItem(row);
                 } else {
@@ -1936,7 +1946,6 @@
                     qtyRaw = row[21] !== undefined ? row[21] : 0;
                     const tripRaw = row[27] !== undefined ? String(row[27]).trim() : (row[26] !== undefined ? String(row[26]).trim() : '');
                     cleanTrip = cleanTripNumber(tripRaw);
-                    // EXTRACCIÓN DE COLUMNA AD (ÍNDICE 29): USUARIO / AYUDANTE GENERAL
                     operatorRaw = row[29] !== undefined ? String(row[29]).trim() : '';
                 }
 
@@ -2033,7 +2042,11 @@
                             incType: incInfo.incType,
                             incNotes: incInfo.incNotes,
                             operator: operator,
-                            notifiedAt: rec.colR || ""
+                            notifiedAt: rec.colR || "",
+                            sheetColN: rec.rawN,
+                            sheetColO: rec.rawO,
+                            sheetColP: rec.colP,
+                            sheetColQ: rec.rawQ
                         };
 
                         sheetAuditStatusMap.set(`${trip}_${lpn}_${sku}`, stateObj);
@@ -2103,56 +2116,137 @@
         setInterval(() => fetchExistingFromSheet(true), 20000);
         setInterval(() => fetchSemaforoPriorities(), 60000);
 
+        // =========================================================================
+        // GUARDAR EN SHEET SIN SOBRESCRIBIR CELDAS OCUPADAS (ESPECIALMENTE N, O, P, Q)
+        // =========================================================================
         btnSendDirectly.addEventListener('click', async () => {
             if (groupedTrips.size === 0) {
                 showNotification("No hay registros para enviar.", "error");
                 return;
             }
-            const now = new Date();
-            const shift = calculateShift(now);
-            const dateStr = formatAuditDateTime(now);
-            const auditor = inputAuditorName.value.trim().toUpperCase() || "MARTIN";
-            const rows = [];
-
-            groupedTrips.forEach(g => {
-                g.lpns.forEach((lpnData, lpn) => {
-                    lpnData.skus.forEach((skuData, sku) => {
-                        const isInc = Boolean(skuData.hasIncidence) || Boolean(skuData.incidence) || (skuData.affectedBoxes > 0);
-                        const operatorNum = skuData.operator || lpnData.operator || "";
-
-                        const row = new Array(18).fill("");
-                        row[0] = shift;                                                // Col A: TURNO
-                        row[1] = auditor;                                              // Col B: AUDITOR
-                        row[2] = dateStr;                                              // Col C: FECHA
-                        row[3] = g.tripClean;                                          // Col D: SHIPMENT
-                        row[4] = lpn;                                                  // Col E: LPN
-                        row[5] = sku;                                                  // Col F: SKU
-                        row[6] = skuData.desc;                                         // Col G: DESCRIPCIÓN
-                        row[7] = isInc ? (skuData.incNotes || skuData.incidence) : (skuData.notifiedAt ? "Reparado - Revalidado" : "Sin observaciones"); // Col H: OBSERVACIONES
-                        row[8] = operatorNum;                                          // Col I: AYUDANTE GENERAL (EXTRAÍDO DE COLUMNA AD)
-                        row[9] = skuData.boxes;                                        // Col J: CAJAS ESPERADAS
-                        row[10] = isInc ? (skuData.affectedBoxes || 0) : 0;           // Col K: FALTANTES/AFECTADAS
-                        row[11] = "";                                                  // Col L
-                        row[12] = "";                                                  // Col M
-                        row[13] = (!isInc && skuData.isAudited) ? "AUDITADO" : "PENDIENTE"; // Col N: ESTADO
-                        row[14] = dateStr;                                             // Col O: TIMESTAMP
-                        row[15] = isInc ? (skuData.incType || "Faltante") : "Sin incidencias"; // Col P: TIPO INCIDENCIA
-                        row[16] = auditor;                                             // Col Q: AUDITOR REGISTRO
-                        row[17] = skuData.notifiedAt || "";                            // Col R: FECHA Y HORA NOTIFICACIÓN REPARADO
-                        rows.push(row);
-                    });
-                });
-            });
 
             btnSendDirectly.disabled = true;
-            btnSendDirectly.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Guardando...</span>`;
+            btnSendDirectly.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Verificando Sheet...</span>`;
             refreshIcons();
 
             try {
+                // Consultar los valores actuales exactos en Google Sheets antes de enviar
+                const existingRowsMap = new Map();
+                try {
+                    const checkResp = await fetch(`${APPS_SCRIPT_EXEC_URL}?action=getTrips`);
+                    const checkData = await checkResp.json();
+                    if (checkData.status === "success" && Array.isArray(checkData.data)) {
+                        checkData.data.forEach(item => {
+                            const rec = normalizeSheetRecord(item);
+                            if (rec.trip && rec.lpn && rec.sku) {
+                                const key = `${rec.trip}_${rec.lpn}_${rec.sku}`;
+                                const rawArr = Array.isArray(item) ? item : null;
+
+                                existingRowsMap.set(key, {
+                                    colA: rawArr ? String(rawArr[0] || "").trim() : String(item.turno || "").trim(),
+                                    colB: rawArr ? String(rawArr[1] || "").trim() : String(item.auditor || "").trim(),
+                                    colC: rawArr ? String(rawArr[2] || "").trim() : String(item.fecha || "").trim(),
+                                    colG: rec.desc,
+                                    colH: rec.colH,
+                                    colI: rec.operator,
+                                    colJ: rawArr ? String(rawArr[9] || "").trim() : (rec.boxes ? String(rec.boxes) : ""),
+                                    colK: rawArr ? String(rawArr[10] || "").trim() : "",
+                                    colN: rec.rawN, // N: estaus
+                                    colO: rec.rawO, // O: fecha de auditado
+                                    colP: rec.colP, // P: incidencia
+                                    colQ: rec.rawQ, // Q: auditor
+                                    colR: rec.colR  // R: fecha notificación
+                                });
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn("No se pudo verificar previamente la hoja, se usará caché local:", e);
+                }
+
+                const now = new Date();
+                const shift = calculateShift(now);
+                const dateStr = formatAuditDateTime(now);
+                const auditor = inputAuditorName.value.trim().toUpperCase() || "MARTIN";
+                const rows = [];
+                let protectedRowsCount = 0;
+
+                groupedTrips.forEach(g => {
+                    g.lpns.forEach((lpnData, lpn) => {
+                        lpnData.skus.forEach((skuData, sku) => {
+                            const key = `${g.tripClean}_${lpn}_${sku}`;
+                            const prev = existingRowsMap.get(key) || sheetAuditStatusMap.get(key) || null;
+
+                            const isInc = Boolean(skuData.hasIncidence) || Boolean(skuData.incidence) || (skuData.affectedBoxes > 0);
+                            const operatorNum = skuData.operator || lpnData.operator || "";
+
+                            // Valores candidatos nuevos
+                            const candH = isInc ? (skuData.incNotes || skuData.incidence) : (skuData.notifiedAt ? "Reparado - Revalidado" : "Sin observaciones");
+                            const candK = isInc ? (skuData.affectedBoxes || 0) : 0;
+                            const candN = (!isInc && skuData.isAudited) ? "AUDITADO" : "PENDIENTE";
+                            const candO = dateStr;
+                            const candP = isInc ? (skuData.incType || "Faltante") : "Sin incidencias";
+                            const candQ = auditor;
+                            const candR = skuData.notifiedAt || "";
+
+                            // Valores existentes en Sheet (si existen, NO se sobrescriben)
+                            const existN = prev ? String(prev.colN ?? prev.sheetColN ?? "").trim() : "";
+                            const existO = prev ? String(prev.colO ?? prev.sheetColO ?? "").trim() : "";
+                            const existP = prev ? String(prev.colP ?? prev.sheetColP ?? "").trim() : "";
+                            const existQ = prev ? String(prev.colQ ?? prev.sheetColQ ?? "").trim() : "";
+
+                            if (existN !== "" || existO !== "" || existP !== "" || existQ !== "") {
+                                protectedRowsCount++;
+                            }
+
+                            const row = new Array(18).fill("");
+                            // Solo rellena celdas vacías si la fila ya existía en el Sheet
+                            row[0] = (prev && prev.colA) ? "" : shift;                           // Col A: TURNO
+                            row[1] = (prev && prev.colB) ? "" : auditor;                         // Col B: AUDITOR
+                            row[2] = (prev && prev.colC) ? "" : dateStr;                         // Col C: FECHA
+                            row[3] = g.tripClean;                                                // Col D: SHIPMENT (Llave)
+                            row[4] = lpn;                                                        // Col E: LPN (Llave)
+                            row[5] = sku;                                                        // Col F: SKU (Llave)
+                            row[6] = (prev && prev.colG) ? "" : skuData.desc;                    // Col G: DESCRIPCIÓN
+                            row[7] = (prev && prev.colH) ? "" : candH;                           // Col H: OBSERVACIONES
+                            row[8] = (prev && prev.colI) ? "" : operatorNum;                     // Col I: AYUDANTE GENERAL
+                            row[9] = (prev && prev.colJ !== "") ? "" : skuData.boxes;            // Col J: CAJAS ESPERADAS
+                            row[10] = (prev && prev.colK !== "") ? "" : candK;                   // Col K: FALTANTES/AFECTADAS
+                            row[11] = "";                                                        // Col L
+                            row[12] = "";                                                        // Col M
+                            // COLUMNAS PROTEGIDAS N, O, P, Q: Solo se envían si están vacías en el Sheet
+                            row[13] = existN !== "" ? "" : candN;                                // Col N: estaus
+                            row[14] = existO !== "" ? "" : candO;                                // Col O: fecha de auditado
+                            row[15] = existP !== "" ? "" : candP;                                // Col P: incidencia
+                            row[16] = existQ !== "" ? "" : candQ;                                // Col Q: auditor
+                            row[17] = (prev && prev.colR) ? "" : candR;                          // Col R: FECHA NOTIFICACIÓN
+
+                            // Verificar si hay al menos una celda nueva (fuera de D, E, F) que escribir
+                            const hasAnyCellToWrite = row.some((val, idx) => idx !== 3 && idx !== 4 && idx !== 5 && String(val).trim() !== "");
+                            if (!prev || hasAnyCellToWrite) {
+                                rows.push(row);
+                            }
+                        });
+                    });
+                });
+
+                if (rows.length === 0) {
+                    showNotification("No se sobrescribió nada: todas las celdas ya contienen información en el Sheet.", "info");
+                    return;
+                }
+
+                btnSendDirectly.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i><span>Guardando (${rows.length})...</span>`;
+                refreshIcons();
+
                 await fetch(APPS_SCRIPT_EXEC_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: "uploadRows", rows, auditor })
+                    body: JSON.stringify({
+                        action: "uploadRows",
+                        rows,
+                        auditor,
+                        onlyWriteEmptyCells: true
+                    })
                 });
 
                 if (typeof registrarProcesoViaje === "function") {
@@ -2176,10 +2270,12 @@
                     });
                 }
 
-                showNotification(`¡Éxito! Registros actualizados con ayudantes en Google Sheets.`, "success");
+                const extraInfo = protectedRowsCount > 0 ? ` (${protectedRowsCount} registros con N/O/P/Q ya ocupados fueron respetados)` : "";
+                showNotification(`¡Éxito! Guardado completado solo en celdas vacías${extraInfo}.`, "success");
                 fetchExistingFromSheet(true);
-            } catch {
-                showNotification("Lote enviado en modo de contingencia.", "success");
+            } catch (err) {
+                console.error("Error al guardar:", err);
+                showNotification("Error al validar o enviar los registros al Sheet.", "error");
             } finally {
                 btnSendDirectly.disabled = false;
                 btnSendDirectly.innerHTML = `<i data-lucide="send" class="w-3.5 h-3.5"></i><span>Guardar en Sheet</span>`;
@@ -2213,7 +2309,7 @@
                             sku,
                             skuData.desc,
                             isInc ? (skuData.incNotes || skuData.incidence) : "Sin observaciones",
-                            skuData.operator || lpnData.operator || "",                 // Col I: AYUDANTE GENERAL
+                            skuData.operator || lpnData.operator || "",
                             skuData.boxes,
                             isInc ? (skuData.affectedBoxes || 0) : 0,
                             (!isInc && skuData.isAudited) ? "AUDITADO" : "PENDIENTE",
